@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/timer_constants.dart';
 import '../../domain/entities/timer_mode.dart';
 import '../../domain/entities/user_progress.dart';
+import '../../domain/services/timer_notification_service.dart';
 import '../../domain/usecases/clear_progress.dart';
 import '../../domain/usecases/load_progress.dart';
 import '../../domain/usecases/save_progress.dart';
@@ -14,15 +15,22 @@ class TimerController extends ChangeNotifier {
     required LoadProgress loadProgress,
     required SaveProgress saveProgress,
     required ClearProgress clearProgress,
-  })  : _loadProgress = loadProgress,
-        _saveProgress = saveProgress,
-        _clearProgress = clearProgress;
+    required TimerNotificationService notificationService,
+    DateTime Function()? now,
+  }) : _loadProgress = loadProgress,
+       _saveProgress = saveProgress,
+       _clearProgress = clearProgress,
+       _notificationService = notificationService,
+       _now = now ?? DateTime.now;
 
   final LoadProgress _loadProgress;
   final SaveProgress _saveProgress;
   final ClearProgress _clearProgress;
+  final TimerNotificationService _notificationService;
+  final DateTime Function() _now;
 
   Timer? _ticker;
+  DateTime? _endsAt;
 
   TimerMode _mode = TimerMode.focus;
   UserProgress _progress = UserProgress.empty;
@@ -58,14 +66,13 @@ class TimerController extends ChangeNotifier {
   bool get controlsLocked => _isRunning || _elapsedSeconds > 0;
 
   Future<void> initialize() async {
+    await _notificationService.initialize();
+
     try {
       _progress = await _loadProgress();
     } catch (_) {
       _progress = UserProgress.empty;
-      _setStatus(
-        'No fue posible cargar el progreso guardado.',
-        isError: true,
-      );
+      _setStatus('No fue posible cargar el progreso guardado.', isError: true);
     } finally {
       _isInitialized = true;
       _updateEstimate();
@@ -99,9 +106,7 @@ class TimerController extends ChangeNotifier {
       return;
     }
 
-    _hours = (_hours + change)
-        .clamp(0, TimerConstants.maximumHours)
-        .toInt();
+    _hours = (_hours + change).clamp(0, TimerConstants.maximumHours).toInt();
 
     _prepareSelectedTime();
     _updateEstimate();
@@ -117,9 +122,7 @@ class TimerController extends ChangeNotifier {
 
     if (_minutes > TimerConstants.maximumMinutes) {
       _minutes = 0;
-      _hours = (_hours + 1)
-          .clamp(0, TimerConstants.maximumHours)
-          .toInt();
+      _hours = (_hours + 1).clamp(0, TimerConstants.maximumHours).toInt();
     } else if (_minutes < 0) {
       if (_hours > 0) {
         _hours -= 1;
@@ -159,6 +162,7 @@ class TimerController extends ChangeNotifier {
 
     _sessionCompleted = false;
     _isRunning = true;
+    _endsAt = _now().add(Duration(seconds: _remainingSeconds));
     _setStatus(
       _mode == TimerMode.focus
           ? 'Sesión de concentración en curso.'
@@ -166,18 +170,30 @@ class TimerController extends ChangeNotifier {
     );
 
     _ticker?.cancel();
-    _ticker = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => _tick(),
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+
+    unawaited(
+      _notificationService.showRunningTimer(
+        timerName: _mode.notificationName,
+        remainingSeconds: _remainingSeconds,
+        endsAt: _endsAt!,
+      ),
     );
 
     notifyListeners();
   }
 
   void pause() {
+    syncWithClock();
+    if (!_isRunning) {
+      return;
+    }
+
     _ticker?.cancel();
     _ticker = null;
+    _endsAt = null;
     _isRunning = false;
+    unawaited(_notificationService.cancelTimerNotifications());
     _setStatus('Sesión pausada. Puedes continuar o reiniciarla.');
     notifyListeners();
   }
@@ -185,6 +201,8 @@ class TimerController extends ChangeNotifier {
   void resetTimer() {
     _ticker?.cancel();
     _ticker = null;
+    _endsAt = null;
+    unawaited(_notificationService.cancelTimerNotifications());
 
     _isRunning = false;
     _sessionCompleted = false;
@@ -200,6 +218,8 @@ class TimerController extends ChangeNotifier {
   Future<void> resetProgress() async {
     _ticker?.cancel();
     _ticker = null;
+    _endsAt = null;
+    await _notificationService.cancelTimerNotifications();
 
     await _clearProgress();
 
@@ -218,18 +238,36 @@ class TimerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _tick() {
-    if (!_isRunning) {
+  void syncWithClock() {
+    final endsAt = _endsAt;
+    if (!_isRunning || endsAt == null) {
       return;
     }
 
-    _remainingSeconds -= 1;
-    _elapsedSeconds += 1;
+    final millisecondsLeft = endsAt.difference(_now()).inMilliseconds;
+    final calculatedRemaining = millisecondsLeft <= 0
+        ? 0
+        : (millisecondsLeft + 999) ~/ 1000;
+    final newRemaining = calculatedRemaining
+        .clamp(0, _remainingSeconds)
+        .toInt();
+    final elapsedSinceLastTick = _remainingSeconds - newRemaining;
+
+    if (elapsedSinceLastTick == 0) {
+      return;
+    }
+
+    _remainingSeconds = newRemaining;
+    _elapsedSeconds += elapsedSinceLastTick;
 
     if (_mode == TimerMode.focus) {
-      _applyFocusRules();
+      _applyFocusRules(elapsedSinceLastTick);
     } else {
       _applyRestRules();
+    }
+
+    if (!_isRunning) {
+      return;
     }
 
     if (_remainingSeconds <= 0) {
@@ -240,9 +278,11 @@ class TimerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _applyFocusRules() {
+  void _tick() => syncWithClock();
+
+  void _applyFocusRules(int elapsedSeconds) {
     _progress = _progress.copyWith(
-      totalFocusSeconds: _progress.totalFocusSeconds + 1,
+      totalFocusSeconds: _progress.totalFocusSeconds + elapsedSeconds,
     );
 
     final completedBlocks =
@@ -252,9 +292,7 @@ class TimerController extends ChangeNotifier {
       final newGems = completedBlocks - _rewardedBlocks;
 
       _rewardedBlocks = completedBlocks;
-      _progress = _progress.copyWith(
-        gems: _progress.gems + newGems,
-      );
+      _progress = _progress.copyWith(gems: _progress.gems + newGems);
 
       _setStatus(
         '¡Ganaste $newGems ${newGems == 1 ? 'gema' : 'gemas'} por tu concentración!',
@@ -280,9 +318,7 @@ class TimerController extends ChangeNotifier {
     }
 
     _chargedMinutes = completedPaidMinutes;
-    _progress = _progress.copyWith(
-      gems: _progress.gems - minutesToCharge,
-    );
+    _progress = _progress.copyWith(gems: _progress.gems - minutesToCharge);
 
     _setStatus(
       'Se descontó $minutesToCharge ${minutesToCharge == 1 ? 'gema' : 'gemas'} por el descanso.',
@@ -294,6 +330,7 @@ class TimerController extends ChangeNotifier {
   void _finishSession() {
     _ticker?.cancel();
     _ticker = null;
+    _endsAt = null;
     _isRunning = false;
     _sessionCompleted = true;
     _remainingSeconds = 0;
@@ -314,21 +351,34 @@ class TimerController extends ChangeNotifier {
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
     _persistProgress();
+    unawaited(
+      _notificationService.showTimerCompleted(
+        title: '${_mode.notificationName} completado',
+        body: _mode == TimerMode.focus
+            ? 'Tu sesión de concentración ha terminado.'
+            : 'Tu descanso ha terminado.',
+      ),
+    );
     notifyListeners();
   }
 
   void _stopBecauseNoGems() {
     _ticker?.cancel();
     _ticker = null;
+    _endsAt = null;
     _isRunning = false;
     _sessionCompleted = true;
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
 
-    _setStatus(
-      'El descanso terminó porque ya no quedan gemas.',
-      isError: true,
+    _setStatus('El descanso terminó porque ya no quedan gemas.', isError: true);
+
+    unawaited(
+      _notificationService.showTimerCompleted(
+        title: 'Descanso finalizado',
+        body: 'El descanso terminó porque ya no quedan gemas.',
+      ),
     );
 
     notifyListeners();
@@ -336,16 +386,13 @@ class TimerController extends ChangeNotifier {
 
   bool _validateStart() {
     if (_selectedSeconds <= 0) {
-      _setStatus(
-        'Selecciona una duración mayor que cero.',
-        isError: true,
-      );
+      _setStatus('Selecciona una duración mayor que cero.', isError: true);
       return false;
     }
 
     if (_mode == TimerMode.rest && _elapsedSeconds == 0) {
-      final requiredGems =
-          (_selectedSeconds / TimerConstants.secondsPerRestGem).ceil();
+      final requiredGems = (_selectedSeconds / TimerConstants.secondsPerRestGem)
+          .ceil();
 
       if (_progress.gems < requiredGems) {
         _setStatus(
@@ -392,10 +439,7 @@ class TimerController extends ChangeNotifier {
     );
   }
 
-  void _setStatus(
-    String message, {
-    bool isError = false,
-  }) {
+  void _setStatus(String message, {bool isError = false}) {
     _statusMessage = message;
     _statusIsError = isError;
   }

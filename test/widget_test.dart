@@ -1,30 +1,52 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:atomic_task/app.dart';
+import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:atomic_task/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  for (final size in [const Size(320, 568), const Size(390, 844)]) {
+    testWidgets('main view fits without scrolling at $size', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      await tester.pumpWidget(
+        AtomicTimerBootstrap(notificationService: _NoopNotificationService()),
+      );
+      await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(find.byType(SingleChildScrollView), findsNothing);
+      expect(find.text('INICIAR'), findsOneWidget);
+      expect(find.text('Reiniciar temporizador'), findsOneWidget);
+      expect(
+        tester.getBottomRight(find.text('Reiniciar temporizador')).dy,
+        lessThanOrEqualTo(size.height),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+}
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  });
+class _NoopNotificationService implements TimerNotificationService {
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> cancelTimerNotifications() async {}
+
+  @override
+  Future<void> showRunningTimer({
+    required String timerName,
+    required int remainingSeconds,
+    required DateTime endsAt,
+  }) async {}
+
+  @override
+  Future<void> showTimerCompleted({
+    required String title,
+    required String body,
+  }) async {}
 }

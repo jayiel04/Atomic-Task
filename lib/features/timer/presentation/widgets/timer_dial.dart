@@ -6,17 +6,16 @@ import '../controllers/timer_controller.dart';
 import 'time_selector.dart';
 
 class TimerDial extends StatelessWidget {
-  const TimerDial({
-    required this.controller,
-    super.key,
-  });
+  const TimerDial({required this.controller, super.key});
 
   final TimerController controller;
 
   @override
   Widget build(BuildContext context) {
-    final heading = switch (
-        (controller.isRunning, controller.sessionCompleted)) {
+    final heading = switch ((
+      controller.isRunning,
+      controller.sessionCompleted,
+    )) {
       (true, _) => controller.mode.title,
       (false, true) => 'SESIÓN COMPLETADA',
       _ => 'AJUSTA TU TIEMPO',
@@ -53,7 +52,7 @@ class TimerDial extends StatelessWidget {
               ),
               Positioned.fill(
                 child: Container(
-                  padding: EdgeInsets.all(size * 0.11),
+                  padding: EdgeInsets.all(size * 0.08),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.surfaceVariant,

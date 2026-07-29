@@ -17,4 +17,11 @@ enum TimerMode {
       TimerMode.rest => 'DESCANSO',
     };
   }
+
+  String get notificationName {
+    return switch (this) {
+      TimerMode.focus => 'Concentración',
+      TimerMode.rest => 'Descanso',
+    };
+  }
 }
