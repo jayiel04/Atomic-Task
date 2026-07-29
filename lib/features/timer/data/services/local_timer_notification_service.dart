@@ -119,28 +119,66 @@ class LocalTimerNotificationService implements TimerNotificationService {
     });
 
     if (_supportsScheduling && _isCurrent(operationVersion)) {
-      await _runSafely('programar la finalizacion', () {
-        return _plugin.zonedSchedule(
-          id: _timerNotificationId,
-          title: completionTitle,
-          body: completionBody,
-          scheduledDate: timezone.TZDateTime.from(endsAt, timezone.UTC),
-          notificationDetails: const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'timer_completion',
-              'Temporizadores completados',
-              channelDescription: 'Avisa cuando un temporizador ha finalizado.',
-              importance: Importance.max,
-              priority: Priority.high,
-            ),
-            iOS: DarwinNotificationDetails(),
-            macOS: DarwinNotificationDetails(),
-            windows: WindowsNotificationDetails(),
+      await _scheduleCompletion(
+        endsAt: endsAt,
+        title: completionTitle,
+        body: completionBody,
+      );
+    }
+  }
+
+  Future<void> _scheduleCompletion({
+    required DateTime endsAt,
+    required String title,
+    required String body,
+  }) async {
+    final scheduledDate = timezone.TZDateTime.from(
+      endsAt.toUtc(),
+      timezone.UTC,
+    );
+
+    Future<void> schedule(AndroidScheduleMode androidScheduleMode) {
+      return _plugin.zonedSchedule(
+        id: _timerNotificationId,
+        title: title,
+        body: body,
+        scheduledDate: scheduledDate,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'timer_completion',
+            'Temporizadores completados',
+            channelDescription: 'Avisa cuando un temporizador ha finalizado.',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
           ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          payload: 'completed_timer',
-        );
-      });
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+          ),
+          macOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+          ),
+          windows: WindowsNotificationDetails(),
+        ),
+        androidScheduleMode: androidScheduleMode,
+        payload: 'completed_timer',
+      );
+    }
+
+    try {
+      await schedule(AndroidScheduleMode.exactAllowWhileIdle);
+    } catch (error, stackTrace) {
+      _reportError('programar la finalización exacta', error, stackTrace);
+
+      // Some Android devices or stores do not grant exact-alarm access. An
+      // inexact alarm is preferable to silently losing the completion alert.
+      await _runSafely(
+        'programar la finalización alternativa',
+        () => schedule(AndroidScheduleMode.inexactAllowWhileIdle),
+      );
     }
   }
 
