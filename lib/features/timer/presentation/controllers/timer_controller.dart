@@ -177,6 +177,8 @@ class TimerController extends ChangeNotifier {
         timerName: _mode.notificationName,
         remainingSeconds: _remainingSeconds,
         endsAt: _endsAt!,
+        completionTitle: _mode.completionNotificationTitle,
+        completionBody: _mode.completionNotificationBody,
       ),
     );
 
@@ -353,10 +355,8 @@ class TimerController extends ChangeNotifier {
     _persistProgress();
     unawaited(
       _notificationService.showTimerCompleted(
-        title: '${_mode.notificationName} completado',
-        body: _mode == TimerMode.focus
-            ? 'Tu sesión de concentración ha terminado.'
-            : 'Tu descanso ha terminado.',
+        title: _mode.completionNotificationTitle,
+        body: _mode.completionNotificationBody,
       ),
     );
     notifyListeners();
@@ -376,8 +376,8 @@ class TimerController extends ChangeNotifier {
 
     unawaited(
       _notificationService.showTimerCompleted(
-        title: 'Descanso finalizado',
-        body: 'El descanso terminó porque ya no quedan gemas.',
+        title: TimerMode.rest.completionNotificationTitle,
+        body: TimerMode.rest.completionNotificationBody,
       ),
     );
 

@@ -42,6 +42,8 @@ class _NoopNotificationService implements TimerNotificationService {
     required String timerName,
     required int remainingSeconds,
     required DateTime endsAt,
+    required String completionTitle,
+    required String completionBody,
   }) async {}
 
   @override

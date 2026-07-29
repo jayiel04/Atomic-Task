@@ -9,8 +9,9 @@ class LocalTimerNotificationService implements TimerNotificationService {
   LocalTimerNotificationService({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
-  static const _runningNotificationId = 1001;
-  static const _completedNotificationId = 1002;
+  // The scheduled completion reuses the running notification ID so Android
+  // replaces the countdown instead of leaving it visible at 00:00.
+  static const _timerNotificationId = 1001;
 
   final FlutterLocalNotificationsPlugin _plugin;
 
@@ -65,6 +66,8 @@ class LocalTimerNotificationService implements TimerNotificationService {
     required String timerName,
     required int remainingSeconds,
     required DateTime endsAt,
+    required String completionTitle,
+    required String completionBody,
   }) async {
     final operationVersion = ++_operationVersion;
 
@@ -85,7 +88,7 @@ class LocalTimerNotificationService implements TimerNotificationService {
 
     await _runSafely('mostrar el tiempo restante', () {
       return _plugin.show(
-        id: _runningNotificationId,
+        id: _timerNotificationId,
         title: '$timerName en curso',
         body: 'Tiempo restante: ${_formatDuration(remainingSeconds)}',
         notificationDetails: NotificationDetails(
@@ -118,9 +121,9 @@ class LocalTimerNotificationService implements TimerNotificationService {
     if (_supportsScheduling && _isCurrent(operationVersion)) {
       await _runSafely('programar la finalizacion', () {
         return _plugin.zonedSchedule(
-          id: _completedNotificationId,
-          title: '$timerName completado',
-          body: 'El temporizador ha finalizado.',
+          id: _timerNotificationId,
+          title: completionTitle,
+          body: completionBody,
           scheduledDate: timezone.TZDateTime.from(endsAt, timezone.UTC),
           notificationDetails: const NotificationDetails(
             android: AndroidNotificationDetails(
@@ -153,9 +156,8 @@ class LocalTimerNotificationService implements TimerNotificationService {
   }
 
   Future<void> _cancelNotifications() async {
-    await _runSafely('cancelar las notificaciones', () async {
-      await _plugin.cancel(id: _runningNotificationId);
-      await _plugin.cancel(id: _completedNotificationId);
+    await _runSafely('cancelar la notificación', () async {
+      await _plugin.cancel(id: _timerNotificationId);
     });
   }
 
@@ -182,7 +184,7 @@ class LocalTimerNotificationService implements TimerNotificationService {
 
     await _runSafely('mostrar la finalizacion', () {
       return _plugin.show(
-        id: _completedNotificationId,
+        id: _timerNotificationId,
         title: title,
         body: body,
         notificationDetails: const NotificationDetails(

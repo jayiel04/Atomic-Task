@@ -5,6 +5,8 @@ abstract interface class TimerNotificationService {
     required String timerName,
     required int remainingSeconds,
     required DateTime endsAt,
+    required String completionTitle,
+    required String completionBody,
   });
 
   Future<void> cancelTimerNotifications();

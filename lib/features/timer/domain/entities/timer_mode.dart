@@ -24,4 +24,18 @@ enum TimerMode {
       TimerMode.rest => 'Descanso',
     };
   }
+
+  String get completionNotificationTitle {
+    return switch (this) {
+      TimerMode.focus => 'Trabajo finalizado',
+      TimerMode.rest => 'Descanso finalizado',
+    };
+  }
+
+  String get completionNotificationBody {
+    return switch (this) {
+      TimerMode.focus => '¡Sesión completada! Tómate un descanso.',
+      TimerMode.rest => 'El descanso terminó. ¿Listo para continuar?',
+    };
+  }
 }
