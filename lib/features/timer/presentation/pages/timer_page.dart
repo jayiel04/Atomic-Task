@@ -139,16 +139,25 @@ class _TimerPageState extends State<TimerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       drawer: ProgressDrawer(controller: widget.controller),
-      body: SafeArea(
-        child: _ControllerSelector<bool>(
-          controller: widget.controller,
-          select: (controller) => controller.isInitialized,
-          builder: (context, isInitialized) {
-            return isInitialized
-                ? _TimerContent(controller: widget.controller)
-                : const Center(child: CircularProgressIndicator());
-          },
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/Fondo.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: _ControllerSelector<bool>(
+            controller: widget.controller,
+            select: (controller) => controller.isInitialized,
+            builder: (context, isInitialized) {
+              return isInitialized
+                  ? _TimerContent(controller: widget.controller)
+                  : const Center(child: CircularProgressIndicator());
+            },
+          ),
         ),
       ),
     );

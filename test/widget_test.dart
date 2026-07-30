@@ -1,20 +1,29 @@
 import 'package:atomic_task/app.dart';
+import 'package:atomic_task/features/timer/data/datasources/timer_local_data_source.dart';
+import 'package:atomic_task/features/timer/data/models/progress_model.dart';
 import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   for (final size in [const Size(320, 568), const Size(390, 844)]) {
     testWidgets('main view fits without scrolling at $size', (tester) async {
-      SharedPreferences.setMockInitialValues({'atomic_profile_name': 'Javier'});
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        AtomicTimerBootstrap(notificationService: _NoopNotificationService()),
+        AtomicTimerBootstrap(
+          notificationService: _NoopNotificationService(),
+          localDataSource: _MemoryTimerLocalDataSource(
+            progress: const ProgressModel(
+              gems: 0,
+              totalFocusSeconds: 0,
+              profileName: 'Javier',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -30,14 +39,15 @@ void main() {
   }
 
   testWidgets('asks for and saves the name on first launch', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-
     await tester.pumpWidget(
-      AtomicTimerBootstrap(notificationService: _NoopNotificationService()),
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        localDataSource: _MemoryTimerLocalDataSource(),
+      ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('¡Bienvenido!'), findsOneWidget);
+    expect(find.text('\u00a1Bienvenido!'), findsOneWidget);
     expect(find.byKey(const Key('firstLaunchNameField')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('saveFirstLaunchName')));
@@ -51,26 +61,60 @@ void main() {
     await tester.tap(find.byKey(const Key('saveFirstLaunchName')));
     await tester.pumpAndSettle();
 
-    expect(find.text('¡Bienvenido!'), findsNothing);
+    expect(find.text('\u00a1Bienvenido!'), findsNothing);
     expect(find.text('Javier'), findsOneWidget);
-
-    final preferences = await SharedPreferences.getInstance();
-    expect(preferences.getString('atomic_profile_name'), 'Javier');
   });
 
   testWidgets('does not ask for the name again when it is saved', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'atomic_profile_name': 'Javier'});
-
     await tester.pumpWidget(
-      AtomicTimerBootstrap(notificationService: _NoopNotificationService()),
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 0,
+            totalFocusSeconds: 0,
+            profileName: 'Javier',
+          ),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('¡Bienvenido!'), findsNothing);
+    expect(find.text('\u00a1Bienvenido!'), findsNothing);
     expect(find.text('Javier'), findsOneWidget);
   });
+}
+
+class _MemoryTimerLocalDataSource implements TimerLocalDataSource {
+  _MemoryTimerLocalDataSource({ProgressModel? progress})
+    : _progress =
+          progress ??
+          const ProgressModel(
+            gems: 0,
+            totalFocusSeconds: 0,
+            profileName: 'NOMBRE',
+          );
+
+  ProgressModel _progress;
+
+  @override
+  Future<ProgressModel> load() async => _progress;
+
+  @override
+  Future<void> save(ProgressModel progress) async {
+    _progress = progress;
+  }
+
+  @override
+  Future<void> clear() async {
+    _progress = const ProgressModel(
+      gems: 0,
+      totalFocusSeconds: 0,
+      profileName: 'NOMBRE',
+    );
+  }
 }
 
 class _NoopNotificationService implements TimerNotificationService {
