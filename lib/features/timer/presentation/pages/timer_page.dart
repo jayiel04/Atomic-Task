@@ -15,84 +15,199 @@ class TimerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        return Scaffold(
-          drawer: ProgressDrawer(controller: controller),
-          body: SafeArea(
-            child: controller.isInitialized
-                ? LayoutBuilder(
-                    builder: (context, constraints) {
-                      final horizontalPadding = constraints.maxWidth < 380
-                          ? 16.0
-                          : 24.0;
+    return Scaffold(
+      drawer: ProgressDrawer(controller: controller),
+      body: SafeArea(
+        child: _ControllerSelector<bool>(
+          controller: controller,
+          select: (controller) => controller.isInitialized,
+          builder: (context, isInitialized) {
+            return isInitialized
+                ? _TimerContent(controller: controller)
+                : const Center(child: CircularProgressIndicator());
+          },
+        ),
+      ),
+    );
+  }
+}
 
-                      return Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          18,
-                          horizontalPadding,
-                          28,
-                        ),
-                        child: SizedBox.expand(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.topCenter,
-                            child: SizedBox(
-                              width: 520,
-                              child: Column(
-                                children: [
-                                  HeaderSection(controller: controller),
-                                  const SizedBox(height: 26),
-                                  ModeSelector(controller: controller),
-                                  const SizedBox(height: 26),
-                                  TimerDial(controller: controller),
-                                  const SizedBox(height: 18),
-                                  _StatusCard(controller: controller),
-                                  const SizedBox(height: 16),
-                                  PrimaryActionButton(controller: controller),
-                                  const SizedBox(height: 10),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      onPressed: controller.resetTimer,
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: AppColors.muted,
-                                        side: const BorderSide(
-                                          color: AppColors.border,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Reiniciar temporizador',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+class _TimerContent extends StatelessWidget {
+  const _TimerContent({required this.controller});
+
+  final TimerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth < 380 ? 16.0 : 24.0;
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            18,
+            horizontalPadding,
+            28,
+          ),
+          child: SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: 520,
+                child: Column(
+                  children: [
+                    _ControllerSelector(
+                      controller: controller,
+                      select: (controller) => (
+                        controller.progress.profileName,
+                        controller.progress.gems,
+                        controller.progress.totalFocusSeconds ~/ 60,
+                      ),
+                      builder: (context, _) {
+                        return RepaintBoundary(
+                          child: HeaderSection(controller: controller),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 26),
+                    _ControllerSelector(
+                      controller: controller,
+                      select: (controller) =>
+                          (controller.mode, controller.controlsLocked),
+                      builder: (context, _) {
+                        return RepaintBoundary(
+                          child: ModeSelector(controller: controller),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 26),
+                    _ControllerSelector(
+                      controller: controller,
+                      select: (controller) => (
+                        controller.mode,
+                        controller.minutes,
+                        controller.remainingSeconds,
+                        controller.selectedSeconds,
+                        controller.isRunning,
+                        controller.sessionCompleted,
+                        controller.controlsLocked,
+                      ),
+                      builder: (context, _) {
+                        return RepaintBoundary(
+                          child: TimerDial(controller: controller),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    _ControllerSelector(
+                      controller: controller,
+                      select: (controller) =>
+                          (controller.statusMessage, controller.statusIsError),
+                      builder: (context, _) {
+                        return _StatusCard(controller: controller);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _ControllerSelector(
+                      controller: controller,
+                      select: (controller) => (
+                        controller.isRunning,
+                        controller.remainingSeconds > 0 &&
+                            controller.remainingSeconds <
+                                controller.selectedSeconds,
+                      ),
+                      builder: (context, _) {
+                        return RepaintBoundary(
+                          child: PrimaryActionButton(controller: controller),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: controller.resetTimer,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.muted,
+                          side: const BorderSide(color: AppColors.border),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                      );
-                    },
-                  )
-                : const Center(child: CircularProgressIndicator()),
+                        child: const Text(
+                          'Reiniciar temporizador',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
     );
   }
+}
+
+class _ControllerSelector<T> extends StatefulWidget {
+  const _ControllerSelector({
+    required this.controller,
+    required this.select,
+    required this.builder,
+  });
+
+  final TimerController controller;
+  final T Function(TimerController controller) select;
+  final Widget Function(BuildContext context, T value) builder;
+
+  @override
+  State<_ControllerSelector<T>> createState() => _ControllerSelectorState<T>();
+}
+
+class _ControllerSelectorState<T> extends State<_ControllerSelector<T>> {
+  late T _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.select(widget.controller);
+    widget.controller.addListener(_handleControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ControllerSelector<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleControllerChanged);
+      widget.controller.addListener(_handleControllerChanged);
+    }
+
+    _value = widget.select(widget.controller);
+  }
+
+  void _handleControllerChanged() {
+    final nextValue = widget.select(widget.controller);
+    if (nextValue == _value) {
+      return;
+    }
+
+    setState(() => _value = nextValue);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_handleControllerChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _value);
 }
 
 class _StatusCard extends StatelessWidget {

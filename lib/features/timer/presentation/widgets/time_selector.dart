@@ -2,101 +2,115 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 
-class TimeSelector extends StatelessWidget {
+class TimeSelector extends StatefulWidget {
   const TimeSelector({
-    required this.label,
     required this.value,
-    required this.onIncrease,
-    required this.onDecrease,
+    required this.maxValue,
+    required this.onChanged,
     required this.enabled,
     super.key,
   });
 
-  final String label;
   final int value;
-  final VoidCallback onIncrease;
-  final VoidCallback onDecrease;
+  final int maxValue;
+  final ValueChanged<int> onChanged;
   final bool enabled;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 120,
-          decoration: BoxDecoration(
-            color: AppColors.surface.withOpacity(0.88),
-            border: Border.all(
-              color: AppColors.border,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              _ArrowButton(
-                icon: Icons.keyboard_arrow_up_rounded,
-                onPressed: enabled ? onIncrease : null,
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    value.toString().padLeft(2, '0'),
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-              _ArrowButton(
-                icon: Icons.keyboard_arrow_down_rounded,
-                onPressed: enabled ? onDecrease : null,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  State<TimeSelector> createState() => _TimeSelectorState();
 }
 
-class _ArrowButton extends StatelessWidget {
-  const _ArrowButton({
-    required this.icon,
-    required this.onPressed,
-  });
+class _TimeSelectorState extends State<TimeSelector> {
+  static const _itemExtent = 44.0;
+  static const _selectorHeight = 150.0;
 
-  final IconData icon;
-  final VoidCallback? onPressed;
+  late final PageController _scrollController;
+  late int _pendingValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _pendingValue = widget.value;
+    _scrollController = PageController(
+      initialPage: widget.value,
+      viewportFraction: _itemExtent / _selectorHeight,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant TimeSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value) {
+      _pendingValue = widget.value;
+      if (_scrollController.hasClients &&
+          _scrollController.page?.round() != widget.value) {
+        _scrollController.jumpToPage(widget.value);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 34,
-      width: double.infinity,
-      child: IconButton(
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        splashRadius: 20,
-        icon: Icon(
-          icon,
-          color: onPressed == null
-              ? AppColors.muted.withOpacity(0.35)
-              : AppColors.primary,
-          size: 28,
+      height: _selectorHeight,
+      child: RepaintBoundary(
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            return const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.white54,
+                Colors.white,
+                Colors.white54,
+                Colors.transparent,
+              ],
+              stops: [0, 0.25, 0.5, 0.75, 1],
+            ).createShader(bounds);
+          },
+          child: NotificationListener<ScrollEndNotification>(
+            onNotification: (_) {
+              if (widget.enabled && _pendingValue != widget.value) {
+                widget.onChanged(_pendingValue);
+              }
+              return false;
+            },
+            child: PageView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.vertical,
+              itemCount: widget.maxValue + 1,
+              physics: widget.enabled
+                  ? const BouncingScrollPhysics(
+                      decelerationRate: ScrollDecelerationRate.normal,
+                    )
+                  : const NeverScrollableScrollPhysics(),
+              onPageChanged: widget.enabled
+                  ? (value) => _pendingValue = value
+                  : null,
+              itemBuilder: (context, index) {
+                return Center(
+                  child: Text(
+                    index.toString().padLeft(2, '0'),
+                    style: TextStyle(
+                      color: widget.enabled
+                          ? AppColors.text
+                          : AppColors.muted.withValues(alpha: 0.45),
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
