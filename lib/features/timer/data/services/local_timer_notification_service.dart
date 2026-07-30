@@ -86,16 +86,16 @@ class LocalTimerNotificationService implements TimerNotificationService {
       return;
     }
 
-    await _runSafely('mostrar el tiempo restante', () {
+    await _runSafely('mostrar el tiempo inicial', () {
       return _plugin.show(
         id: _timerNotificationId,
         title: '$timerName en curso',
-        body: 'Tiempo restante: ${_formatDuration(remainingSeconds)}',
+        body: 'Tiempo inicial: ${_formatDuration(remainingSeconds)}',
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'active_timer',
             'Temporizador en curso',
-            channelDescription: 'Muestra el tiempo restante del temporizador.',
+            channelDescription: 'Muestra el tiempo inicial del temporizador.',
             importance: Importance.low,
             priority: Priority.low,
             ongoing: true,

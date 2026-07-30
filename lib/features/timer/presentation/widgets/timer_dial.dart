@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/timer_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/time_formatter.dart';
 import '../controllers/timer_controller.dart';
@@ -92,43 +93,14 @@ class TimerDial extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: TimeSelector(
-                              label: 'HH',
-                              value: controller.hours,
-                              onIncrease: controller.increaseHours,
-                              onDecrease: controller.decreaseHours,
-                              enabled: !controller.controlsLocked,
-                            ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(
-                              left: 10,
-                              right: 10,
-                              bottom: 40,
-                            ),
-                            child: Text(
-                              ':',
-                              style: TextStyle(
-                                color: AppColors.primaryDark,
-                                fontSize: 36,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: TimeSelector(
-                              label: 'MM',
-                              value: controller.minutes,
-                              onIncrease: controller.increaseMinutes,
-                              onDecrease: controller.decreaseMinutes,
-                              enabled: !controller.controlsLocked,
-                            ),
-                          ),
-                        ],
+                      SizedBox(
+                        width: size * 0.52,
+                        child: TimeSelector(
+                          value: controller.minutes,
+                          maxValue: TimerConstants.maximumMinutes,
+                          onChanged: controller.setMinutes,
+                          enabled: !controller.controlsLocked,
+                        ),
                       ),
                     ],
                   ),

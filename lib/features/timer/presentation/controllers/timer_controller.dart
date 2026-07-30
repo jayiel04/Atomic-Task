@@ -30,12 +30,15 @@ class TimerController extends ChangeNotifier {
   final DateTime Function() _now;
 
   Timer? _ticker;
+  Timer? _progressSaveTimer;
   DateTime? _endsAt;
+  bool _progressIsDirty = false;
+
+  static const _progressSaveInterval = Duration(seconds: 30);
 
   TimerMode _mode = TimerMode.focus;
   UserProgress _progress = UserProgress.empty;
 
-  int _hours = 0;
   int _minutes = TimerConstants.defaultFocusMinutes;
   int _selectedSeconds = TimerConstants.defaultFocusMinutes * 60;
   int _remainingSeconds = TimerConstants.defaultFocusMinutes * 60;
@@ -53,7 +56,6 @@ class TimerController extends ChangeNotifier {
 
   TimerMode get mode => _mode;
   UserProgress get progress => _progress;
-  int get hours => _hours;
   int get minutes => _minutes;
   int get remainingSeconds => _remainingSeconds;
   int get selectedSeconds => _selectedSeconds;
@@ -86,52 +88,23 @@ class TimerController extends ChangeNotifier {
     }
 
     _mode = newMode;
-    _hours = 0;
     _minutes = newMode.defaultMinutes;
     _prepareSelectedTime();
     _updateEstimate();
     notifyListeners();
   }
 
-  void increaseHours() => _changeHours(1);
-
-  void decreaseHours() => _changeHours(-1);
-
-  void increaseMinutes() => _changeMinutes(1);
-
-  void decreaseMinutes() => _changeMinutes(-1);
-
-  void _changeHours(int change) {
+  void setMinutes(int value) {
     if (controlsLocked) {
       return;
     }
 
-    _hours = (_hours + change).clamp(0, TimerConstants.maximumHours).toInt();
-
-    _prepareSelectedTime();
-    _updateEstimate();
-    notifyListeners();
-  }
-
-  void _changeMinutes(int change) {
-    if (controlsLocked) {
+    final newValue = value.clamp(0, TimerConstants.maximumMinutes).toInt();
+    if (newValue == _minutes) {
       return;
     }
 
-    _minutes += change;
-
-    if (_minutes > TimerConstants.maximumMinutes) {
-      _minutes = 0;
-      _hours = (_hours + 1).clamp(0, TimerConstants.maximumHours).toInt();
-    } else if (_minutes < 0) {
-      if (_hours > 0) {
-        _hours -= 1;
-        _minutes = TimerConstants.maximumMinutes;
-      } else {
-        _minutes = 0;
-      }
-    }
-
+    _minutes = newValue;
     _prepareSelectedTime();
     _updateEstimate();
     notifyListeners();
@@ -141,7 +114,7 @@ class TimerController extends ChangeNotifier {
     final normalizedName = value.trim().isEmpty ? 'NOMBRE' : value.trim();
 
     _progress = _progress.copyWith(profileName: normalizedName);
-    _persistProgress();
+    _persistProgress(immediately: true);
     notifyListeners();
   }
 
@@ -195,6 +168,7 @@ class TimerController extends ChangeNotifier {
     _ticker = null;
     _endsAt = null;
     _isRunning = false;
+    _persistProgress(immediately: true);
     unawaited(_notificationService.cancelTimerNotifications());
     _setStatus('Sesión pausada. Puedes continuar o reiniciarla.');
     notifyListeners();
@@ -221,13 +195,15 @@ class TimerController extends ChangeNotifier {
     _ticker?.cancel();
     _ticker = null;
     _endsAt = null;
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = null;
+    _progressIsDirty = false;
     await _notificationService.cancelTimerNotifications();
 
     await _clearProgress();
 
     _progress = UserProgress.empty;
     _mode = TimerMode.focus;
-    _hours = 0;
     _minutes = TimerConstants.defaultFocusMinutes;
     _isRunning = false;
     _sessionCompleted = false;
@@ -326,7 +302,7 @@ class TimerController extends ChangeNotifier {
       'Se descontó $minutesToCharge ${minutesToCharge == 1 ? 'gema' : 'gemas'} por el descanso.',
     );
 
-    _persistProgress();
+    _persistProgress(immediately: true);
   }
 
   void _finishSession() {
@@ -352,7 +328,7 @@ class TimerController extends ChangeNotifier {
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
-    _persistProgress();
+    _persistProgress(immediately: true);
     unawaited(
       _notificationService.showTimerCompleted(
         title: _mode.completionNotificationTitle,
@@ -408,7 +384,7 @@ class TimerController extends ChangeNotifier {
   }
 
   void _prepareSelectedTime() {
-    _selectedSeconds = (_hours * 3600) + (_minutes * 60);
+    _selectedSeconds = _minutes * 60;
     _remainingSeconds = _selectedSeconds;
     _sessionCompleted = false;
   }
@@ -444,13 +420,42 @@ class TimerController extends ChangeNotifier {
     _statusIsError = isError;
   }
 
-  void _persistProgress() {
-    unawaited(_saveProgress(_progress));
+  void _persistProgress({bool immediately = false}) {
+    _progressIsDirty = true;
+
+    if (immediately) {
+      _progressSaveTimer?.cancel();
+      _progressSaveTimer = null;
+      unawaited(_flushProgress());
+      return;
+    }
+
+    _progressSaveTimer ??= Timer(_progressSaveInterval, _flushProgress);
+  }
+
+  Future<void> _flushProgress() async {
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = null;
+
+    if (!_progressIsDirty) {
+      return;
+    }
+
+    _progressIsDirty = false;
+    await _saveProgress(_progress);
+  }
+
+  void flushProgress() {
+    if (_progressIsDirty) {
+      unawaited(_flushProgress());
+    }
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _progressSaveTimer?.cancel();
+    flushProgress();
     super.dispose();
   }
 }

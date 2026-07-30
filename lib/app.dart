@@ -42,6 +42,8 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
 
     _lifecycleListener = AppLifecycleListener(
       onResume: _controller.syncWithClock,
+      onPause: _controller.flushProgress,
+      onDetach: _controller.flushProgress,
     );
   }
 

@@ -40,9 +40,12 @@ void main() {
 
       expect(controller.remainingSeconds, (25 * 60) - 5);
       expect(controller.progress.totalFocusSeconds, 5);
+      expect(repository.saveCalls, 0);
 
       controller.pause();
+      await Future<void>.delayed(Duration.zero);
       expect(notifications.cancelCalls, 1);
+      expect(repository.saveCalls, 1);
 
       controller.startOrPause();
       now = now.add(Duration(seconds: controller.remainingSeconds));
@@ -103,6 +106,7 @@ class _MemoryTimerRepository implements TimerRepository {
   _MemoryTimerRepository({this.progress = UserProgress.empty});
 
   UserProgress progress;
+  int saveCalls = 0;
 
   @override
   Future<void> clearProgress() async {
@@ -114,6 +118,7 @@ class _MemoryTimerRepository implements TimerRepository {
 
   @override
   Future<void> saveProgress(UserProgress progress) async {
+    saveCalls += 1;
     this.progress = progress;
   }
 }
