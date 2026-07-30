@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   for (final size in [const Size(320, 568), const Size(390, 844)]) {
     testWidgets('main view fits without scrolling at $size', (tester) async {
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({'atomic_profile_name': 'Javier'});
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -28,6 +28,49 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('asks for and saves the name on first launch', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(notificationService: _NoopNotificationService()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('¡Bienvenido!'), findsOneWidget);
+    expect(find.byKey(const Key('firstLaunchNameField')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('saveFirstLaunchName')));
+    await tester.pump();
+    expect(find.text('Ingresa tu nombre para continuar'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('firstLaunchNameField')),
+      '  Javier  ',
+    );
+    await tester.tap(find.byKey(const Key('saveFirstLaunchName')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('¡Bienvenido!'), findsNothing);
+    expect(find.text('Javier'), findsOneWidget);
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString('atomic_profile_name'), 'Javier');
+  });
+
+  testWidgets('does not ask for the name again when it is saved', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'atomic_profile_name': 'Javier'});
+
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(notificationService: _NoopNotificationService()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('¡Bienvenido!'), findsNothing);
+    expect(find.text('Javier'), findsOneWidget);
+  });
 }
 
 class _NoopNotificationService implements TimerNotificationService {

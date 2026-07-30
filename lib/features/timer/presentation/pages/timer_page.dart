@@ -8,22 +8,145 @@ import '../widgets/primary_action_button.dart';
 import '../widgets/progress_drawer.dart';
 import '../widgets/timer_dial.dart';
 
-class TimerPage extends StatelessWidget {
+class TimerPage extends StatefulWidget {
   const TimerPage({required this.controller, super.key});
 
   final TimerController controller;
 
   @override
+  State<TimerPage> createState() => _TimerPageState();
+}
+
+class _TimerPageState extends State<TimerPage> {
+  bool _nameRequestScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_requestNameWhenReady);
+    _requestNameWhenReady();
+  }
+
+  @override
+  void didUpdateWidget(covariant TimerPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_requestNameWhenReady);
+      widget.controller.addListener(_requestNameWhenReady);
+      _nameRequestScheduled = false;
+      _requestNameWhenReady();
+    }
+  }
+
+  void _requestNameWhenReady() {
+    if (_nameRequestScheduled ||
+        !widget.controller.isInitialized ||
+        widget.controller.progress.profileName != 'NOMBRE') {
+      return;
+    }
+
+    _nameRequestScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _showNameDialog();
+    });
+  }
+
+  Future<void> _showNameDialog() async {
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('¡Bienvenido!'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '¿Cómo te llamas? Usaremos tu nombre para personalizar '
+                    'tu experiencia.',
+                  ),
+                  const SizedBox(height: 18),
+                  TextFormField(
+                    key: const Key('firstLaunchNameField'),
+                    controller: nameController,
+                    autofocus: true,
+                    maxLength: 18,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'Tu nombre',
+                      hintText: 'Escribe tu nombre',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Ingresa tu nombre para continuar';
+                      }
+                      return null;
+                    },
+                    onFieldSubmitted: (_) =>
+                        _saveName(dialogContext, formKey, nameController.text),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              FilledButton(
+                key: const Key('saveFirstLaunchName'),
+                onPressed: () =>
+                    _saveName(dialogContext, formKey, nameController.text),
+                child: const Text('Continuar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    nameController.dispose();
+  }
+
+  void _saveName(
+    BuildContext dialogContext,
+    GlobalKey<FormState> formKey,
+    String name,
+  ) {
+    if (formKey.currentState?.validate() != true) {
+      return;
+    }
+
+    widget.controller.updateProfileName(name);
+    Navigator.of(dialogContext).pop();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_requestNameWhenReady);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: ProgressDrawer(controller: controller),
+      drawer: ProgressDrawer(controller: widget.controller),
       body: SafeArea(
         child: _ControllerSelector<bool>(
-          controller: controller,
+          controller: widget.controller,
           select: (controller) => controller.isInitialized,
           builder: (context, isInitialized) {
             return isInitialized
-                ? _TimerContent(controller: controller)
+                ? _TimerContent(controller: widget.controller)
                 : const Center(child: CircularProgressIndicator());
           },
         ),
