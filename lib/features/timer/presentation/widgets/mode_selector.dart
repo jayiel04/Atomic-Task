@@ -14,36 +14,51 @@ class ModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ModeButton(
-            icon: Icons.center_focus_strong_rounded,
-            label: 'MODO\nCONCENTRACIÓN',
-            selected: controller.mode == TimerMode.focus,
-            onPressed: controller.controlsLocked
-                ? null
-                : () => controller.setMode(TimerMode.focus),
-          ),
+    final isFocus = controller.mode == TimerMode.focus;
+
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1.5,
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _ModeButton(
-            icon: Icons.bed_rounded,
-            label: 'MODO\nDESCANSO',
-            selected: controller.mode == TimerMode.rest,
-            onPressed: controller.controlsLocked
-                ? null
-                : () => controller.setMode(TimerMode.rest),
-          ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ModeTab(
+                icon: Icons.center_focus_strong_rounded,
+                label: 'Concentración',
+                selected: isFocus,
+                onPressed: controller.controlsLocked
+                    ? null
+                    : () => controller.setMode(TimerMode.focus),
+              ),
+            ),
+            Expanded(
+              child: _ModeTab(
+                icon: Icons.coffee_rounded,
+                label: 'Descanso',
+                selected: !isFocus,
+                onPressed: controller.controlsLocked
+                    ? null
+                    : () => controller.setMode(TimerMode.rest),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class _ModeButton extends StatelessWidget {
-  const _ModeButton({
+class _ModeTab extends StatelessWidget {
+  const _ModeTab({
     required this.icon,
     required this.label,
     required this.selected,
@@ -57,65 +72,48 @@ class _ModeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = selected ? Colors.white : AppColors.primaryDark;
-
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      height: 128,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        gradient: selected
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary,
-                  AppColors.primaryDark,
-                ],
-              )
-            : null,
-        color: selected ? null : Colors.transparent,
-        border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
-          width: 2,
-        ),
-        borderRadius: BorderRadius.circular(26),
+        color: selected ? AppColors.primary : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
         boxShadow: selected
-            ? const [
+            ? [
                 BoxShadow(
-                  color: Color(0x425F36B8),
-                  blurRadius: 26,
-                  offset: Offset(0, 14),
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ]
             : null,
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(26),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: foreground,
-                size: 36,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: foreground,
-                  height: 1.06,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  color: selected ? Colors.white : AppColors.primary,
+                  size: 20,
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? Colors.white : AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
