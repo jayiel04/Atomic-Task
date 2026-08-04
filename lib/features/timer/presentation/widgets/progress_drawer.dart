@@ -4,10 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../controllers/timer_controller.dart';
 
 class ProgressDrawer extends StatelessWidget {
-  const ProgressDrawer({
-    required this.controller,
-    super.key,
-  });
+  const ProgressDrawer({required this.controller, super.key});
 
   final TimerController controller;
 
@@ -26,6 +23,7 @@ class ProgressDrawer extends StatelessWidget {
                 height: 88,
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
+                  color: AppColors.background,
                   borderRadius: BorderRadius.circular(26),
                   border: Border.all(color: AppColors.border),
                   boxShadow: const [
@@ -37,8 +35,8 @@ class ProgressDrawer extends StatelessWidget {
                   ],
                 ),
                 child: Image.asset(
-                  'assets/images/Logo.png',
-                  fit: BoxFit.cover,
+                  'assets/images/logo_launcher.png',
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(height: 16),
@@ -54,10 +52,7 @@ class ProgressDrawer extends StatelessWidget {
               const Text(
                 'Tus gemas, minutos de concentración y nombre se guardan '
                 'automáticamente en este dispositivo.',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  height: 1.5,
-                ),
+                style: TextStyle(color: AppColors.muted, height: 1.5),
               ),
               const Spacer(),
               SizedBox(

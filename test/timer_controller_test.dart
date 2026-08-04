@@ -1,6 +1,7 @@
 import 'package:atomic_task/features/timer/domain/entities/timer_mode.dart';
 import 'package:atomic_task/features/timer/domain/entities/user_progress.dart';
 import 'package:atomic_task/features/timer/domain/repositories/timer_repository.dart';
+import 'package:atomic_task/features/timer/domain/services/focus_completion_ad_service.dart';
 import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
 import 'package:atomic_task/features/timer/domain/usecases/clear_progress.dart';
 import 'package:atomic_task/features/timer/domain/usecases/load_progress.dart';
@@ -14,12 +15,14 @@ void main() {
     () async {
       final repository = _MemoryTimerRepository();
       final notifications = _FakeTimerNotificationService();
+      final completionAds = _FakeFocusCompletionAdService();
       var now = DateTime(2026, 7, 29, 10);
       final controller = TimerController(
         loadProgress: LoadProgress(repository),
         saveProgress: SaveProgress(repository),
         clearProgress: ClearProgress(repository),
         notificationService: notifications,
+        focusCompletionAdService: completionAds,
         now: () => now,
       );
       addTearDown(controller.dispose);
@@ -46,6 +49,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(notifications.cancelCalls, 1);
       expect(repository.saveCalls, 1);
+      expect(completionAds.showCalls, 0);
 
       controller.startOrPause();
       now = now.add(Duration(seconds: controller.remainingSeconds));
@@ -54,6 +58,10 @@ void main() {
       expect(controller.remainingSeconds, 0);
       expect(controller.sessionCompleted, isTrue);
       expect(notifications.completedTimerCalls, 1);
+      expect(completionAds.showCalls, 1);
+
+      controller.syncWithClock();
+      expect(completionAds.showCalls, 1);
       expect(notifications.lastCompletedTitle, 'Trabajo finalizado');
       expect(
         notifications.lastCompletedBody,
@@ -71,12 +79,14 @@ void main() {
       ),
     );
     final notifications = _FakeTimerNotificationService();
+    final completionAds = _FakeFocusCompletionAdService();
     var now = DateTime(2026, 7, 29, 10);
     final controller = TimerController(
       loadProgress: LoadProgress(repository),
       saveProgress: SaveProgress(repository),
       clearProgress: ClearProgress(repository),
       notificationService: notifications,
+      focusCompletionAdService: completionAds,
       now: () => now,
     );
     addTearDown(controller.dispose);
@@ -99,7 +109,58 @@ void main() {
       notifications.lastCompletedBody,
       'El descanso terminó. ¿Listo para continuar?',
     );
+    expect(completionAds.showCalls, 0);
   });
+
+  test('keeps a completed focus session when the ad fails', () async {
+    final repository = _MemoryTimerRepository();
+    final notifications = _FakeTimerNotificationService();
+    final completionAds = _FakeFocusCompletionAdService(failOnShow: true);
+    var now = DateTime(2026, 7, 29, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: notifications,
+      focusCompletionAdService: completionAds,
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+
+    now = now.add(const Duration(minutes: 1));
+    controller.syncWithClock();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.sessionCompleted, isTrue);
+    expect(controller.remainingSeconds, 0);
+    expect(notifications.completedTimerCalls, 1);
+    expect(completionAds.showCalls, 1);
+  });
+}
+
+class _FakeFocusCompletionAdService implements FocusCompletionAdService {
+  _FakeFocusCompletionAdService({this.failOnShow = false});
+
+  final bool failOnShow;
+  int showCalls = 0;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> showAfterFocusCompletion() async {
+    showCalls += 1;
+    if (failOnShow) {
+      throw StateError('simulated ad failure');
+    }
+  }
+
+  @override
+  Future<void> dispose() async {}
 }
 
 class _MemoryTimerRepository implements TimerRepository {

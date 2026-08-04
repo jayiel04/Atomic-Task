@@ -70,24 +70,29 @@ flutter:
     - assets/images/Fondo.png
     - assets/images/Logo.png
     - assets/images/logo_icon.png
+    - assets/images/logo_launcher.png
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/images/logo_icon.png
+  image_path: assets/images/logo_launcher.png
+  adaptive_icon_background: '#EDE6F8'
+  adaptive_icon_foreground: assets/images/logo_launcher.png
+  adaptive_icon_foreground_inset: 0
   remove_alpha_ios: true
+  background_color_ios: '#EDE6F8'
   web:
     generate: true
-    image_path: assets/images/logo_icon.png
+    image_path: assets/images/logo_launcher.png
     background_color: '#EDE6F8'
     theme_color: '#7A4FD1'
   macos:
     generate: true
-    image_path: assets/images/logo_icon.png
+    image_path: assets/images/logo_launcher.png
   windows:
     generate: true
-    image_path: assets/images/logo_icon.png
-    icon_size: 48
+    image_path: assets/images/logo_launcher.png
+    icon_size: 256
 
   # To add assets to your application, add an assets section, like this:
   # assets:

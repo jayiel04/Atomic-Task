@@ -1,6 +1,7 @@
 import 'package:atomic_task/app.dart';
 import 'package:atomic_task/features/timer/data/datasources/timer_local_data_source.dart';
 import 'package:atomic_task/features/timer/data/models/progress_model.dart';
+import 'package:atomic_task/features/timer/domain/services/focus_completion_ad_service.dart';
 import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +24,7 @@ void main() {
       await tester.pumpWidget(
         AtomicTimerBootstrap(
           notificationService: _NoopNotificationService(),
+          focusCompletionAdService: _NoopFocusCompletionAdService(),
           localDataSource: _MemoryTimerLocalDataSource(
             progress: const ProgressModel(
               gems: 0,
@@ -49,6 +51,7 @@ void main() {
     await tester.pumpWidget(
       AtomicTimerBootstrap(
         notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
         localDataSource: _MemoryTimerLocalDataSource(),
       ),
     );
@@ -78,6 +81,7 @@ void main() {
     await tester.pumpWidget(
       AtomicTimerBootstrap(
         notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
         localDataSource: _MemoryTimerLocalDataSource(
           progress: const ProgressModel(
             gems: 0,
@@ -92,6 +96,17 @@ void main() {
     expect(find.text('\u00a1Bienvenido!'), findsNothing);
     expect(find.text('Javier'), findsOneWidget);
   });
+}
+
+class _NoopFocusCompletionAdService implements FocusCompletionAdService {
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> showAfterFocusCompletion() async {}
+
+  @override
+  Future<void> dispose() async {}
 }
 
 class _MemoryTimerLocalDataSource implements TimerLocalDataSource {

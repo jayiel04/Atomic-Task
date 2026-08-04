@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/timer_constants.dart';
 import '../../domain/entities/timer_mode.dart';
 import '../../domain/entities/user_progress.dart';
+import '../../domain/services/focus_completion_ad_service.dart';
 import '../../domain/services/timer_notification_service.dart';
 import '../../domain/usecases/clear_progress.dart';
 import '../../domain/usecases/load_progress.dart';
@@ -16,17 +17,20 @@ class TimerController extends ChangeNotifier {
     required SaveProgress saveProgress,
     required ClearProgress clearProgress,
     required TimerNotificationService notificationService,
+    required FocusCompletionAdService focusCompletionAdService,
     DateTime Function()? now,
   }) : _loadProgress = loadProgress,
        _saveProgress = saveProgress,
        _clearProgress = clearProgress,
        _notificationService = notificationService,
+       _focusCompletionAdService = focusCompletionAdService,
        _now = now ?? DateTime.now;
 
   final LoadProgress _loadProgress;
   final SaveProgress _saveProgress;
   final ClearProgress _clearProgress;
   final TimerNotificationService _notificationService;
+  final FocusCompletionAdService _focusCompletionAdService;
   final DateTime Function() _now;
 
   Timer? _ticker;
@@ -68,6 +72,7 @@ class TimerController extends ChangeNotifier {
   bool get controlsLocked => _isRunning || _elapsedSeconds > 0;
 
   Future<void> initialize() async {
+    unawaited(_runAdOperation(_focusCompletionAdService.initialize));
     await _notificationService.initialize();
 
     try {
@@ -336,6 +341,12 @@ class TimerController extends ChangeNotifier {
       ),
     );
     notifyListeners();
+
+    if (_mode == TimerMode.focus) {
+      unawaited(
+        _runAdOperation(_focusCompletionAdService.showAfterFocusCompletion),
+      );
+    }
   }
 
   void _stopBecauseNoGems() {
@@ -451,11 +462,23 @@ class TimerController extends ChangeNotifier {
     }
   }
 
+  Future<void> _runAdOperation(Future<void> Function() operation) async {
+    try {
+      await operation();
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('No fue posible completar la operación de AdMob: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _ticker?.cancel();
     _progressSaveTimer?.cancel();
     flushProgress();
+    unawaited(_runAdOperation(_focusCompletionAdService.dispose));
     super.dispose();
   }
 }

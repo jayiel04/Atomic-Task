@@ -6,7 +6,9 @@ import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
 import 'features/timer/data/datasources/timer_local_data_source.dart';
 import 'features/timer/data/repositories/timer_repository_impl.dart';
+import 'features/timer/data/services/admob_focus_completion_ad_service.dart';
 import 'features/timer/data/services/local_timer_notification_service.dart';
+import 'features/timer/domain/services/focus_completion_ad_service.dart';
 import 'features/timer/domain/services/timer_notification_service.dart';
 import 'features/timer/domain/usecases/clear_progress.dart';
 import 'features/timer/domain/usecases/load_progress.dart';
@@ -17,11 +19,13 @@ import 'features/timer/presentation/pages/timer_page.dart';
 class AtomicTimerBootstrap extends StatefulWidget {
   const AtomicTimerBootstrap({
     this.notificationService,
+    this.focusCompletionAdService,
     this.localDataSource,
     super.key,
   });
 
   final TimerNotificationService? notificationService;
+  final FocusCompletionAdService? focusCompletionAdService;
   final TimerLocalDataSource? localDataSource;
 
   @override
@@ -44,12 +48,15 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     final repository = TimerRepositoryImpl(localDataSource);
     final notificationService =
         widget.notificationService ?? LocalTimerNotificationService();
+    final focusCompletionAdService =
+        widget.focusCompletionAdService ?? AdMobFocusCompletionAdService();
 
     _controller = TimerController(
       loadProgress: LoadProgress(repository),
       saveProgress: SaveProgress(repository),
       clearProgress: ClearProgress(repository),
       notificationService: notificationService,
+      focusCompletionAdService: focusCompletionAdService,
     )..initialize();
 
     _lifecycleListener = AppLifecycleListener(
