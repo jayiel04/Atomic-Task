@@ -6,7 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  for (final size in [const Size(320, 568), const Size(390, 844)]) {
+  for (final size in [
+    const Size(320, 568),
+    const Size(360, 640),
+    const Size(390, 844),
+    const Size(412, 915),
+    const Size(820, 1180),
+    const Size(568, 320),
+  ]) {
     testWidgets('main view fits without scrolling at $size', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;

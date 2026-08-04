@@ -21,10 +21,25 @@ class ProgressDrawer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
-                color: AppColors.primary,
-                size: 42,
+              Container(
+                width: 88,
+                height: 88,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x2B513382),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/images/Logo.png',
+                  fit: BoxFit.cover,
+                ),
               ),
               const SizedBox(height: 16),
               const Text(

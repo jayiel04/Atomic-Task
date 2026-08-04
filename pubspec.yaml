@@ -53,6 +53,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   build_runner: ^2.7.1
   drift_dev: ^2.34.3
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -67,6 +68,26 @@ flutter:
 
   assets:
     - assets/images/Fondo.png
+    - assets/images/Logo.png
+    - assets/images/logo_icon.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/logo_icon.png
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: assets/images/logo_icon.png
+    background_color: '#EDE6F8'
+    theme_color: '#7A4FD1'
+  macos:
+    generate: true
+    image_path: assets/images/logo_icon.png
+  windows:
+    generate: true
+    image_path: assets/images/logo_icon.png
+    icon_size: 48
 
   # To add assets to your application, add an assets section, like this:
   # assets:

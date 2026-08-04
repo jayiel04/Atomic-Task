@@ -8,6 +8,9 @@ class TimeSelector extends StatefulWidget {
     required this.maxValue,
     required this.onChanged,
     required this.enabled,
+    this.height = 150,
+    this.itemExtent = 50,
+    this.fontSize = 42,
     super.key,
   });
 
@@ -15,15 +18,15 @@ class TimeSelector extends StatefulWidget {
   final int maxValue;
   final ValueChanged<int> onChanged;
   final bool enabled;
+  final double height;
+  final double itemExtent;
+  final double fontSize;
 
   @override
   State<TimeSelector> createState() => _TimeSelectorState();
 }
 
 class _TimeSelectorState extends State<TimeSelector> {
-  static const _itemExtent = 50.0;
-  static const _selectorHeight = 150.0;
-
   late final FixedExtentScrollController _scrollController;
   late int _pendingValue;
 
@@ -55,7 +58,7 @@ class _TimeSelectorState extends State<TimeSelector> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: _selectorHeight,
+      height: widget.height,
       child: RepaintBoundary(
         child: ShaderMask(
           blendMode: BlendMode.dstIn,
@@ -82,7 +85,7 @@ class _TimeSelectorState extends State<TimeSelector> {
             },
             child: ListWheelScrollView.useDelegate(
               controller: _scrollController,
-              itemExtent: _itemExtent,
+              itemExtent: widget.itemExtent,
               diameterRatio: 100,
               perspective: 0.0001,
               physics: widget.enabled
@@ -105,7 +108,7 @@ class _TimeSelectorState extends State<TimeSelector> {
                         color: widget.enabled
                             ? AppColors.text
                             : AppColors.muted.withValues(alpha: 0.45),
-                        fontSize: 42,
+                        fontSize: widget.fontSize,
                         fontWeight: FontWeight.w900,
                       ),
                     ),

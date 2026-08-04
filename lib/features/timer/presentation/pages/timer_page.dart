@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../controllers/timer_controller.dart';
+import '../layout/timer_layout_spec.dart';
 import '../widgets/header_section.dart';
 import '../widgets/mode_selector.dart';
 import '../widgets/primary_action_button.dart';
@@ -173,115 +176,320 @@ class _TimerContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final horizontalPadding = constraints.maxWidth < 380 ? 16.0 : 24.0;
+        final spec = TimerLayoutSpec.from(constraints);
+        final contentWidth = math.min(
+          spec.maxContentWidth,
+          constraints.maxWidth - (spec.horizontalPadding * 2),
+        );
+        final contentHeight = math.max(
+          0.0,
+          constraints.maxHeight - spec.topPadding - spec.bottomPadding,
+        );
 
         return Padding(
           padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            18,
-            horizontalPadding,
-            28,
+            spec.horizontalPadding,
+            spec.topPadding,
+            spec.horizontalPadding,
+            spec.bottomPadding,
           ),
           child: SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
+            child: Align(
               alignment: Alignment.topCenter,
               child: SizedBox(
-                width: 520,
-                child: Column(
-                  children: [
-                    _ControllerSelector(
-                      controller: controller,
-                      select: (controller) => (
-                        controller.progress.profileName,
-                        controller.progress.gems,
-                        controller.progress.totalFocusSeconds ~/ 60,
+                width: contentWidth,
+                height: contentHeight,
+                child: spec.isLandscape
+                    ? _LandscapeTimerLayout(
+                        spec: spec,
+                        header: _buildHeader(spec),
+                        modeSelector: _buildModeSelector(spec),
+                        dial: _buildDial(spec),
+                        status: _buildStatus(spec),
+                        primaryAction: _buildPrimaryAction(spec),
+                        resetAction: _buildResetAction(spec),
+                      )
+                    : spec.isTablet
+                    ? _TabletTimerLayout(
+                        spec: spec,
+                        header: _buildHeader(spec),
+                        modeSelector: _buildModeSelector(spec),
+                        dial: _buildDial(spec),
+                        status: _buildStatus(spec),
+                        primaryAction: _buildPrimaryAction(spec),
+                        resetAction: _buildResetAction(spec),
+                      )
+                    : _PortraitTimerLayout(
+                        spec: spec,
+                        header: _buildHeader(spec),
+                        modeSelector: _buildModeSelector(spec),
+                        dial: _buildDial(spec),
+                        status: _buildStatus(spec),
+                        primaryAction: _buildPrimaryAction(spec),
+                        resetAction: _buildResetAction(spec),
                       ),
-                      builder: (context, _) {
-                        return RepaintBoundary(
-                          child: HeaderSection(controller: controller),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 26),
-                    _ControllerSelector(
-                      controller: controller,
-                      select: (controller) =>
-                          (controller.mode, controller.controlsLocked),
-                      builder: (context, _) {
-                        return RepaintBoundary(
-                          child: ModeSelector(controller: controller),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 26),
-                    _ControllerSelector(
-                      controller: controller,
-                      select: (controller) => (
-                        controller.mode,
-                        controller.minutes,
-                        controller.remainingSeconds,
-                        controller.selectedSeconds,
-                        controller.isRunning,
-                        controller.sessionCompleted,
-                        controller.controlsLocked,
-                      ),
-                      builder: (context, _) {
-                        return RepaintBoundary(
-                          child: TimerDial(controller: controller),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    _ControllerSelector(
-                      controller: controller,
-                      select: (controller) =>
-                          (controller.statusMessage, controller.statusIsError),
-                      builder: (context, _) {
-                        return _StatusCard(controller: controller);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _ControllerSelector(
-                      controller: controller,
-                      select: (controller) => (
-                        controller.isRunning,
-                        controller.remainingSeconds > 0 &&
-                            controller.remainingSeconds <
-                                controller.selectedSeconds,
-                      ),
-                      builder: (context, _) {
-                        return RepaintBoundary(
-                          child: PrimaryActionButton(controller: controller),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: controller.resetTimer,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.muted,
-                          side: const BorderSide(color: AppColors.border),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          'Reiniciar temporizador',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHeader(TimerLayoutSpec spec) {
+    return _ControllerSelector(
+      controller: controller,
+      select: (controller) => (
+        controller.progress.profileName,
+        controller.progress.gems,
+        controller.progress.totalFocusSeconds ~/ 60,
+      ),
+      builder: (context, _) {
+        return RepaintBoundary(
+          child: HeaderSection(controller: controller, spec: spec),
+        );
+      },
+    );
+  }
+
+  Widget _buildModeSelector(TimerLayoutSpec spec) {
+    return _ControllerSelector(
+      controller: controller,
+      select: (controller) => (controller.mode, controller.controlsLocked),
+      builder: (context, _) {
+        return RepaintBoundary(
+          child: ModeSelector(controller: controller, height: spec.modeHeight),
+        );
+      },
+    );
+  }
+
+  Widget _buildDial(TimerLayoutSpec spec) {
+    return _ControllerSelector(
+      controller: controller,
+      select: (controller) => (
+        controller.mode,
+        controller.minutes,
+        controller.remainingSeconds,
+        controller.selectedSeconds,
+        controller.isRunning,
+        controller.sessionCompleted,
+        controller.controlsLocked,
+      ),
+      builder: (context, _) {
+        return RepaintBoundary(
+          child: TimerDial(controller: controller, spec: spec),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatus(TimerLayoutSpec spec) {
+    return _ControllerSelector(
+      controller: controller,
+      select: (controller) =>
+          (controller.statusMessage, controller.statusIsError),
+      builder: (context, _) {
+        return _StatusCard(
+          controller: controller,
+          minHeight: spec.statusMinHeight,
+        );
+      },
+    );
+  }
+
+  Widget _buildPrimaryAction(TimerLayoutSpec spec) {
+    return _ControllerSelector(
+      controller: controller,
+      select: (controller) => (
+        controller.isRunning,
+        controller.remainingSeconds > 0 &&
+            controller.remainingSeconds < controller.selectedSeconds,
+      ),
+      builder: (context, _) {
+        return RepaintBoundary(
+          child: PrimaryActionButton(
+            controller: controller,
+            height: spec.primaryButtonHeight,
+            iconSize: spec.primaryIconSize,
+            fontSize: spec.primaryFontSize,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildResetAction(TimerLayoutSpec spec) {
+    return SizedBox(
+      width: double.infinity,
+      height: spec.resetButtonHeight,
+      child: OutlinedButton(
+        onPressed: controller.resetTimer,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.muted,
+          side: const BorderSide(color: AppColors.border),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: const Text(
+          'Reiniciar temporizador',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+}
+
+class _PortraitTimerLayout extends StatelessWidget {
+  const _PortraitTimerLayout({
+    required this.spec,
+    required this.header,
+    required this.modeSelector,
+    required this.dial,
+    required this.status,
+    required this.primaryAction,
+    required this.resetAction,
+  });
+
+  final TimerLayoutSpec spec;
+  final Widget header;
+  final Widget modeSelector;
+  final Widget dial;
+  final Widget status;
+  final Widget primaryAction;
+  final Widget resetAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        header,
+        SizedBox(height: spec.sectionGap),
+        modeSelector,
+        SizedBox(height: spec.sectionGap),
+        Expanded(child: Center(child: dial)),
+        SizedBox(height: spec.controlGap),
+        status,
+        SizedBox(height: spec.controlGap),
+        primaryAction,
+        SizedBox(height: spec.controlGap),
+        resetAction,
+      ],
+    );
+  }
+}
+
+class _TabletTimerLayout extends StatelessWidget {
+  const _TabletTimerLayout({
+    required this.spec,
+    required this.header,
+    required this.modeSelector,
+    required this.dial,
+    required this.status,
+    required this.primaryAction,
+    required this.resetAction,
+  });
+
+  final TimerLayoutSpec spec;
+  final Widget header;
+  final Widget modeSelector;
+  final Widget dial;
+  final Widget status;
+  final Widget primaryAction;
+  final Widget resetAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        header,
+        SizedBox(height: spec.sectionGap),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  modeSelector,
+                  SizedBox(height: spec.sectionGap),
+                  dial,
+                  SizedBox(height: spec.controlGap),
+                  status,
+                  SizedBox(height: spec.controlGap),
+                  primaryAction,
+                  SizedBox(height: spec.controlGap),
+                  resetAction,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LandscapeTimerLayout extends StatelessWidget {
+  const _LandscapeTimerLayout({
+    required this.spec,
+    required this.header,
+    required this.modeSelector,
+    required this.dial,
+    required this.status,
+    required this.primaryAction,
+    required this.resetAction,
+  });
+
+  final TimerLayoutSpec spec;
+  final Widget header;
+  final Widget modeSelector;
+  final Widget dial;
+  final Widget status;
+  final Widget primaryAction;
+  final Widget resetAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        header,
+        SizedBox(height: spec.sectionGap),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: Center(child: dial)),
+              SizedBox(width: spec.sectionGap),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 360),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Transform.translate(
+                          offset: const Offset(0, -30),
+                          child: modeSelector,
+                        ),
+                        SizedBox(height: spec.controlGap),
+                        status,
+                        SizedBox(height: spec.controlGap),
+                        primaryAction,
+                        SizedBox(height: spec.controlGap),
+                        resetAction,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -343,9 +551,10 @@ class _ControllerSelectorState<T> extends State<_ControllerSelector<T>> {
 }
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.controller});
+  const _StatusCard({required this.controller, required this.minHeight});
 
   final TimerController controller;
+  final double minHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +569,7 @@ class _StatusCard extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 52),
+      constraints: BoxConstraints(minHeight: minHeight),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: background,
