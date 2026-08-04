@@ -94,7 +94,7 @@ class TimerDial extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
-                        width: size * 0.52,
+                        width: size * 0.64,
                         child: TimeSelector(
                           value: controller.minutes,
                           maxValue: TimerConstants.maximumMinutes,

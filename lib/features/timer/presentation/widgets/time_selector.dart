@@ -21,7 +21,7 @@ class TimeSelector extends StatefulWidget {
 }
 
 class _TimeSelectorState extends State<TimeSelector> {
-  static const _itemExtent = 44.0;
+  static const _itemExtent = 50.0;
   static const _selectorHeight = 150.0;
 
   late final FixedExtentScrollController _scrollController;
@@ -105,7 +105,7 @@ class _TimeSelectorState extends State<TimeSelector> {
                         color: widget.enabled
                             ? AppColors.text
                             : AppColors.muted.withValues(alpha: 0.45),
-                        fontSize: 38,
+                        fontSize: 42,
                         fontWeight: FontWeight.w900,
                       ),
                     ),

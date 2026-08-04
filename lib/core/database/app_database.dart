@@ -19,7 +19,16 @@ class TimerProgress extends Table {
 @DriftDatabase(tables: [TimerProgress])
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor})
-    : super(executor ?? driftDatabase(name: 'atomic_task'));
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'atomic_task',
+              web: DriftWebOptions(
+                sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+                driftWorker: Uri.parse('drift_worker.js'),
+              ),
+            ),
+      );
 
   @override
   int get schemaVersion => 1;
