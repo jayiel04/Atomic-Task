@@ -17,6 +17,7 @@ class AdMobFocusCompletionAdService
 
   static const _androidTestAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
   static const _iosTestAdUnitId = 'ca-app-pub-3940256099942544/4411468910';
+  static const _androidTestDeviceId = '10551373A8000164';
 
   Future<void>? _initialization;
   InterstitialAd? _interstitialAd;
@@ -36,6 +37,13 @@ class AdMobFocusCompletionAdService
     }
 
     try {
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          testDeviceIds: defaultTargetPlatform == TargetPlatform.android
+              ? const <String>[_androidTestDeviceId]
+              : null,
+        ),
+      );
       await MobileAds.instance.initialize();
       if (_isDisposed) {
         return;

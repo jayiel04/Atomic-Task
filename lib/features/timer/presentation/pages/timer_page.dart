@@ -12,9 +12,14 @@ import '../widgets/progress_drawer.dart';
 import '../widgets/timer_dial.dart';
 
 class TimerPage extends StatefulWidget {
-  const TimerPage({required this.controller, super.key});
+  const TimerPage({
+    required this.controller,
+    required this.onOpenTasks,
+    super.key,
+  });
 
   final TimerController controller;
+  final VoidCallback onOpenTasks;
 
   @override
   State<TimerPage> createState() => _TimerPageState();
@@ -143,7 +148,10 @@ class _TimerPageState extends State<TimerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      drawer: ProgressDrawer(controller: widget.controller),
+      drawer: ProgressDrawer(
+        controller: widget.controller,
+        onOpenTasks: widget.onOpenTasks,
+      ),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           image: DecorationImage(

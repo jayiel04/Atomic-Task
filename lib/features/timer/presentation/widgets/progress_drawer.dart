@@ -4,9 +4,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../controllers/timer_controller.dart';
 
 class ProgressDrawer extends StatelessWidget {
-  const ProgressDrawer({required this.controller, super.key});
+  const ProgressDrawer({
+    required this.controller,
+    required this.onOpenTasks,
+    super.key,
+  });
 
   final TimerController controller;
+  final VoidCallback onOpenTasks;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +58,32 @@ class ProgressDrawer extends StatelessWidget {
                 'Tus gemas, minutos de concentración y nombre se guardan '
                 'automáticamente en este dispositivo.',
                 style: TextStyle(color: AppColors.muted, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                key: const Key('openTasksMenuItem'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: const Icon(
+                  Icons.checklist_rounded,
+                  color: AppColors.primary,
+                ),
+                title: const Text(
+                  'Tareas',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.border),
+                ),
+                tileColor: AppColors.surfaceVariant,
+                onTap: () {
+                  Navigator.pop(context);
+                  onOpenTasks();
+                },
               ),
               const Spacer(),
               SizedBox(

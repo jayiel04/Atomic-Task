@@ -18,6 +18,7 @@ class TimerController extends ChangeNotifier {
     required ClearProgress clearProgress,
     required TimerNotificationService notificationService,
     required FocusCompletionAdService focusCompletionAdService,
+    this.onLinkedTaskFocusCompleted,
     DateTime Function()? now,
   }) : _loadProgress = loadProgress,
        _saveProgress = saveProgress,
@@ -32,6 +33,7 @@ class TimerController extends ChangeNotifier {
   final TimerNotificationService _notificationService;
   final FocusCompletionAdService _focusCompletionAdService;
   final DateTime Function() _now;
+  final ValueChanged<int>? onLinkedTaskFocusCompleted;
 
   Timer? _ticker;
   Timer? _progressSaveTimer;
@@ -54,6 +56,8 @@ class TimerController extends ChangeNotifier {
   bool _isRunning = false;
   bool _sessionCompleted = false;
   bool _statusIsError = false;
+  int? _linkedTaskId;
+  String? _linkedTaskTitle;
 
   String _statusMessage =
       'Obtendrás 1 gema por cada 3 minutos completos de concentración.';
@@ -68,8 +72,31 @@ class TimerController extends ChangeNotifier {
   bool get sessionCompleted => _sessionCompleted;
   bool get statusIsError => _statusIsError;
   String get statusMessage => _statusMessage;
+  int? get linkedTaskId => _linkedTaskId;
+  String? get linkedTaskTitle => _linkedTaskTitle;
 
   bool get controlsLocked => _isRunning || _elapsedSeconds > 0;
+
+  bool prepareFocusForTask({
+    required int taskId,
+    required String taskTitle,
+    required int minutes,
+  }) {
+    if (!_isInitialized || controlsLocked) {
+      return false;
+    }
+
+    _mode = TimerMode.focus;
+    _minutes = minutes.clamp(1, TimerConstants.maximumMinutes).toInt();
+    _linkedTaskId = taskId;
+    _linkedTaskTitle = taskTitle;
+    _prepareSelectedTime();
+    _setStatus(
+      'Concentración preparada para “$taskTitle”. Inicia cuando estés listo.',
+    );
+    notifyListeners();
+    return true;
+  }
 
   Future<void> initialize() async {
     unawaited(_runAdOperation(_focusCompletionAdService.initialize));
@@ -93,6 +120,7 @@ class TimerController extends ChangeNotifier {
     }
 
     _mode = newMode;
+    _clearLinkedTask();
     _minutes = newMode.defaultMinutes;
     _prepareSelectedTime();
     _updateEstimate();
@@ -110,6 +138,7 @@ class TimerController extends ChangeNotifier {
     }
 
     _minutes = newValue;
+    _clearLinkedTask();
     _prepareSelectedTime();
     _updateEstimate();
     notifyListeners();
@@ -143,7 +172,9 @@ class TimerController extends ChangeNotifier {
     _endsAt = _now().add(Duration(seconds: _remainingSeconds));
     _setStatus(
       _mode == TimerMode.focus
-          ? 'Sesión de concentración en curso.'
+          ? _linkedTaskTitle == null
+                ? 'Sesión de concentración en curso.'
+                : 'Concentración para “$_linkedTaskTitle” en curso.'
           : 'Descanso en curso.',
     );
 
@@ -191,6 +222,7 @@ class TimerController extends ChangeNotifier {
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
     _remainingSeconds = _selectedSeconds;
+    _clearLinkedTask();
 
     _updateEstimate();
     notifyListeners();
@@ -215,6 +247,7 @@ class TimerController extends ChangeNotifier {
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
+    _clearLinkedTask();
 
     _prepareSelectedTime();
     _updateEstimate();
@@ -311,6 +344,8 @@ class TimerController extends ChangeNotifier {
   }
 
   void _finishSession() {
+    final completedTaskId = _mode == TimerMode.focus ? _linkedTaskId : null;
+    final completedTaskTitle = _linkedTaskTitle;
     _ticker?.cancel();
     _ticker = null;
     _endsAt = null;
@@ -320,8 +355,12 @@ class TimerController extends ChangeNotifier {
 
     if (_mode == TimerMode.focus) {
       _setStatus(
-        '¡Sesión completada! Ganaste $_rewardedBlocks '
-        '${_rewardedBlocks == 1 ? 'gema' : 'gemas'}.',
+        completedTaskTitle == null
+            ? '¡Sesión completada! Ganaste $_rewardedBlocks '
+                  '${_rewardedBlocks == 1 ? 'gema' : 'gemas'}.'
+            : '¡Concentración completada para “$completedTaskTitle”! '
+                  'Ganaste $_rewardedBlocks '
+                  '${_rewardedBlocks == 1 ? 'gema' : 'gemas'}.',
       );
     } else {
       _setStatus(
@@ -333,6 +372,7 @@ class TimerController extends ChangeNotifier {
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
+    _clearLinkedTask();
     _persistProgress(immediately: true);
     unawaited(
       _notificationService.showTimerCompleted(
@@ -341,6 +381,10 @@ class TimerController extends ChangeNotifier {
       ),
     );
     notifyListeners();
+
+    if (completedTaskId != null) {
+      onLinkedTaskFocusCompleted?.call(completedTaskId);
+    }
 
     if (_mode == TimerMode.focus) {
       unawaited(
@@ -400,6 +444,11 @@ class TimerController extends ChangeNotifier {
     _sessionCompleted = false;
   }
 
+  void _clearLinkedTask() {
+    _linkedTaskId = null;
+    _linkedTaskTitle = null;
+  }
+
   void _updateEstimate() {
     final selectedMinutes = _selectedSeconds ~/ 60;
 
@@ -412,7 +461,7 @@ class TimerController extends ChangeNotifier {
           '${reward == 1 ? 'gema' : 'gemas'}.',
         );
       } else {
-        _setStatus('Necesitas al menos 3 minutos para ganar una gema.');
+        _setStatus('No generará gemas.');
       }
 
       return;

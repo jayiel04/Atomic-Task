@@ -1,6 +1,6 @@
 {
-    "name": "atomic_task",
-    "short_name": "atomic_task",
+    "name": "Atomic Task",
+    "short_name": "Atomic Task",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#EDE6F8",

@@ -16,7 +16,24 @@ class TimerProgress extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [TimerProgress])
+@DataClassName('TaskRow')
+class Tasks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get title => text()();
+
+  BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
+
+  DateTimeColumn get dueDate => dateTime().nullable()();
+
+  IntColumn get focusMinutes => integer().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+@DriftDatabase(tables: [TimerProgress, Tasks])
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor})
     : super(
@@ -31,7 +48,20 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (migrator) => migrator.createAll(),
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.createTable(tasks);
+      }
+      if (from == 2) {
+        await migrator.addColumn(tasks, tasks.focusMinutes);
+      }
+    },
+  );
 
   Future<TimerProgressData?> readProgress() {
     return select(timerProgress).getSingleOrNull();
@@ -43,5 +73,66 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteProgress() {
     return delete(timerProgress).go();
+  }
+
+  Stream<List<TaskRow>> watchAllTasks() {
+    final query = select(tasks)
+      ..orderBy([
+        (task) => OrderingTerm(expression: task.isCompleted),
+        (task) => OrderingTerm(expression: task.dueDate.isNull()),
+        (task) => OrderingTerm(expression: task.dueDate),
+        (task) => OrderingTerm(expression: task.createdAt),
+      ]);
+
+    return query.watch();
+  }
+
+  Future<int> insertTask(TasksCompanion task) {
+    return into(tasks).insert(task);
+  }
+
+  Future<int> updateTask({
+    required int id,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime updatedAt,
+  }) {
+    return (update(tasks)..where((task) => task.id.equals(id))).write(
+      TasksCompanion(
+        title: Value(title),
+        dueDate: Value(dueDate),
+        updatedAt: Value(updatedAt),
+      ),
+    );
+  }
+
+  Future<int> setTaskCompleted({
+    required int id,
+    required bool isCompleted,
+    required DateTime updatedAt,
+  }) {
+    return (update(tasks)..where((task) => task.id.equals(id))).write(
+      TasksCompanion(
+        isCompleted: Value(isCompleted),
+        updatedAt: Value(updatedAt),
+      ),
+    );
+  }
+
+  Future<int> setTaskFocusMinutes({
+    required int id,
+    required int focusMinutes,
+    required DateTime updatedAt,
+  }) {
+    return (update(tasks)..where((task) => task.id.equals(id))).write(
+      TasksCompanion(
+        focusMinutes: Value(focusMinutes),
+        updatedAt: Value(updatedAt),
+      ),
+    );
+  }
+
+  Future<int> deleteTask(int id) {
+    return (delete(tasks)..where((task) => task.id.equals(id))).go();
   }
 }

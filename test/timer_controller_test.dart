@@ -140,6 +140,50 @@ void main() {
     expect(notifications.completedTimerCalls, 1);
     expect(completionAds.showCalls, 1);
   });
+
+  test(
+    'completes a linked task only when its focus session finishes',
+    () async {
+      final repository = _MemoryTimerRepository();
+      final notifications = _FakeTimerNotificationService();
+      final completionAds = _FakeFocusCompletionAdService();
+      var now = DateTime(2026, 8, 10, 10);
+      int? completedTaskId;
+      final controller = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: notifications,
+        focusCompletionAdService: completionAds,
+        onLinkedTaskFocusCompleted: (taskId) => completedTaskId = taskId,
+        now: () => now,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.initialize();
+      expect(
+        controller.prepareFocusForTask(
+          taskId: 42,
+          taskTitle: 'Preparar propuesta',
+          minutes: 1,
+        ),
+        isTrue,
+      );
+      expect(controller.minutes, 1);
+      expect(controller.linkedTaskId, 42);
+      expect(controller.statusMessage, contains('Preparar propuesta'));
+      expect(completedTaskId, isNull);
+
+      controller.startOrPause();
+      expect(completedTaskId, isNull);
+      now = now.add(const Duration(minutes: 1));
+      controller.syncWithClock();
+
+      expect(completedTaskId, 42);
+      expect(controller.linkedTaskId, isNull);
+      expect(controller.sessionCompleted, isTrue);
+    },
+  );
 }
 
 class _FakeFocusCompletionAdService implements FocusCompletionAdService {
