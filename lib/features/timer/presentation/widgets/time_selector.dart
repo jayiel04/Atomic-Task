@@ -8,6 +8,9 @@ class TimeSelector extends StatefulWidget {
     required this.maxValue,
     required this.onChanged,
     required this.enabled,
+    this.height = 150,
+    this.itemExtent = 50,
+    this.fontSize = 42,
     super.key,
   });
 
@@ -15,26 +18,23 @@ class TimeSelector extends StatefulWidget {
   final int maxValue;
   final ValueChanged<int> onChanged;
   final bool enabled;
+  final double height;
+  final double itemExtent;
+  final double fontSize;
 
   @override
   State<TimeSelector> createState() => _TimeSelectorState();
 }
 
 class _TimeSelectorState extends State<TimeSelector> {
-  static const _itemExtent = 44.0;
-  static const _selectorHeight = 150.0;
-
-  late final PageController _scrollController;
+  late final FixedExtentScrollController _scrollController;
   late int _pendingValue;
 
   @override
   void initState() {
     super.initState();
     _pendingValue = widget.value;
-    _scrollController = PageController(
-      initialPage: widget.value,
-      viewportFraction: _itemExtent / _selectorHeight,
-    );
+    _scrollController = FixedExtentScrollController(initialItem: widget.value);
   }
 
   @override
@@ -43,8 +43,8 @@ class _TimeSelectorState extends State<TimeSelector> {
     if (widget.value != oldWidget.value) {
       _pendingValue = widget.value;
       if (_scrollController.hasClients &&
-          _scrollController.page?.round() != widget.value) {
-        _scrollController.jumpToPage(widget.value);
+          _scrollController.selectedItem != widget.value) {
+        _scrollController.jumpToItem(widget.value);
       }
     }
   }
@@ -58,7 +58,7 @@ class _TimeSelectorState extends State<TimeSelector> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: _selectorHeight,
+      height: widget.height,
       child: RepaintBoundary(
         child: ShaderMask(
           blendMode: BlendMode.dstIn,
@@ -83,32 +83,38 @@ class _TimeSelectorState extends State<TimeSelector> {
               }
               return false;
             },
-            child: PageView.builder(
+            child: ListWheelScrollView.useDelegate(
               controller: _scrollController,
-              scrollDirection: Axis.vertical,
-              itemCount: widget.maxValue + 1,
+              itemExtent: widget.itemExtent,
+              diameterRatio: 100,
+              perspective: 0.0001,
               physics: widget.enabled
-                  ? const BouncingScrollPhysics(
-                      decelerationRate: ScrollDecelerationRate.normal,
+                  ? const FixedExtentScrollPhysics(
+                      parent: BouncingScrollPhysics(
+                        decelerationRate: ScrollDecelerationRate.normal,
+                      ),
                     )
                   : const NeverScrollableScrollPhysics(),
-              onPageChanged: widget.enabled
+              onSelectedItemChanged: widget.enabled
                   ? (value) => _pendingValue = value
                   : null,
-              itemBuilder: (context, index) {
-                return Center(
-                  child: Text(
-                    index.toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      color: widget.enabled
-                          ? AppColors.text
-                          : AppColors.muted.withValues(alpha: 0.45),
-                      fontSize: 38,
-                      fontWeight: FontWeight.w900,
+              childDelegate: ListWheelChildBuilderDelegate(
+                childCount: widget.maxValue + 1,
+                builder: (context, index) {
+                  return Center(
+                    child: Text(
+                      index.toString().padLeft(2, '0'),
+                      style: TextStyle(
+                        color: widget.enabled
+                            ? AppColors.text
+                            : AppColors.muted.withValues(alpha: 0.45),
+                        fontSize: widget.fontSize,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),

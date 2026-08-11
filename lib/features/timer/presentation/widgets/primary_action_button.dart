@@ -6,35 +6,39 @@ import '../controllers/timer_controller.dart';
 class PrimaryActionButton extends StatelessWidget {
   const PrimaryActionButton({
     required this.controller,
+    this.height = 82,
+    this.iconSize = 35,
+    this.fontSize = 21,
     super.key,
   });
 
   final TimerController controller;
+  final double height;
+  final double iconSize;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
     final label = controller.isRunning
         ? 'PAUSAR'
         : controller.remainingSeconds > 0 &&
-                controller.remainingSeconds < controller.selectedSeconds
-            ? 'CONTINUAR'
-            : 'INICIAR';
+              controller.remainingSeconds < controller.selectedSeconds
+        ? 'CONTINUAR'
+        : 'INICIAR';
 
-    final icon =
-        controller.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded;
+    final icon = controller.isRunning
+        ? Icons.pause_rounded
+        : Icons.play_arrow_rounded;
 
     return SizedBox(
       width: double.infinity,
-      height: 82,
+      height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.primaryDark,
-            ],
+            colors: [AppColors.primary, AppColors.primaryDark],
           ),
           borderRadius: BorderRadius.circular(25),
           boxShadow: const [
@@ -54,14 +58,11 @@ class PrimaryActionButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(25),
             ),
           ),
-          icon: Icon(
-            icon,
-            size: 35,
-          ),
+          icon: Icon(icon, size: iconSize),
           label: Text(
             label,
-            style: const TextStyle(
-              fontSize: 21,
+            style: TextStyle(
+              fontSize: fontSize,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.4,
             ),

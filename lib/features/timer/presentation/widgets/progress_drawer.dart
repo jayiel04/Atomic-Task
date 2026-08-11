@@ -6,10 +6,12 @@ import '../controllers/timer_controller.dart';
 class ProgressDrawer extends StatelessWidget {
   const ProgressDrawer({
     required this.controller,
+    required this.onOpenTasks,
     super.key,
   });
 
   final TimerController controller;
+  final VoidCallback onOpenTasks;
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +23,26 @@ class ProgressDrawer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
-                color: AppColors.primary,
-                size: 42,
+              Container(
+                width: 88,
+                height: 88,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x2B513382),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/images/logo_launcher.png',
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -39,10 +57,33 @@ class ProgressDrawer extends StatelessWidget {
               const Text(
                 'Tus gemas, minutos de concentración y nombre se guardan '
                 'automáticamente en este dispositivo.',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  height: 1.5,
+                style: TextStyle(color: AppColors.muted, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                key: const Key('openTasksMenuItem'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: const Icon(
+                  Icons.checklist_rounded,
+                  color: AppColors.primary,
                 ),
+                title: const Text(
+                  'Tareas',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.border),
+                ),
+                tileColor: AppColors.surfaceVariant,
+                onTap: () {
+                  Navigator.pop(context);
+                  onOpenTasks();
+                },
               ),
               const Spacer(),
               SizedBox(
