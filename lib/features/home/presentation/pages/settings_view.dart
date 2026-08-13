@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../timer/domain/entities/user_progress.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({
@@ -111,7 +112,7 @@ class _SettingsViewState extends State<SettingsView> {
                       key: const Key('settingsNameField'),
                       controller: _nameController,
                       focusNode: _nameFocusNode,
-                      maxLength: 18,
+                      maxLength: UserProgress.maxProfileNameLength,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(

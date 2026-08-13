@@ -71,7 +71,7 @@ Reglas:
 - debe existir un espacio pequeño, visible y consistente entre perfil y datos;
 - usar los íconos equivalentes a `person_rounded`, `schedule_rounded` y `diamond_rounded`;
 - no mostrar “Hola” ni otro saludo;
-- el nombre admite hasta 18 caracteres y debe usar `Flexible`, ajuste o elipsis para no desbordar;
+- el nombre admite hasta 8 caracteres y debe usar `Flexible`, ajuste o elipsis para no desbordar;
 - el perfil y las estadísticas usan la misma fuente de estado en ambas pestañas;
 - tocar el ícono de perfil abre el panel lateral derecho con edición del nombre, progreso y restablecimiento.
 

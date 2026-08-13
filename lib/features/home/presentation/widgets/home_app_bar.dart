@@ -26,7 +26,9 @@ class HomeAppBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 360;
-        final profileWidth = isNarrow ? 164.0 : 196.0;
+        final isCompact = constraints.maxWidth < 430;
+        final profileWidth = isNarrow ? 148.0 : 158.0;
+        final profileCardWidth = isNarrow ? 138.0 : 148.0;
 
         return Container(
           constraints: const BoxConstraints(minHeight: 82),
@@ -60,11 +62,11 @@ class HomeAppBar extends StatelessWidget {
                 child: Text(
                   title,
                   key: const Key('homeTitle'),
-                  maxLines: isNarrow ? 2 : 1,
+                  maxLines: isCompact ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppColors.text,
-                    fontSize: isNarrow ? 16 : 20,
+                    fontSize: isNarrow ? 16 : (isCompact ? 18 : 20),
                     fontWeight: FontWeight.w900,
                     height: 1.05,
                   ),
@@ -77,9 +79,12 @@ class HomeAppBar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _ProfileCard(
-                      profileName: profileName,
-                      onPressed: onProfilePressed,
+                    SizedBox(
+                      width: profileCardWidth,
+                      child: _ProfileCard(
+                        profileName: profileName,
+                        onPressed: onProfilePressed,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Row(

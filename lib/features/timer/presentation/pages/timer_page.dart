@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/user_progress.dart';
 import '../controllers/timer_controller.dart';
 import '../layout/timer_layout_spec.dart';
 import '../widgets/header_section.dart';
@@ -89,7 +90,7 @@ class _TimerPageState extends State<TimerPage> {
                     key: const Key('firstLaunchNameField'),
                     controller: nameController,
                     autofocus: true,
-                    maxLength: 18,
+                    maxLength: UserProgress.maxProfileNameLength,
                     textCapitalization: TextCapitalization.words,
                     textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(

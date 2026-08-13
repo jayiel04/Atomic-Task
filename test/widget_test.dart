@@ -79,13 +79,14 @@ void main() {
 
     await tester.enterText(
       find.byKey(const Key('firstLaunchNameField')),
-      '  Javier  ',
+      'Sebastian',
     );
     await tester.tap(find.byKey(const Key('saveFirstLaunchName')));
     await tester.pumpAndSettle();
 
     expect(find.text('\u00a1Bienvenido!'), findsNothing);
-    expect(find.text('Javier'), findsOneWidget);
+    expect(find.text('Sebastia'), findsOneWidget);
+    expect(find.text('Sebastian'), findsNothing);
   });
 
   testWidgets('does not ask for the name again when it is saved', (
@@ -144,6 +145,8 @@ void main() {
       expect(profile.left, lessThan(name.left));
       expect(profile.right, greaterThan(name.right));
       expect(profile.bottom, lessThanOrEqualTo(stats.top));
+      expect(profile.width, lessThanOrEqualTo(148));
+      expect(title.right, lessThanOrEqualTo(profile.left));
       expect(find.byIcon(Icons.person_rounded), findsOneWidget);
       expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
       expect(find.byIcon(Icons.diamond_rounded), findsOneWidget);
@@ -176,7 +179,7 @@ void main() {
             progress: const ProgressModel(
               gems: 9999,
               totalFocusSeconds: 3596400,
-              profileName: 'Nombre de dieciocho',
+              profileName: 'Sebastian',
             ),
           ),
           taskLocalDataSource: _EmptyTaskLocalDataSource(),
@@ -190,6 +193,12 @@ void main() {
       tester.getSize(find.byKey(const Key('homeMenuButton'))),
       const Size(48, 48),
     );
+    final title = tester.getRect(find.byKey(const Key('homeTitle')));
+    final profile = tester.getRect(find.byKey(const Key('profileCard')));
+    expect(profile.width, lessThanOrEqualTo(138));
+    expect(title.width, greaterThanOrEqualTo(98));
+    expect(title.right, lessThanOrEqualTo(profile.left));
+    expect(find.text('Sebastia'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('homeMenuButton')));
     await tester.pumpAndSettle();
@@ -341,39 +350,40 @@ void main() {
     expect(find.byKey(const Key('homeSidebar')), findsNothing);
   });
 
-  testWidgets('opens settings from the profile and saves a trimmed name', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      AtomicTimerBootstrap(
-        notificationService: _NoopNotificationService(),
-        focusCompletionAdService: _NoopFocusCompletionAdService(),
-        localDataSource: _MemoryTimerLocalDataSource(
-          progress: const ProgressModel(
-            gems: 0,
-            totalFocusSeconds: 0,
-            profileName: 'Javier',
+  testWidgets(
+    'opens settings and limits the profile name to eight characters',
+    (tester) async {
+      await tester.pumpWidget(
+        AtomicTimerBootstrap(
+          notificationService: _NoopNotificationService(),
+          focusCompletionAdService: _NoopFocusCompletionAdService(),
+          localDataSource: _MemoryTimerLocalDataSource(
+            progress: const ProgressModel(
+              gems: 0,
+              totalFocusSeconds: 0,
+              profileName: 'Javier',
+            ),
           ),
+          taskLocalDataSource: _EmptyTaskLocalDataSource(),
         ),
-        taskLocalDataSource: _EmptyTaskLocalDataSource(),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('profileButton')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('settingsView')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('profileButton')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('settingsView')), findsOneWidget);
 
-    await tester.enterText(
-      find.byKey(const Key('settingsNameField')),
-      '  Javier A.  ',
-    );
-    await tester.tap(find.byKey(const Key('saveSettingsNameButton')));
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('settingsNameField')),
+        'Alejandro',
+      );
+      await tester.tap(find.byKey(const Key('saveSettingsNameButton')));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Javier A.'), findsWidgets);
-    expect(find.text('  Javier A.  '), findsNothing);
-  });
+      expect(find.text('Alejandr'), findsWidgets);
+      expect(find.text('Alejandro'), findsNothing);
+    },
+  );
 
   testWidgets('shows current progress and task counts in statistics', (
     tester,

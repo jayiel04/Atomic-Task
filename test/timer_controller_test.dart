@@ -10,6 +10,33 @@ import 'package:atomic_task/features/timer/presentation/controllers/timer_contro
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('limits normalized profile names to eight characters', () async {
+    final repository = _MemoryTimerRepository(
+      progress: const UserProgress(
+        gems: 0,
+        totalFocusSeconds: 0,
+        profileName: 'Nombre demasiado largo',
+      ),
+    );
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    expect(controller.progress.profileName, 'Nombre d');
+
+    controller.updateProfileName('  Alejandro  ');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.progress.profileName, 'Alejandr');
+    expect(repository.progress.profileName, 'Alejandr');
+  });
+
   test(
     'keeps notifications and remaining time in sync with the clock',
     () async {

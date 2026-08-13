@@ -80,7 +80,7 @@ Esta navegación será reemplazada por una sola Home con dos vistas internas.
 #### Perfil y progreso
 
 - En el primer inicio se solicita un nombre obligatorio.
-- El nombre se recorta, admite hasta 18 caracteres y se guarda localmente.
+- El nombre se recorta, admite hasta 8 caracteres y se guarda localmente.
 - Se muestran gemas y tiempo total de concentración.
 - El progreso puede restablecerse con confirmación.
 
@@ -223,7 +223,7 @@ Estas decisiones no bloquean la extracción de componentes, pero deben resolvers
 - [x] Actualizar esos valores en vivo sin duplicar estado.
 - [x] Hacer accesible el progreso/restablecimiento desde el ícono de perfil.
 - [x] Eliminar del panel de perfil el acceso redundante a Tareas.
-- [x] Evitar desbordamiento con nombres de 18 caracteres y escala de texto 1.3.
+- [x] Evitar desbordamiento con nombres de 8 caracteres y escala de texto 1.3.
 
 ### Fase 5: responsividad y accesibilidad
 

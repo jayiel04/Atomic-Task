@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/time_formatter.dart';
+import '../../domain/entities/user_progress.dart';
 import '../controllers/timer_controller.dart';
 import '../layout/timer_layout_spec.dart';
 
@@ -261,7 +262,7 @@ class _ProfileCard extends StatelessWidget {
             child: TextField(
               controller: nameController,
               focusNode: focusNode,
-              maxLength: 18,
+              maxLength: UserProgress.maxProfileNameLength,
               textAlign: TextAlign.center,
               textCapitalization: TextCapitalization.characters,
               onSubmitted: onSubmitted,

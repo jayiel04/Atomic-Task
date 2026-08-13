@@ -5,9 +5,21 @@ class UserProgress {
     required this.profileName,
   });
 
+  static const int maxProfileNameLength = 8;
+  static const String defaultProfileName = 'NOMBRE';
+
   final int gems;
   final int totalFocusSeconds;
   final String profileName;
+
+  static String normalizeProfileName(String value) {
+    final trimmedName = value.trim();
+    if (trimmedName.isEmpty) {
+      return defaultProfileName;
+    }
+
+    return String.fromCharCodes(trimmedName.runes.take(maxProfileNameLength));
+  }
 
   UserProgress copyWith({
     int? gems,
@@ -24,6 +36,6 @@ class UserProgress {
   static const empty = UserProgress(
     gems: 0,
     totalFocusSeconds: 0,
-    profileName: 'NOMBRE',
+    profileName: defaultProfileName,
   );
 }

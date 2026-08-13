@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/user_progress.dart';
 import '../controllers/timer_controller.dart';
 
 class ProgressDrawer extends StatefulWidget {
@@ -92,7 +93,7 @@ class _ProgressDrawerState extends State<ProgressDrawer> {
               TextField(
                 key: const Key('profileNameField'),
                 controller: _nameController,
-                maxLength: 18,
+                maxLength: UserProgress.maxProfileNameLength,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
                   labelText: 'Nombre',

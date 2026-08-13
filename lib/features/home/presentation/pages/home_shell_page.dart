@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../tasks/domain/entities/atomic_task.dart';
 import '../../../tasks/presentation/controllers/task_controller.dart';
 import '../../../tasks/presentation/pages/task_page.dart';
+import '../../../timer/domain/entities/user_progress.dart';
 import '../../../timer/domain/entities/timer_mode.dart';
 import '../../../timer/domain/entities/timer_session.dart';
 import '../../../timer/presentation/controllers/timer_controller.dart';
@@ -139,7 +140,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
                     key: const Key('firstLaunchNameField'),
                     controller: nameController,
                     autofocus: true,
-                    maxLength: 18,
+                    maxLength: UserProgress.maxProfileNameLength,
                     textCapitalization: TextCapitalization.words,
                     textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(

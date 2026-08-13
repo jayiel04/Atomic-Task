@@ -125,7 +125,12 @@ class TimerController extends ChangeNotifier {
     await _notificationService.initialize();
 
     try {
-      _progress = await _loadProgress();
+      final loadedProgress = await _loadProgress();
+      _progress = loadedProgress.copyWith(
+        profileName: UserProgress.normalizeProfileName(
+          loadedProgress.profileName,
+        ),
+      );
       await _restoreActiveSession();
       await _restorePendingSummary();
     } catch (_) {
@@ -243,7 +248,7 @@ class TimerController extends ChangeNotifier {
   }
 
   void updateProfileName(String value) {
-    final normalizedName = value.trim().isEmpty ? 'NOMBRE' : value.trim();
+    final normalizedName = UserProgress.normalizeProfileName(value);
 
     _progress = _progress.copyWith(profileName: normalizedName);
     _persistProgress(immediately: true);

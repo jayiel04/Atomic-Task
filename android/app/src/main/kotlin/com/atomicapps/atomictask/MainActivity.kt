@@ -1,4 +1,4 @@
-package com.example.atomic_task
+package com.atomicapps.atomictask
 
 import io.flutter.embedding.android.FlutterActivity
 
