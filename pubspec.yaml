@@ -72,6 +72,7 @@ flutter:
     - assets/images/Logo.png
     - assets/images/logo_icon.png
     - assets/images/logo_launcher.png
+    - assets/images/tarea icon.png
 
 flutter_launcher_icons:
   android: true

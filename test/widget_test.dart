@@ -272,6 +272,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('TAREA ACTUAL'), findsOneWidget);
+    expect(find.byKey(const Key('linkedTaskAssetIcon')), findsOneWidget);
     expect(find.text('Escribir informe'), findsWidgets);
   });
 
