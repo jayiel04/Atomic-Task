@@ -33,7 +33,71 @@ class Tasks extends Table {
   DateTimeColumn get updatedAt => dateTime()();
 }
 
-@DriftDatabase(tables: [TimerProgress, Tasks])
+@DataClassName('ActiveTimerSessionRow')
+class ActiveTimerSessions extends Table {
+  IntColumn get id => integer().withDefault(const Constant(1))();
+
+  TextColumn get sessionId => text()();
+
+  TextColumn get mode => text()();
+
+  TextColumn get state => text()();
+
+  IntColumn get selectedSeconds => integer()();
+
+  IntColumn get remainingSeconds => integer()();
+
+  IntColumn get elapsedSeconds => integer()();
+
+  IntColumn get rewardedBlocks => integer()();
+
+  IntColumn get chargedMinutes => integer()();
+
+  DateTimeColumn get lastCheckpointAt => dateTime()();
+
+  DateTimeColumn get endsAt => dateTime().nullable()();
+
+  IntColumn get linkedTaskId => integer().nullable()();
+
+  TextColumn get linkedTaskTitle => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('PendingTimerSummaryRow')
+class PendingTimerSummaries extends Table {
+  TextColumn get sessionId => text()();
+
+  TextColumn get mode => text()();
+
+  IntColumn get completedSeconds => integer()();
+
+  IntColumn get gemDelta => integer()();
+
+  DateTimeColumn get completedAt => dateTime()();
+
+  IntColumn get taskId => integer().nullable()();
+
+  TextColumn get taskTitle => text().nullable()();
+
+  BoolColumn get inAppPending => boolean().withDefault(const Constant(true))();
+
+  BoolColumn get notificationPending =>
+      boolean().withDefault(const Constant(true))();
+
+  BoolColumn get adPending => boolean().withDefault(const Constant(false))();
+
+  BoolColumn get taskCompletionPending =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {sessionId};
+}
+
+@DriftDatabase(
+  tables: [TimerProgress, Tasks, ActiveTimerSessions, PendingTimerSummaries],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor})
     : super(
@@ -48,7 +112,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +123,10 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from == 2) {
         await migrator.addColumn(tasks, tasks.focusMinutes);
+      }
+      if (from < 4) {
+        await migrator.createTable(activeTimerSessions);
+        await migrator.createTable(pendingTimerSummaries);
       }
     },
   );
@@ -73,6 +141,43 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteProgress() {
     return delete(timerProgress).go();
+  }
+
+  Future<ActiveTimerSessionRow?> readActiveTimerSession() {
+    return select(activeTimerSessions).getSingleOrNull();
+  }
+
+  Future<void> writeActiveTimerSession(ActiveTimerSessionsCompanion session) {
+    return into(activeTimerSessions).insertOnConflictUpdate(session);
+  }
+
+  Future<void> deleteActiveTimerSession() {
+    return delete(activeTimerSessions).go();
+  }
+
+  Future<PendingTimerSummaryRow?> readPendingTimerSummary() {
+    return select(pendingTimerSummaries).getSingleOrNull();
+  }
+
+  Future<void> writePendingTimerSummary(
+    PendingTimerSummariesCompanion summary,
+  ) {
+    return into(pendingTimerSummaries).insertOnConflictUpdate(summary);
+  }
+
+  Future<void> deletePendingTimerSummary() {
+    return delete(pendingTimerSummaries).go();
+  }
+
+  Future<void> finalizeTimerSession({
+    required TimerProgressCompanion progress,
+    required PendingTimerSummariesCompanion summary,
+  }) {
+    return transaction(() async {
+      await into(timerProgress).insertOnConflictUpdate(progress);
+      await delete(activeTimerSessions).go();
+      await into(pendingTimerSummaries).insertOnConflictUpdate(summary);
+    });
   }
 
   Stream<List<TaskRow>> watchAllTasks() {

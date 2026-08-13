@@ -46,27 +46,36 @@ class TaskPage extends StatelessWidget {
         ),
         child: SafeArea(
           top: false,
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (context, _) => _TaskContent(
-              controller: controller,
-              onStartFocus: onStartFocus,
-            ),
-          ),
+          child: TasksView(controller: controller, onStartFocus: onStartFocus),
         ),
       ),
     );
   }
 }
 
-class _TaskContent extends StatelessWidget {
-  const _TaskContent({required this.controller, required this.onStartFocus});
+class TasksView extends StatelessWidget {
+  const TasksView({
+    required this.controller,
+    required this.onStartFocus,
+    this.onFocusPrepared,
+    this.showCreateAction = false,
+    super.key,
+  });
 
   final TaskController controller;
   final Future<bool> Function(AtomicTask task, int minutes) onStartFocus;
+  final VoidCallback? onFocusPrepared;
+  final bool showCreateAction;
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     if (controller.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -93,9 +102,13 @@ class _TaskContent extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 24),
-            if (pending.isEmpty && completed.isEmpty)
-              const _EmptyTasks()
-            else ...[
+            if (pending.isEmpty && completed.isEmpty) ...[
+              const _EmptyTasks(),
+              if (showCreateAction) ...[
+                const SizedBox(height: 16),
+                _CreateTaskButton(controller: controller),
+              ],
+            ] else ...[
               _TaskSection(
                 title: 'Pendientes',
                 count: pending.length,
@@ -103,6 +116,8 @@ class _TaskContent extends StatelessWidget {
                 tasks: pending,
                 controller: controller,
                 onStartFocus: onStartFocus,
+                onFocusPrepared: onFocusPrepared,
+                showCreateAction: showCreateAction,
               ),
               if (completed.isNotEmpty) ...[
                 const SizedBox(height: 22),
@@ -112,6 +127,7 @@ class _TaskContent extends StatelessWidget {
                   tasks: completed,
                   controller: controller,
                   onStartFocus: onStartFocus,
+                  onFocusPrepared: onFocusPrepared,
                 ),
               ],
             ],
@@ -184,6 +200,8 @@ class _TaskSection extends StatelessWidget {
     required this.tasks,
     required this.controller,
     required this.onStartFocus,
+    this.onFocusPrepared,
+    this.showCreateAction = false,
     this.emptyMessage,
   });
 
@@ -192,6 +210,8 @@ class _TaskSection extends StatelessWidget {
   final List<AtomicTask> tasks;
   final TaskController controller;
   final Future<bool> Function(AtomicTask task, int minutes) onStartFocus;
+  final VoidCallback? onFocusPrepared;
+  final bool showCreateAction;
   final String? emptyMessage;
 
   @override
@@ -199,13 +219,27 @@ class _TaskSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '$title ($count)',
-          style: const TextStyle(
-            color: AppColors.text,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$title ($count)',
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            if (showCreateAction)
+              IconButton(
+                key: const Key('createTaskButton'),
+                tooltip: 'Nueva tarea',
+                onPressed: () =>
+                    TaskFormSheet.show(context, controller: controller),
+                icon: const Icon(Icons.add_task_rounded),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
         if (tasks.isEmpty)
@@ -313,6 +347,11 @@ class _TaskSection extends StatelessWidget {
       return;
     }
 
+    if (onFocusPrepared != null) {
+      onFocusPrepared!.call();
+      return;
+    }
+
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -385,6 +424,25 @@ class _EmptyTasks extends StatelessWidget {
             style: TextStyle(color: AppColors.muted),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CreateTaskButton extends StatelessWidget {
+  const _CreateTaskButton({required this.controller});
+
+  final TaskController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: OutlinedButton.icon(
+        key: const Key('createTaskButton'),
+        onPressed: () => TaskFormSheet.show(context, controller: controller),
+        icon: const Icon(Icons.add_task_rounded),
+        label: const Text('Nueva tarea'),
       ),
     );
   }

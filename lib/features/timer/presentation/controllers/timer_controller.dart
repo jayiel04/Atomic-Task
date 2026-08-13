@@ -1,10 +1,14 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/timer_constants.dart';
 import '../../domain/entities/timer_mode.dart';
+import '../../domain/entities/timer_session.dart';
 import '../../domain/entities/user_progress.dart';
+import '../../domain/repositories/timer_session_repository.dart';
 import '../../domain/services/focus_completion_ad_service.dart';
 import '../../domain/services/timer_notification_service.dart';
 import '../../domain/usecases/clear_progress.dart';
@@ -19,12 +23,16 @@ class TimerController extends ChangeNotifier {
     required TimerNotificationService notificationService,
     required FocusCompletionAdService focusCompletionAdService,
     this.onLinkedTaskFocusCompleted,
+    this.onLinkedTaskFocusCompletedAsync,
+    this.onCompletionSummary,
+    TimerSessionRepository? sessionRepository,
     DateTime Function()? now,
   }) : _loadProgress = loadProgress,
        _saveProgress = saveProgress,
        _clearProgress = clearProgress,
        _notificationService = notificationService,
        _focusCompletionAdService = focusCompletionAdService,
+       _sessionRepository = sessionRepository,
        _now = now ?? DateTime.now;
 
   final LoadProgress _loadProgress;
@@ -32,11 +40,15 @@ class TimerController extends ChangeNotifier {
   final ClearProgress _clearProgress;
   final TimerNotificationService _notificationService;
   final FocusCompletionAdService _focusCompletionAdService;
+  final TimerSessionRepository? _sessionRepository;
   final DateTime Function() _now;
   final ValueChanged<int>? onLinkedTaskFocusCompleted;
+  final Future<bool> Function(int taskId)? onLinkedTaskFocusCompletedAsync;
+  final ValueChanged<CompletionSummary>? onCompletionSummary;
 
   Timer? _ticker;
   Timer? _progressSaveTimer;
+  Future<void> _sessionWriteQueue = Future<void>.value();
   DateTime? _endsAt;
   bool _progressIsDirty = false;
 
@@ -53,11 +65,15 @@ class TimerController extends ChangeNotifier {
   int _chargedMinutes = 0;
 
   bool _isInitialized = false;
+  bool _isDisposed = false;
   bool _isRunning = false;
   bool _sessionCompleted = false;
   bool _statusIsError = false;
   int? _linkedTaskId;
   String? _linkedTaskTitle;
+  String _sessionId = _newSessionId();
+  CompletionSummary? _pendingCompletionSummary;
+  bool _pendingSummaryDeliveryInProgress = false;
 
   String _statusMessage =
       'Obtendrás 1 gema por cada 3 minutos completos de concentración.';
@@ -74,6 +90,10 @@ class TimerController extends ChangeNotifier {
   String get statusMessage => _statusMessage;
   int? get linkedTaskId => _linkedTaskId;
   String? get linkedTaskTitle => _linkedTaskTitle;
+  CompletionSummary? get pendingCompletionSummary =>
+      _pendingSummaryDeliveryInProgress ? null : _pendingCompletionSummary;
+  bool get hasRestorableSession =>
+      _hasRestoredSession || _linkedTaskTitle != null || _elapsedSeconds > 0;
 
   bool get controlsLocked => _isRunning || _elapsedSeconds > 0;
 
@@ -90,11 +110,13 @@ class TimerController extends ChangeNotifier {
     _minutes = minutes.clamp(1, TimerConstants.maximumMinutes).toInt();
     _linkedTaskId = taskId;
     _linkedTaskTitle = taskTitle;
+    _sessionId = _newSessionId();
     _prepareSelectedTime();
     _setStatus(
       'Concentración preparada para “$taskTitle”. Inicia cuando estés listo.',
     );
-    notifyListeners();
+    _persistActiveSession();
+    _notifyListeners();
     return true;
   }
 
@@ -104,14 +126,88 @@ class TimerController extends ChangeNotifier {
 
     try {
       _progress = await _loadProgress();
+      await _restoreActiveSession();
+      await _restorePendingSummary();
     } catch (_) {
       _progress = UserProgress.empty;
       _setStatus('No fue posible cargar el progreso guardado.', isError: true);
     } finally {
       _isInitialized = true;
-      _updateEstimate();
-      notifyListeners();
+      if (!_hasRestoredSession) {
+        _updateEstimate();
+      }
+      _notifyListeners();
     }
+
+    if (_hasRestoredRunningSession) {
+      syncWithClock();
+    }
+    if (_pendingCompletionSummary != null) {
+      unawaited(_deliverPendingSummary(_pendingCompletionSummary!));
+    }
+  }
+
+  bool _hasRestoredSession = false;
+  bool _hasRestoredRunningSession = false;
+
+  Future<void> _restoreActiveSession() async {
+    final repository = _sessionRepository;
+    if (repository == null) {
+      return;
+    }
+
+    final session = await repository.loadActiveSession();
+    if (session == null) {
+      return;
+    }
+
+    _hasRestoredSession = true;
+    _sessionId = session.sessionId;
+    _mode = session.mode;
+    _minutes = (session.selectedSeconds ~/ 60).clamp(
+      0,
+      TimerConstants.maximumMinutes,
+    );
+    _selectedSeconds = session.selectedSeconds;
+    _remainingSeconds = session.remainingSeconds;
+    _elapsedSeconds = session.elapsedSeconds;
+    _rewardedBlocks = session.rewardedBlocks;
+    _chargedMinutes = session.chargedMinutes;
+    _linkedTaskId = session.linkedTaskId;
+    _linkedTaskTitle = session.linkedTaskTitle;
+    _sessionCompleted = false;
+
+    if (session.state == TimerSessionState.running && session.endsAt != null) {
+      _endsAt = session.endsAt;
+      _isRunning = true;
+      _hasRestoredRunningSession = true;
+      _setStatus(
+        _mode == TimerMode.focus
+            ? 'Sesión de concentración en curso.'
+            : 'Descanso en curso.',
+      );
+      _startTicker();
+    } else {
+      _isRunning = false;
+      _endsAt = null;
+      _setStatus(
+        session.state == TimerSessionState.paused
+            ? 'Sesión pausada. Puedes continuar o reiniciarla.'
+            : _linkedTaskTitle == null
+            ? 'Sesión preparada. Inicia cuando estés listo.'
+            : 'Concentración preparada para “$_linkedTaskTitle”. '
+                  'Inicia cuando estés listo.',
+      );
+    }
+  }
+
+  Future<void> _restorePendingSummary() async {
+    final repository = _sessionRepository;
+    if (repository == null) {
+      return;
+    }
+    _pendingCompletionSummary = await repository.loadPendingSummary();
+    _pendingSummaryDeliveryInProgress = _pendingCompletionSummary != null;
   }
 
   void setMode(TimerMode newMode) {
@@ -121,10 +217,11 @@ class TimerController extends ChangeNotifier {
 
     _mode = newMode;
     _clearLinkedTask();
+    _sessionId = _newSessionId();
     _minutes = newMode.defaultMinutes;
     _prepareSelectedTime();
     _updateEstimate();
-    notifyListeners();
+    _notifyListeners();
   }
 
   void setMinutes(int value) {
@@ -139,9 +236,10 @@ class TimerController extends ChangeNotifier {
 
     _minutes = newValue;
     _clearLinkedTask();
+    _sessionId = _newSessionId();
     _prepareSelectedTime();
     _updateEstimate();
-    notifyListeners();
+    _notifyListeners();
   }
 
   void updateProfileName(String value) {
@@ -149,7 +247,7 @@ class TimerController extends ChangeNotifier {
 
     _progress = _progress.copyWith(profileName: normalizedName);
     _persistProgress(immediately: true);
-    notifyListeners();
+    _notifyListeners();
   }
 
   void startOrPause() {
@@ -159,7 +257,7 @@ class TimerController extends ChangeNotifier {
     }
 
     if (!_validateStart()) {
-      notifyListeners();
+      _notifyListeners();
       return;
     }
 
@@ -178,8 +276,8 @@ class TimerController extends ChangeNotifier {
           : 'Descanso en curso.',
     );
 
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _startTicker();
+    _persistActiveSession();
 
     unawaited(
       _notificationService.showRunningTimer(
@@ -191,7 +289,12 @@ class TimerController extends ChangeNotifier {
       ),
     );
 
-    notifyListeners();
+    _notifyListeners();
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   void pause() {
@@ -205,9 +308,10 @@ class TimerController extends ChangeNotifier {
     _endsAt = null;
     _isRunning = false;
     _persistProgress(immediately: true);
+    _persistActiveSession();
     unawaited(_notificationService.cancelTimerNotifications());
     _setStatus('Sesión pausada. Puedes continuar o reiniciarla.');
-    notifyListeners();
+    _notifyListeners();
   }
 
   void resetTimer() {
@@ -215,6 +319,11 @@ class TimerController extends ChangeNotifier {
     _ticker = null;
     _endsAt = null;
     unawaited(_notificationService.cancelTimerNotifications());
+    unawaited(
+      _enqueueSessionWrite(() async {
+        await _sessionRepository?.clearActiveSession();
+      }),
+    );
 
     _isRunning = false;
     _sessionCompleted = false;
@@ -223,9 +332,10 @@ class TimerController extends ChangeNotifier {
     _chargedMinutes = 0;
     _remainingSeconds = _selectedSeconds;
     _clearLinkedTask();
+    _sessionId = _newSessionId();
 
     _updateEstimate();
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> resetProgress() async {
@@ -236,9 +346,14 @@ class TimerController extends ChangeNotifier {
     _progressSaveTimer = null;
     _progressIsDirty = false;
     await _notificationService.cancelTimerNotifications();
-
     await _clearProgress();
+    await _enqueueSessionWrite(() async {
+      await _sessionRepository?.clearActiveSession();
+      await _sessionRepository?.clearPendingSummary();
+    });
 
+    _pendingCompletionSummary = null;
+    _pendingSummaryDeliveryInProgress = false;
     _progress = UserProgress.empty;
     _mode = TimerMode.focus;
     _minutes = TimerConstants.defaultFocusMinutes;
@@ -248,10 +363,11 @@ class TimerController extends ChangeNotifier {
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
     _clearLinkedTask();
+    _sessionId = _newSessionId();
 
     _prepareSelectedTime();
     _updateEstimate();
-    notifyListeners();
+    _notifyListeners();
   }
 
   void syncWithClock() {
@@ -291,7 +407,21 @@ class TimerController extends ChangeNotifier {
       return;
     }
 
-    notifyListeners();
+    _persistActiveSession();
+    _notifyListeners();
+  }
+
+  void handleAppResumed() {
+    syncWithClock();
+    final pending = _pendingCompletionSummary;
+    if (pending != null && pending.adPending) {
+      unawaited(_deliverPendingSummary(pending));
+    }
+  }
+
+  void persistSession() {
+    _persistProgress(immediately: true);
+    _persistActiveSession();
   }
 
   void _tick() => syncWithClock();
@@ -306,13 +436,8 @@ class TimerController extends ChangeNotifier {
 
     if (completedBlocks > _rewardedBlocks) {
       final newGems = completedBlocks - _rewardedBlocks;
-
       _rewardedBlocks = completedBlocks;
       _progress = _progress.copyWith(gems: _progress.gems + newGems);
-
-      _setStatus(
-        '¡Ganaste $newGems ${newGems == 1 ? 'gema' : 'gemas'} por tu concentración!',
-      );
     }
 
     _persistProgress();
@@ -335,62 +460,139 @@ class TimerController extends ChangeNotifier {
 
     _chargedMinutes = completedPaidMinutes;
     _progress = _progress.copyWith(gems: _progress.gems - minutesToCharge);
-
-    _setStatus(
-      'Se descontó $minutesToCharge ${minutesToCharge == 1 ? 'gema' : 'gemas'} por el descanso.',
-    );
-
     _persistProgress(immediately: true);
   }
 
   void _finishSession() {
-    final completedTaskId = _mode == TimerMode.focus ? _linkedTaskId : null;
+    final mode = _mode;
+    final completedTaskId = mode == TimerMode.focus ? _linkedTaskId : null;
     final completedTaskTitle = _linkedTaskTitle;
+    final completedSeconds = _elapsedSeconds;
+    final gemDelta = mode == TimerMode.focus
+        ? _rewardedBlocks
+        : -_chargedMinutes;
+    final summary = CompletionSummary(
+      sessionId: _sessionId,
+      mode: mode,
+      completedSeconds: completedSeconds,
+      gemDelta: gemDelta,
+      completedAt: _now(),
+      taskId: completedTaskId,
+      taskTitle: completedTaskTitle,
+      adPending: mode == TimerMode.focus,
+      taskCompletionPending: completedTaskId != null,
+    );
+
     _ticker?.cancel();
     _ticker = null;
     _endsAt = null;
     _isRunning = false;
     _sessionCompleted = true;
     _remainingSeconds = 0;
-
-    if (_mode == TimerMode.focus) {
-      _setStatus(
-        completedTaskTitle == null
-            ? '¡Sesión completada! Ganaste $_rewardedBlocks '
-                  '${_rewardedBlocks == 1 ? 'gema' : 'gemas'}.'
-            : '¡Concentración completada para “$completedTaskTitle”! '
-                  'Ganaste $_rewardedBlocks '
-                  '${_rewardedBlocks == 1 ? 'gema' : 'gemas'}.',
-      );
-    } else {
-      _setStatus(
-        'Descanso completado. Gastaste $_chargedMinutes '
-        '${_chargedMinutes == 1 ? 'gema' : 'gemas'}.',
-      );
-    }
+    _setStatus(
+      mode == TimerMode.focus
+          ? completedTaskTitle == null
+                ? 'Sesión completada.'
+                : 'Concentración completada para “$completedTaskTitle”.'
+          : 'Descanso completado.',
+    );
 
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
     _clearLinkedTask();
     _persistProgress(immediately: true);
-    unawaited(
-      _notificationService.showTimerCompleted(
-        title: _mode.completionNotificationTitle,
-        body: _mode.completionNotificationBody,
-      ),
-    );
-    notifyListeners();
+    unawaited(_completeAndPresentSummary(summary));
+    _notifyListeners();
+  }
 
-    if (completedTaskId != null) {
-      onLinkedTaskFocusCompleted?.call(completedTaskId);
+  Future<void> _completeAndPresentSummary(CompletionSummary summary) async {
+    final sessionRepository = _sessionRepository;
+    if (sessionRepository is TransactionalTimerSessionRepository) {
+      await _enqueueSessionWrite(
+        () => sessionRepository.finalizeSession(summary, _progress),
+      );
+    } else {
+      await _flushProgress();
+      await _enqueueSessionWrite(() async {
+        await sessionRepository?.clearActiveSession();
+        await sessionRepository?.savePendingSummary(summary);
+      });
+    }
+    await _notificationService.showTimerCompleted(
+      title: _summaryTitle(summary),
+      body: _summaryBody(summary),
+    );
+
+    final taskCompleted = summary.taskId == null
+        ? true
+        : await _completeLinkedTask(summary.taskId!);
+
+    final adResult = summary.mode != TimerMode.focus
+        ? FocusCompletionAdResult.unsupported
+        : await _tryShowCompletionAd();
+    final delivered = summary.copyWith(
+      notificationPending: false,
+      adPending: adResult == FocusCompletionAdResult.retry,
+      taskCompletionPending: summary.taskId != null && !taskCompleted,
+    );
+    await _storePendingSummary(delivered);
+    _notifyListeners();
+    onCompletionSummary?.call(delivered);
+  }
+
+  Future<void> _deliverPendingSummary(CompletionSummary summary) async {
+    var current = summary;
+    if (current.notificationPending) {
+      await _notificationService.showTimerCompleted(
+        title: _summaryTitle(current),
+        body: _summaryBody(current),
+      );
+      current = current.copyWith(notificationPending: false);
     }
 
-    if (_mode == TimerMode.focus) {
-      unawaited(
-        _runAdOperation(_focusCompletionAdService.showAfterFocusCompletion),
+    if (current.taskCompletionPending && current.taskId != null) {
+      final taskCompleted = await _completeLinkedTask(current.taskId!);
+      if (taskCompleted) {
+        current = current.copyWith(taskCompletionPending: false);
+      }
+    }
+
+    if (current.adPending && current.mode == TimerMode.focus) {
+      final adResult = await _tryShowCompletionAd();
+      current = current.copyWith(
+        adPending: adResult == FocusCompletionAdResult.retry,
       );
     }
+
+    await _storePendingSummary(current);
+    _pendingSummaryDeliveryInProgress = false;
+    _notifyListeners();
+    onCompletionSummary?.call(current);
+  }
+
+  String _summaryTitle(CompletionSummary summary) {
+    return summary.mode == TimerMode.focus
+        ? 'Sesión completada'
+        : 'Descanso completado';
+  }
+
+  String _summaryBody(CompletionSummary summary) {
+    final duration = _formatMinutes(summary);
+    final gemText = summary.gemDelta >= 0
+        ? '+${summary.gemDelta} ${summary.gemDelta == 1 ? 'gema' : 'gemas'}'
+        : '−${summary.gemDelta.abs()} '
+              '${summary.gemDelta.abs() == 1 ? 'gema' : 'gemas'}';
+    final task = summary.taskTitle == null
+        ? ''
+        : '\nTarea: ${summary.taskTitle}';
+    return '$duration · $gemText$task';
+  }
+
+  String _formatMinutes(CompletionSummary summary) {
+    final minutes = summary.completedSeconds ~/ 60;
+    return '$minutes min '
+        '${summary.mode == TimerMode.focus ? 'de concentración' : 'de descanso'}';
   }
 
   void _stopBecauseNoGems() {
@@ -402,17 +604,19 @@ class TimerController extends ChangeNotifier {
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
-
     _setStatus('El descanso terminó porque ya no quedan gemas.', isError: true);
-
+    unawaited(
+      _enqueueSessionWrite(() async {
+        await _sessionRepository?.clearActiveSession();
+      }),
+    );
     unawaited(
       _notificationService.showTimerCompleted(
         title: TimerMode.rest.completionNotificationTitle,
         body: TimerMode.rest.completionNotificationBody,
       ),
     );
-
-    notifyListeners();
+    _notifyListeners();
   }
 
   bool _validateStart() {
@@ -455,15 +659,13 @@ class TimerController extends ChangeNotifier {
     if (_mode == TimerMode.focus) {
       final reward = selectedMinutes ~/ 3;
 
-      if (reward > 0) {
-        _setStatus(
-          'Esta sesión puede darte $reward '
-          '${reward == 1 ? 'gema' : 'gemas'}.',
-        );
-      } else {
-        _setStatus('No generará gemas.');
-      }
-
+      _setStatus(
+        reward > 0
+            ? 'Esta sesión puede darte $reward '
+                  '${reward == 1 ? 'gema' : 'gemas'}. '
+                  'Inicia cuando estés listo.'
+            : 'No generará gemas. Inicia cuando estés listo.',
+      );
       return;
     }
 
@@ -505,9 +707,100 @@ class TimerController extends ChangeNotifier {
     await _saveProgress(_progress);
   }
 
-  void flushProgress() {
-    if (_progressIsDirty) {
-      unawaited(_flushProgress());
+  void _persistActiveSession() {
+    final repository = _sessionRepository;
+    if (repository == null || !_isInitialized) {
+      return;
+    }
+
+    final session = ActiveTimerSession(
+      sessionId: _sessionId,
+      mode: _mode,
+      state: _isRunning
+          ? TimerSessionState.running
+          : _elapsedSeconds > 0
+          ? TimerSessionState.paused
+          : TimerSessionState.prepared,
+      selectedSeconds: _selectedSeconds,
+      remainingSeconds: _remainingSeconds,
+      elapsedSeconds: _elapsedSeconds,
+      rewardedBlocks: _rewardedBlocks,
+      chargedMinutes: _chargedMinutes,
+      lastCheckpointAt: _now(),
+      endsAt: _endsAt,
+      linkedTaskId: _linkedTaskId,
+      linkedTaskTitle: _linkedTaskTitle,
+    );
+    unawaited(
+      _enqueueSessionWrite(() => repository.saveActiveSession(session)),
+    );
+  }
+
+  void consumePendingCompletionSummary() {
+    final summary = _pendingCompletionSummary;
+    if (summary == null) {
+      return;
+    }
+
+    final consumed = summary.copyWith(inAppPending: false);
+    unawaited(_storePendingSummary(consumed));
+    _notifyListeners();
+  }
+
+  Future<void> _storePendingSummary(CompletionSummary summary) async {
+    final hasPendingWork =
+        summary.inAppPending ||
+        summary.notificationPending ||
+        summary.adPending ||
+        summary.taskCompletionPending;
+    if (!hasPendingWork) {
+      _pendingCompletionSummary = null;
+      await _enqueueSessionWrite(() async {
+        await _sessionRepository?.clearPendingSummary();
+      });
+      return;
+    }
+
+    _pendingCompletionSummary = summary;
+    await _enqueueSessionWrite(() async {
+      await _sessionRepository?.savePendingSummary(summary);
+    });
+  }
+
+  Future<void> _enqueueSessionWrite(Future<void> Function() operation) {
+    final queued = _sessionWriteQueue.then<void>((_) => operation());
+    _sessionWriteQueue = queued.catchError((_) {});
+    return queued;
+  }
+
+  Future<FocusCompletionAdResult> _tryShowCompletionAd() async {
+    try {
+      return await _focusCompletionAdService.showAfterFocusCompletionResult();
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('No fue posible mostrar el anuncio de prueba: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      return FocusCompletionAdResult.retry;
+    }
+  }
+
+  Future<bool> _completeLinkedTask(int taskId) async {
+    try {
+      final asyncCallback = onLinkedTaskFocusCompletedAsync;
+      if (asyncCallback != null) {
+        return await asyncCallback(taskId);
+      }
+      onLinkedTaskFocusCompleted?.call(taskId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _notifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
     }
   }
 
@@ -522,12 +815,24 @@ class TimerController extends ChangeNotifier {
     }
   }
 
+  static String _newSessionId() {
+    return DateTime.now().microsecondsSinceEpoch.toString();
+  }
+
   @override
   void dispose() {
+    _isDisposed = true;
     _ticker?.cancel();
     _progressSaveTimer?.cancel();
     flushProgress();
+    _persistActiveSession();
     unawaited(_runAdOperation(_focusCompletionAdService.dispose));
     super.dispose();
+  }
+
+  void flushProgress() {
+    if (_progressIsDirty) {
+      unawaited(_flushProgress());
+    }
   }
 }

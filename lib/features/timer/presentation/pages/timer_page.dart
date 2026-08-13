@@ -165,7 +165,7 @@ class _TimerPageState extends State<TimerPage> {
             select: (controller) => controller.isInitialized,
             builder: (context, isInitialized) {
               return isInitialized
-                  ? _TimerContent(controller: widget.controller)
+                  ? FocusView(controller: widget.controller, showHeader: true)
                   : const Center(child: CircularProgressIndicator());
             },
           ),
@@ -175,10 +175,17 @@ class _TimerPageState extends State<TimerPage> {
   }
 }
 
-class _TimerContent extends StatelessWidget {
-  const _TimerContent({required this.controller});
+class FocusView extends StatelessWidget {
+  const FocusView({
+    required this.controller,
+    this.showHeader = false,
+    this.compactReset = false,
+    super.key,
+  });
 
   final TimerController controller;
+  final bool showHeader;
+  final bool compactReset;
 
   @override
   Widget build(BuildContext context) {
@@ -212,29 +219,35 @@ class _TimerContent extends StatelessWidget {
                         spec: spec,
                         header: _buildHeader(spec),
                         modeSelector: _buildModeSelector(spec),
+                        linkedTask: _buildLinkedTask(),
                         dial: _buildDial(spec),
                         status: _buildStatus(spec),
                         primaryAction: _buildPrimaryAction(spec),
                         resetAction: _buildResetAction(spec),
+                        compactReset: compactReset,
                       )
                     : spec.isTablet
                     ? _TabletTimerLayout(
                         spec: spec,
                         header: _buildHeader(spec),
                         modeSelector: _buildModeSelector(spec),
+                        linkedTask: _buildLinkedTask(),
                         dial: _buildDial(spec),
                         status: _buildStatus(spec),
                         primaryAction: _buildPrimaryAction(spec),
                         resetAction: _buildResetAction(spec),
+                        compactReset: compactReset,
                       )
                     : _PortraitTimerLayout(
                         spec: spec,
                         header: _buildHeader(spec),
                         modeSelector: _buildModeSelector(spec),
+                        linkedTask: _buildLinkedTask(),
                         dial: _buildDial(spec),
                         status: _buildStatus(spec),
                         primaryAction: _buildPrimaryAction(spec),
                         resetAction: _buildResetAction(spec),
+                        compactReset: compactReset,
                       ),
               ),
             ),
@@ -245,6 +258,10 @@ class _TimerContent extends StatelessWidget {
   }
 
   Widget _buildHeader(TimerLayoutSpec spec) {
+    if (!showHeader) {
+      return const SizedBox.shrink();
+    }
+
     return _ControllerSelector(
       controller: controller,
       select: (controller) => (
@@ -292,6 +309,56 @@ class _TimerContent extends StatelessWidget {
     );
   }
 
+  Widget _buildLinkedTask() {
+    return _ControllerSelector<String?>(
+      controller: controller,
+      select: (controller) => controller.linkedTaskTitle,
+      builder: (context, title) {
+        if (title == null || title.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          key: const Key('linkedTaskSection'),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                'TAREA ACTUAL',
+                style: TextStyle(
+                  color: AppColors.primaryDark,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildStatus(TimerLayoutSpec spec) {
     return _ControllerSelector(
       controller: controller,
@@ -328,6 +395,27 @@ class _TimerContent extends StatelessWidget {
   }
 
   Widget _buildResetAction(TimerLayoutSpec spec) {
+    if (compactReset) {
+      final resetSize = math.max(48.0, spec.resetButtonHeight);
+      return SizedBox(
+        width: resetSize,
+        height: resetSize,
+        child: IconButton(
+          key: const Key('resetTimerButton'),
+          tooltip: 'Reiniciar temporizador',
+          onPressed: controller.resetTimer,
+          style: IconButton.styleFrom(
+            foregroundColor: AppColors.muted,
+            side: const BorderSide(color: AppColors.border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          icon: const Icon(Icons.restart_alt_rounded),
+        ),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       height: spec.resetButtonHeight,
@@ -355,19 +443,23 @@ class _PortraitTimerLayout extends StatelessWidget {
     required this.spec,
     required this.header,
     required this.modeSelector,
+    required this.linkedTask,
     required this.dial,
     required this.status,
     required this.primaryAction,
     required this.resetAction,
+    required this.compactReset,
   });
 
   final TimerLayoutSpec spec;
   final Widget header;
   final Widget modeSelector;
+  final Widget linkedTask;
   final Widget dial;
   final Widget status;
   final Widget primaryAction;
   final Widget resetAction;
+  final bool compactReset;
 
   @override
   Widget build(BuildContext context) {
@@ -376,14 +468,25 @@ class _PortraitTimerLayout extends StatelessWidget {
         header,
         SizedBox(height: spec.sectionGap),
         modeSelector,
+        linkedTask,
         SizedBox(height: spec.sectionGap),
         Expanded(child: Center(child: dial)),
         SizedBox(height: spec.controlGap),
         status,
         SizedBox(height: spec.controlGap),
-        primaryAction,
-        SizedBox(height: spec.controlGap),
-        resetAction,
+        if (compactReset)
+          Row(
+            children: [
+              Expanded(child: primaryAction),
+              SizedBox(width: spec.controlGap),
+              resetAction,
+            ],
+          )
+        else ...[
+          primaryAction,
+          SizedBox(height: spec.controlGap),
+          resetAction,
+        ],
       ],
     );
   }
@@ -394,19 +497,23 @@ class _TabletTimerLayout extends StatelessWidget {
     required this.spec,
     required this.header,
     required this.modeSelector,
+    required this.linkedTask,
     required this.dial,
     required this.status,
     required this.primaryAction,
     required this.resetAction,
+    required this.compactReset,
   });
 
   final TimerLayoutSpec spec;
   final Widget header;
   final Widget modeSelector;
+  final Widget linkedTask;
   final Widget dial;
   final Widget status;
   final Widget primaryAction;
   final Widget resetAction;
+  final bool compactReset;
 
   @override
   Widget build(BuildContext context) {
@@ -422,14 +529,25 @@ class _TabletTimerLayout extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   modeSelector,
+                  linkedTask,
                   SizedBox(height: spec.sectionGap),
                   dial,
                   SizedBox(height: spec.controlGap),
                   status,
                   SizedBox(height: spec.controlGap),
-                  primaryAction,
-                  SizedBox(height: spec.controlGap),
-                  resetAction,
+                  if (compactReset)
+                    Row(
+                      children: [
+                        Expanded(child: primaryAction),
+                        SizedBox(width: spec.controlGap),
+                        resetAction,
+                      ],
+                    )
+                  else ...[
+                    primaryAction,
+                    SizedBox(height: spec.controlGap),
+                    resetAction,
+                  ],
                 ],
               ),
             ),
@@ -445,19 +563,23 @@ class _LandscapeTimerLayout extends StatelessWidget {
     required this.spec,
     required this.header,
     required this.modeSelector,
+    required this.linkedTask,
     required this.dial,
     required this.status,
     required this.primaryAction,
     required this.resetAction,
+    required this.compactReset,
   });
 
   final TimerLayoutSpec spec;
   final Widget header;
   final Widget modeSelector;
+  final Widget linkedTask;
   final Widget dial;
   final Widget status;
   final Widget primaryAction;
   final Widget resetAction;
+  final bool compactReset;
 
   @override
   Widget build(BuildContext context) {
@@ -473,23 +595,38 @@ class _LandscapeTimerLayout extends StatelessWidget {
               SizedBox(width: spec.sectionGap),
               Expanded(
                 child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 360),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Transform.translate(
-                          offset: const Offset(0, -30),
-                          child: modeSelector,
-                        ),
-                        SizedBox(height: spec.controlGap),
-                        status,
-                        SizedBox(height: spec.controlGap),
-                        primaryAction,
-                        SizedBox(height: spec.controlGap),
-                        resetAction,
-                      ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: 360,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(0, -30),
+                            child: modeSelector,
+                          ),
+                          linkedTask,
+                          SizedBox(height: spec.controlGap),
+                          status,
+                          SizedBox(height: spec.controlGap),
+                          if (compactReset)
+                            Row(
+                              children: [
+                                Expanded(child: primaryAction),
+                                SizedBox(width: spec.controlGap),
+                                resetAction,
+                              ],
+                            )
+                          else ...[
+                            primaryAction,
+                            SizedBox(height: spec.controlGap),
+                            resetAction,
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

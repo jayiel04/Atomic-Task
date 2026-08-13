@@ -54,6 +54,7 @@ void main() {
       controller.startOrPause();
       now = now.add(Duration(seconds: controller.remainingSeconds));
       controller.syncWithClock();
+      await Future<void>.delayed(Duration.zero);
 
       expect(controller.remainingSeconds, 0);
       expect(controller.sessionCompleted, isTrue);
@@ -62,10 +63,10 @@ void main() {
 
       controller.syncWithClock();
       expect(completionAds.showCalls, 1);
-      expect(notifications.lastCompletedTitle, 'Trabajo finalizado');
+      expect(notifications.lastCompletedTitle, 'Sesión completada');
       expect(
         notifications.lastCompletedBody,
-        '¡Sesión completada! Tómate un descanso.',
+        '25 min de concentración · +8 gemas',
       );
     },
   );
@@ -103,12 +104,10 @@ void main() {
 
     now = now.add(const Duration(minutes: 5));
     controller.syncWithClock();
+    await Future<void>.delayed(Duration.zero);
 
-    expect(notifications.lastCompletedTitle, 'Descanso finalizado');
-    expect(
-      notifications.lastCompletedBody,
-      'El descanso terminó. ¿Listo para continuar?',
-    );
+    expect(notifications.lastCompletedTitle, 'Descanso completado');
+    expect(notifications.lastCompletedBody, '5 min de descanso · −5 gemas');
     expect(completionAds.showCalls, 0);
   });
 
@@ -139,6 +138,7 @@ void main() {
     expect(controller.remainingSeconds, 0);
     expect(notifications.completedTimerCalls, 1);
     expect(completionAds.showCalls, 1);
+    expect(controller.pendingCompletionSummary?.adPending, isTrue);
   });
 
   test(
@@ -178,6 +178,7 @@ void main() {
       expect(completedTaskId, isNull);
       now = now.add(const Duration(minutes: 1));
       controller.syncWithClock();
+      await Future<void>.delayed(Duration.zero);
 
       expect(completedTaskId, 42);
       expect(controller.linkedTaskId, isNull);
@@ -200,6 +201,16 @@ class _FakeFocusCompletionAdService implements FocusCompletionAdService {
     showCalls += 1;
     if (failOnShow) {
       throw StateError('simulated ad failure');
+    }
+  }
+
+  @override
+  Future<FocusCompletionAdResult> showAfterFocusCompletionResult() async {
+    try {
+      await showAfterFocusCompletion();
+      return FocusCompletionAdResult.shown;
+    } catch (_) {
+      return FocusCompletionAdResult.retry;
     }
   }
 

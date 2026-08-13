@@ -3,15 +3,44 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controllers/timer_controller.dart';
 
-class ProgressDrawer extends StatelessWidget {
-  const ProgressDrawer({
-    required this.controller,
-    required this.onOpenTasks,
-    super.key,
-  });
+class ProgressDrawer extends StatefulWidget {
+  const ProgressDrawer({required this.controller, this.onOpenTasks, super.key});
 
   final TimerController controller;
-  final VoidCallback onOpenTasks;
+  final VoidCallback? onOpenTasks;
+
+  @override
+  State<ProgressDrawer> createState() => _ProgressDrawerState();
+}
+
+class _ProgressDrawerState extends State<ProgressDrawer> {
+  late final TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: widget.controller.progress.profileName,
+    );
+    widget.controller.addListener(_syncName);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncName);
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _syncName() {
+    final name = widget.controller.progress.profileName;
+    if (_nameController.text != name) {
+      _nameController.text = name;
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,32 +88,46 @@ class ProgressDrawer extends StatelessWidget {
                 'automáticamente en este dispositivo.',
                 style: TextStyle(color: AppColors.muted, height: 1.5),
               ),
-              const SizedBox(height: 24),
-              ListTile(
-                key: const Key('openTasksMenuItem'),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                leading: const Icon(
-                  Icons.checklist_rounded,
-                  color: AppColors.primary,
+              const SizedBox(height: 18),
+              TextField(
+                key: const Key('profileNameField'),
+                controller: _nameController,
+                maxLength: 18,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre',
+                  hintText: 'Escribe tu nombre',
+                  prefixIcon: Icon(Icons.person_rounded),
                 ),
-                title: const Text(
-                  'Tareas',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: AppColors.border),
-                ),
-                tileColor: AppColors.surfaceVariant,
-                onTap: () {
-                  Navigator.pop(context);
-                  onOpenTasks();
-                },
+                onSubmitted: widget.controller.updateProfileName,
               ),
+              const SizedBox(height: 4),
+              if (widget.onOpenTasks != null)
+                ListTile(
+                  key: const Key('openTasksMenuItem'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  leading: const Icon(
+                    Icons.checklist_rounded,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Tareas',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: AppColors.border),
+                  ),
+                  tileColor: AppColors.surfaceVariant,
+                  onTap: () {
+                    Navigator.pop(context);
+                    widget.onOpenTasks!();
+                  },
+                ),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
@@ -136,7 +179,7 @@ class ProgressDrawer extends StatelessWidget {
       return;
     }
 
-    await controller.resetProgress();
+    await widget.controller.resetProgress();
 
     if (context.mounted) {
       Navigator.pop(context);

@@ -1,6 +1,10 @@
 import 'package:atomic_task/core/database/app_database.dart';
 import 'package:atomic_task/features/timer/data/datasources/timer_local_data_source.dart';
 import 'package:atomic_task/features/timer/data/models/progress_model.dart';
+import 'package:atomic_task/features/timer/data/repositories/timer_session_repository_impl.dart';
+import 'package:atomic_task/features/timer/domain/entities/timer_mode.dart';
+import 'package:atomic_task/features/timer/domain/entities/timer_session.dart';
+import 'package:atomic_task/features/timer/domain/entities/user_progress.dart';
 import 'package:atomic_task/features/tasks/data/datasources/task_local_data_source.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -158,5 +162,103 @@ void main() {
     );
     tasks = await dataSource.watchAll().first;
     expect(tasks.single.focusMinutes, 30);
+  });
+
+  test('persists active sessions and pending summaries', () async {
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+    final repository = DriftTimerSessionRepository(database);
+    final checkpoint = DateTime(2026, 8, 13, 10);
+
+    await repository.saveActiveSession(
+      ActiveTimerSession(
+        sessionId: 'session-1',
+        mode: TimerMode.focus,
+        state: TimerSessionState.running,
+        selectedSeconds: 1500,
+        remainingSeconds: 900,
+        elapsedSeconds: 600,
+        rewardedBlocks: 3,
+        chargedMinutes: 0,
+        lastCheckpointAt: checkpoint,
+        endsAt: checkpoint.add(const Duration(minutes: 15)),
+        linkedTaskId: 4,
+        linkedTaskTitle: 'Escribir informe',
+      ),
+    );
+
+    final active = await repository.loadActiveSession();
+    expect(active?.sessionId, 'session-1');
+    expect(active?.state, TimerSessionState.running);
+    expect(active?.linkedTaskTitle, 'Escribir informe');
+
+    await repository.savePendingSummary(
+      CompletionSummary(
+        sessionId: 'session-1',
+        mode: TimerMode.focus,
+        completedSeconds: 1500,
+        gemDelta: 8,
+        completedAt: checkpoint,
+        taskId: 4,
+        taskTitle: 'Escribir informe',
+        adPending: true,
+      ),
+    );
+
+    final summary = await repository.loadPendingSummary();
+    expect(summary?.gemDelta, 8);
+    expect(summary?.adPending, isTrue);
+    expect(summary?.taskTitle, 'Escribir informe');
+
+    await repository.finalizeSession(
+      summary!,
+      const UserProgress(
+        gems: 15,
+        totalFocusSeconds: 1500,
+        profileName: 'Javier',
+      ),
+    );
+    expect(await repository.loadActiveSession(), isNull);
+    expect((await database.readProgress())?.gems, 15);
+    expect((await repository.loadPendingSummary())?.sessionId, 'session-1');
+
+    await repository.clearActiveSession();
+    await repository.clearPendingSummary();
+    expect(await repository.loadActiveSession(), isNull);
+    expect(await repository.loadPendingSummary(), isNull);
+  });
+
+  test('migrates version 3 by adding session tables', () async {
+    final sqliteDatabase = sqlite3.openInMemory();
+    sqliteDatabase.execute('''
+      CREATE TABLE timer_progress (
+        id INTEGER NOT NULL PRIMARY KEY,
+        gems INTEGER NOT NULL DEFAULT 0,
+        total_focus_seconds INTEGER NOT NULL DEFAULT 0,
+        profile_name TEXT NOT NULL DEFAULT 'NOMBRE'
+      );
+      CREATE TABLE tasks (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        due_date INTEGER NULL,
+        focus_minutes INTEGER NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      INSERT INTO timer_progress
+        (id, gems, total_focus_seconds, profile_name)
+      VALUES (1, 6, 360, 'Javier');
+      PRAGMA user_version = 3;
+    ''');
+
+    final database = AppDatabase(
+      executor: NativeDatabase.opened(sqliteDatabase),
+    );
+    addTearDown(database.close);
+
+    expect((await database.readProgress())?.gems, 6);
+    expect(await database.readActiveTimerSession(), isNull);
+    expect(await database.readPendingTimerSummary(), isNull);
   });
 }

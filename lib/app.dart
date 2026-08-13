@@ -13,9 +13,9 @@ import 'features/tasks/domain/usecases/toggle_task_completion.dart';
 import 'features/tasks/domain/usecases/update_task.dart';
 import 'features/tasks/domain/usecases/watch_tasks.dart';
 import 'features/tasks/presentation/controllers/task_controller.dart';
-import 'features/tasks/presentation/pages/task_page.dart';
 import 'features/timer/data/datasources/timer_local_data_source.dart';
 import 'features/timer/data/repositories/timer_repository_impl.dart';
+import 'features/timer/data/repositories/timer_session_repository_impl.dart';
 import 'features/timer/data/services/admob_focus_completion_ad_service.dart';
 import 'features/timer/data/services/local_timer_notification_service.dart';
 import 'features/timer/domain/services/focus_completion_ad_service.dart';
@@ -24,7 +24,7 @@ import 'features/timer/domain/usecases/clear_progress.dart';
 import 'features/timer/domain/usecases/load_progress.dart';
 import 'features/timer/domain/usecases/save_progress.dart';
 import 'features/timer/presentation/controllers/timer_controller.dart';
-import 'features/timer/presentation/pages/timer_page.dart';
+import 'features/home/presentation/pages/home_shell_page.dart';
 
 class AtomicTimerBootstrap extends StatefulWidget {
   const AtomicTimerBootstrap({
@@ -62,6 +62,9 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     final localDataSource =
         widget.localDataSource ?? DriftTimerLocalDataSource(database!);
     final repository = TimerRepositoryImpl(localDataSource);
+    final sessionRepository = database == null
+        ? null
+        : DriftTimerSessionRepository(database);
     final notificationService =
         widget.notificationService ?? LocalTimerNotificationService();
     final focusCompletionAdService =
@@ -85,15 +88,14 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
       clearProgress: ClearProgress(repository),
       notificationService: notificationService,
       focusCompletionAdService: focusCompletionAdService,
-      onLinkedTaskFocusCompleted: (taskId) {
-        unawaited(_taskController.completeById(taskId));
-      },
+      sessionRepository: sessionRepository,
+      onLinkedTaskFocusCompletedAsync: _taskController.completeById,
     )..initialize();
 
     _lifecycleListener = AppLifecycleListener(
-      onResume: _controller.syncWithClock,
-      onPause: _controller.flushProgress,
-      onDetach: _controller.flushProgress,
+      onResume: _controller.handleAppResumed,
+      onPause: _controller.persistSession,
+      onDetach: _controller.persistSession,
     );
   }
 
@@ -117,24 +119,9 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
       theme: AppTheme.light,
       home: Builder(
         builder: (context) {
-          return TimerPage(
-            controller: _controller,
-            onOpenTasks: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => TaskPage(
-                    controller: _taskController,
-                    onStartFocus: (task, minutes) async {
-                      return _controller.prepareFocusForTask(
-                        taskId: task.id,
-                        taskTitle: task.title,
-                        minutes: minutes,
-                      );
-                    },
-                  ),
-                ),
-              );
-            },
+          return HomeShellPage(
+            timerController: _controller,
+            taskController: _taskController,
           );
         },
       ),

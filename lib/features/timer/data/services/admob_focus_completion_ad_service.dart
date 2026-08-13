@@ -99,16 +99,40 @@ class AdMobFocusCompletionAdService
 
   @override
   Future<void> showAfterFocusCompletion() async {
-    if (_testAdUnitId == null || _isDisposed) {
-      return;
+    await showAfterFocusCompletionResult();
+  }
+
+  @override
+  Future<FocusCompletionAdResult> showAfterFocusCompletionResult() async {
+    if (_testAdUnitId == null) {
+      return FocusCompletionAdResult.unsupported;
+    }
+    if (_isDisposed) {
+      return FocusCompletionAdResult.retry;
     }
 
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       _showOnNextResume = true;
-      return;
+      return FocusCompletionAdResult.retry;
     }
 
-    await _showIfReady();
+    if (!_sdkInitialized) {
+      unawaited(initialize());
+      return FocusCompletionAdResult.retry;
+    }
+
+    if (_interstitialAd == null) {
+      unawaited(_loadAd());
+      return FocusCompletionAdResult.retry;
+    }
+
+    try {
+      await _showIfReady();
+      return FocusCompletionAdResult.shown;
+    } catch (error, stackTrace) {
+      _reportError('mostrar el anuncio de prueba', error, stackTrace);
+      return FocusCompletionAdResult.retry;
+    }
   }
 
   Future<void> _showIfReady() async {

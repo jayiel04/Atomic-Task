@@ -773,16 +773,1506 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   }
 }
 
+class $ActiveTimerSessionsTable extends ActiveTimerSessions
+    with TableInfo<$ActiveTimerSessionsTable, ActiveTimerSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActiveTimerSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _selectedSecondsMeta = const VerificationMeta(
+    'selectedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> selectedSeconds = GeneratedColumn<int>(
+    'selected_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remainingSecondsMeta = const VerificationMeta(
+    'remainingSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> remainingSeconds = GeneratedColumn<int>(
+    'remaining_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _elapsedSecondsMeta = const VerificationMeta(
+    'elapsedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> elapsedSeconds = GeneratedColumn<int>(
+    'elapsed_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rewardedBlocksMeta = const VerificationMeta(
+    'rewardedBlocks',
+  );
+  @override
+  late final GeneratedColumn<int> rewardedBlocks = GeneratedColumn<int>(
+    'rewarded_blocks',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chargedMinutesMeta = const VerificationMeta(
+    'chargedMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> chargedMinutes = GeneratedColumn<int>(
+    'charged_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastCheckpointAtMeta = const VerificationMeta(
+    'lastCheckpointAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastCheckpointAt =
+      GeneratedColumn<DateTime>(
+        'last_checkpoint_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _endsAtMeta = const VerificationMeta('endsAt');
+  @override
+  late final GeneratedColumn<DateTime> endsAt = GeneratedColumn<DateTime>(
+    'ends_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _linkedTaskIdMeta = const VerificationMeta(
+    'linkedTaskId',
+  );
+  @override
+  late final GeneratedColumn<int> linkedTaskId = GeneratedColumn<int>(
+    'linked_task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _linkedTaskTitleMeta = const VerificationMeta(
+    'linkedTaskTitle',
+  );
+  @override
+  late final GeneratedColumn<String> linkedTaskTitle = GeneratedColumn<String>(
+    'linked_task_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessionId,
+    mode,
+    state,
+    selectedSeconds,
+    remainingSeconds,
+    elapsedSeconds,
+    rewardedBlocks,
+    chargedMinutes,
+    lastCheckpointAt,
+    endsAt,
+    linkedTaskId,
+    linkedTaskTitle,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'active_timer_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ActiveTimerSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('selected_seconds')) {
+      context.handle(
+        _selectedSecondsMeta,
+        selectedSeconds.isAcceptableOrUnknown(
+          data['selected_seconds']!,
+          _selectedSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_selectedSecondsMeta);
+    }
+    if (data.containsKey('remaining_seconds')) {
+      context.handle(
+        _remainingSecondsMeta,
+        remainingSeconds.isAcceptableOrUnknown(
+          data['remaining_seconds']!,
+          _remainingSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remainingSecondsMeta);
+    }
+    if (data.containsKey('elapsed_seconds')) {
+      context.handle(
+        _elapsedSecondsMeta,
+        elapsedSeconds.isAcceptableOrUnknown(
+          data['elapsed_seconds']!,
+          _elapsedSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_elapsedSecondsMeta);
+    }
+    if (data.containsKey('rewarded_blocks')) {
+      context.handle(
+        _rewardedBlocksMeta,
+        rewardedBlocks.isAcceptableOrUnknown(
+          data['rewarded_blocks']!,
+          _rewardedBlocksMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_rewardedBlocksMeta);
+    }
+    if (data.containsKey('charged_minutes')) {
+      context.handle(
+        _chargedMinutesMeta,
+        chargedMinutes.isAcceptableOrUnknown(
+          data['charged_minutes']!,
+          _chargedMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_chargedMinutesMeta);
+    }
+    if (data.containsKey('last_checkpoint_at')) {
+      context.handle(
+        _lastCheckpointAtMeta,
+        lastCheckpointAt.isAcceptableOrUnknown(
+          data['last_checkpoint_at']!,
+          _lastCheckpointAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastCheckpointAtMeta);
+    }
+    if (data.containsKey('ends_at')) {
+      context.handle(
+        _endsAtMeta,
+        endsAt.isAcceptableOrUnknown(data['ends_at']!, _endsAtMeta),
+      );
+    }
+    if (data.containsKey('linked_task_id')) {
+      context.handle(
+        _linkedTaskIdMeta,
+        linkedTaskId.isAcceptableOrUnknown(
+          data['linked_task_id']!,
+          _linkedTaskIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('linked_task_title')) {
+      context.handle(
+        _linkedTaskTitleMeta,
+        linkedTaskTitle.isAcceptableOrUnknown(
+          data['linked_task_title']!,
+          _linkedTaskTitleMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ActiveTimerSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActiveTimerSessionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      selectedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}selected_seconds'],
+      )!,
+      remainingSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remaining_seconds'],
+      )!,
+      elapsedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}elapsed_seconds'],
+      )!,
+      rewardedBlocks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rewarded_blocks'],
+      )!,
+      chargedMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}charged_minutes'],
+      )!,
+      lastCheckpointAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_checkpoint_at'],
+      )!,
+      endsAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ends_at'],
+      ),
+      linkedTaskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}linked_task_id'],
+      ),
+      linkedTaskTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_task_title'],
+      ),
+    );
+  }
+
+  @override
+  $ActiveTimerSessionsTable createAlias(String alias) {
+    return $ActiveTimerSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class ActiveTimerSessionRow extends DataClass
+    implements Insertable<ActiveTimerSessionRow> {
+  final int id;
+  final String sessionId;
+  final String mode;
+  final String state;
+  final int selectedSeconds;
+  final int remainingSeconds;
+  final int elapsedSeconds;
+  final int rewardedBlocks;
+  final int chargedMinutes;
+  final DateTime lastCheckpointAt;
+  final DateTime? endsAt;
+  final int? linkedTaskId;
+  final String? linkedTaskTitle;
+  const ActiveTimerSessionRow({
+    required this.id,
+    required this.sessionId,
+    required this.mode,
+    required this.state,
+    required this.selectedSeconds,
+    required this.remainingSeconds,
+    required this.elapsedSeconds,
+    required this.rewardedBlocks,
+    required this.chargedMinutes,
+    required this.lastCheckpointAt,
+    this.endsAt,
+    this.linkedTaskId,
+    this.linkedTaskTitle,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['mode'] = Variable<String>(mode);
+    map['state'] = Variable<String>(state);
+    map['selected_seconds'] = Variable<int>(selectedSeconds);
+    map['remaining_seconds'] = Variable<int>(remainingSeconds);
+    map['elapsed_seconds'] = Variable<int>(elapsedSeconds);
+    map['rewarded_blocks'] = Variable<int>(rewardedBlocks);
+    map['charged_minutes'] = Variable<int>(chargedMinutes);
+    map['last_checkpoint_at'] = Variable<DateTime>(lastCheckpointAt);
+    if (!nullToAbsent || endsAt != null) {
+      map['ends_at'] = Variable<DateTime>(endsAt);
+    }
+    if (!nullToAbsent || linkedTaskId != null) {
+      map['linked_task_id'] = Variable<int>(linkedTaskId);
+    }
+    if (!nullToAbsent || linkedTaskTitle != null) {
+      map['linked_task_title'] = Variable<String>(linkedTaskTitle);
+    }
+    return map;
+  }
+
+  ActiveTimerSessionsCompanion toCompanion(bool nullToAbsent) {
+    return ActiveTimerSessionsCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      mode: Value(mode),
+      state: Value(state),
+      selectedSeconds: Value(selectedSeconds),
+      remainingSeconds: Value(remainingSeconds),
+      elapsedSeconds: Value(elapsedSeconds),
+      rewardedBlocks: Value(rewardedBlocks),
+      chargedMinutes: Value(chargedMinutes),
+      lastCheckpointAt: Value(lastCheckpointAt),
+      endsAt: endsAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endsAt),
+      linkedTaskId: linkedTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedTaskId),
+      linkedTaskTitle: linkedTaskTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedTaskTitle),
+    );
+  }
+
+  factory ActiveTimerSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActiveTimerSessionRow(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      mode: serializer.fromJson<String>(json['mode']),
+      state: serializer.fromJson<String>(json['state']),
+      selectedSeconds: serializer.fromJson<int>(json['selectedSeconds']),
+      remainingSeconds: serializer.fromJson<int>(json['remainingSeconds']),
+      elapsedSeconds: serializer.fromJson<int>(json['elapsedSeconds']),
+      rewardedBlocks: serializer.fromJson<int>(json['rewardedBlocks']),
+      chargedMinutes: serializer.fromJson<int>(json['chargedMinutes']),
+      lastCheckpointAt: serializer.fromJson<DateTime>(json['lastCheckpointAt']),
+      endsAt: serializer.fromJson<DateTime?>(json['endsAt']),
+      linkedTaskId: serializer.fromJson<int?>(json['linkedTaskId']),
+      linkedTaskTitle: serializer.fromJson<String?>(json['linkedTaskTitle']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'mode': serializer.toJson<String>(mode),
+      'state': serializer.toJson<String>(state),
+      'selectedSeconds': serializer.toJson<int>(selectedSeconds),
+      'remainingSeconds': serializer.toJson<int>(remainingSeconds),
+      'elapsedSeconds': serializer.toJson<int>(elapsedSeconds),
+      'rewardedBlocks': serializer.toJson<int>(rewardedBlocks),
+      'chargedMinutes': serializer.toJson<int>(chargedMinutes),
+      'lastCheckpointAt': serializer.toJson<DateTime>(lastCheckpointAt),
+      'endsAt': serializer.toJson<DateTime?>(endsAt),
+      'linkedTaskId': serializer.toJson<int?>(linkedTaskId),
+      'linkedTaskTitle': serializer.toJson<String?>(linkedTaskTitle),
+    };
+  }
+
+  ActiveTimerSessionRow copyWith({
+    int? id,
+    String? sessionId,
+    String? mode,
+    String? state,
+    int? selectedSeconds,
+    int? remainingSeconds,
+    int? elapsedSeconds,
+    int? rewardedBlocks,
+    int? chargedMinutes,
+    DateTime? lastCheckpointAt,
+    Value<DateTime?> endsAt = const Value.absent(),
+    Value<int?> linkedTaskId = const Value.absent(),
+    Value<String?> linkedTaskTitle = const Value.absent(),
+  }) => ActiveTimerSessionRow(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    mode: mode ?? this.mode,
+    state: state ?? this.state,
+    selectedSeconds: selectedSeconds ?? this.selectedSeconds,
+    remainingSeconds: remainingSeconds ?? this.remainingSeconds,
+    elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
+    rewardedBlocks: rewardedBlocks ?? this.rewardedBlocks,
+    chargedMinutes: chargedMinutes ?? this.chargedMinutes,
+    lastCheckpointAt: lastCheckpointAt ?? this.lastCheckpointAt,
+    endsAt: endsAt.present ? endsAt.value : this.endsAt,
+    linkedTaskId: linkedTaskId.present ? linkedTaskId.value : this.linkedTaskId,
+    linkedTaskTitle: linkedTaskTitle.present
+        ? linkedTaskTitle.value
+        : this.linkedTaskTitle,
+  );
+  ActiveTimerSessionRow copyWithCompanion(ActiveTimerSessionsCompanion data) {
+    return ActiveTimerSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      state: data.state.present ? data.state.value : this.state,
+      selectedSeconds: data.selectedSeconds.present
+          ? data.selectedSeconds.value
+          : this.selectedSeconds,
+      remainingSeconds: data.remainingSeconds.present
+          ? data.remainingSeconds.value
+          : this.remainingSeconds,
+      elapsedSeconds: data.elapsedSeconds.present
+          ? data.elapsedSeconds.value
+          : this.elapsedSeconds,
+      rewardedBlocks: data.rewardedBlocks.present
+          ? data.rewardedBlocks.value
+          : this.rewardedBlocks,
+      chargedMinutes: data.chargedMinutes.present
+          ? data.chargedMinutes.value
+          : this.chargedMinutes,
+      lastCheckpointAt: data.lastCheckpointAt.present
+          ? data.lastCheckpointAt.value
+          : this.lastCheckpointAt,
+      endsAt: data.endsAt.present ? data.endsAt.value : this.endsAt,
+      linkedTaskId: data.linkedTaskId.present
+          ? data.linkedTaskId.value
+          : this.linkedTaskId,
+      linkedTaskTitle: data.linkedTaskTitle.present
+          ? data.linkedTaskTitle.value
+          : this.linkedTaskTitle,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActiveTimerSessionRow(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('mode: $mode, ')
+          ..write('state: $state, ')
+          ..write('selectedSeconds: $selectedSeconds, ')
+          ..write('remainingSeconds: $remainingSeconds, ')
+          ..write('elapsedSeconds: $elapsedSeconds, ')
+          ..write('rewardedBlocks: $rewardedBlocks, ')
+          ..write('chargedMinutes: $chargedMinutes, ')
+          ..write('lastCheckpointAt: $lastCheckpointAt, ')
+          ..write('endsAt: $endsAt, ')
+          ..write('linkedTaskId: $linkedTaskId, ')
+          ..write('linkedTaskTitle: $linkedTaskTitle')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sessionId,
+    mode,
+    state,
+    selectedSeconds,
+    remainingSeconds,
+    elapsedSeconds,
+    rewardedBlocks,
+    chargedMinutes,
+    lastCheckpointAt,
+    endsAt,
+    linkedTaskId,
+    linkedTaskTitle,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActiveTimerSessionRow &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.mode == this.mode &&
+          other.state == this.state &&
+          other.selectedSeconds == this.selectedSeconds &&
+          other.remainingSeconds == this.remainingSeconds &&
+          other.elapsedSeconds == this.elapsedSeconds &&
+          other.rewardedBlocks == this.rewardedBlocks &&
+          other.chargedMinutes == this.chargedMinutes &&
+          other.lastCheckpointAt == this.lastCheckpointAt &&
+          other.endsAt == this.endsAt &&
+          other.linkedTaskId == this.linkedTaskId &&
+          other.linkedTaskTitle == this.linkedTaskTitle);
+}
+
+class ActiveTimerSessionsCompanion
+    extends UpdateCompanion<ActiveTimerSessionRow> {
+  final Value<int> id;
+  final Value<String> sessionId;
+  final Value<String> mode;
+  final Value<String> state;
+  final Value<int> selectedSeconds;
+  final Value<int> remainingSeconds;
+  final Value<int> elapsedSeconds;
+  final Value<int> rewardedBlocks;
+  final Value<int> chargedMinutes;
+  final Value<DateTime> lastCheckpointAt;
+  final Value<DateTime?> endsAt;
+  final Value<int?> linkedTaskId;
+  final Value<String?> linkedTaskTitle;
+  const ActiveTimerSessionsCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.state = const Value.absent(),
+    this.selectedSeconds = const Value.absent(),
+    this.remainingSeconds = const Value.absent(),
+    this.elapsedSeconds = const Value.absent(),
+    this.rewardedBlocks = const Value.absent(),
+    this.chargedMinutes = const Value.absent(),
+    this.lastCheckpointAt = const Value.absent(),
+    this.endsAt = const Value.absent(),
+    this.linkedTaskId = const Value.absent(),
+    this.linkedTaskTitle = const Value.absent(),
+  });
+  ActiveTimerSessionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String sessionId,
+    required String mode,
+    required String state,
+    required int selectedSeconds,
+    required int remainingSeconds,
+    required int elapsedSeconds,
+    required int rewardedBlocks,
+    required int chargedMinutes,
+    required DateTime lastCheckpointAt,
+    this.endsAt = const Value.absent(),
+    this.linkedTaskId = const Value.absent(),
+    this.linkedTaskTitle = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       mode = Value(mode),
+       state = Value(state),
+       selectedSeconds = Value(selectedSeconds),
+       remainingSeconds = Value(remainingSeconds),
+       elapsedSeconds = Value(elapsedSeconds),
+       rewardedBlocks = Value(rewardedBlocks),
+       chargedMinutes = Value(chargedMinutes),
+       lastCheckpointAt = Value(lastCheckpointAt);
+  static Insertable<ActiveTimerSessionRow> custom({
+    Expression<int>? id,
+    Expression<String>? sessionId,
+    Expression<String>? mode,
+    Expression<String>? state,
+    Expression<int>? selectedSeconds,
+    Expression<int>? remainingSeconds,
+    Expression<int>? elapsedSeconds,
+    Expression<int>? rewardedBlocks,
+    Expression<int>? chargedMinutes,
+    Expression<DateTime>? lastCheckpointAt,
+    Expression<DateTime>? endsAt,
+    Expression<int>? linkedTaskId,
+    Expression<String>? linkedTaskTitle,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (mode != null) 'mode': mode,
+      if (state != null) 'state': state,
+      if (selectedSeconds != null) 'selected_seconds': selectedSeconds,
+      if (remainingSeconds != null) 'remaining_seconds': remainingSeconds,
+      if (elapsedSeconds != null) 'elapsed_seconds': elapsedSeconds,
+      if (rewardedBlocks != null) 'rewarded_blocks': rewardedBlocks,
+      if (chargedMinutes != null) 'charged_minutes': chargedMinutes,
+      if (lastCheckpointAt != null) 'last_checkpoint_at': lastCheckpointAt,
+      if (endsAt != null) 'ends_at': endsAt,
+      if (linkedTaskId != null) 'linked_task_id': linkedTaskId,
+      if (linkedTaskTitle != null) 'linked_task_title': linkedTaskTitle,
+    });
+  }
+
+  ActiveTimerSessionsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? sessionId,
+    Value<String>? mode,
+    Value<String>? state,
+    Value<int>? selectedSeconds,
+    Value<int>? remainingSeconds,
+    Value<int>? elapsedSeconds,
+    Value<int>? rewardedBlocks,
+    Value<int>? chargedMinutes,
+    Value<DateTime>? lastCheckpointAt,
+    Value<DateTime?>? endsAt,
+    Value<int?>? linkedTaskId,
+    Value<String?>? linkedTaskTitle,
+  }) {
+    return ActiveTimerSessionsCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      mode: mode ?? this.mode,
+      state: state ?? this.state,
+      selectedSeconds: selectedSeconds ?? this.selectedSeconds,
+      remainingSeconds: remainingSeconds ?? this.remainingSeconds,
+      elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
+      rewardedBlocks: rewardedBlocks ?? this.rewardedBlocks,
+      chargedMinutes: chargedMinutes ?? this.chargedMinutes,
+      lastCheckpointAt: lastCheckpointAt ?? this.lastCheckpointAt,
+      endsAt: endsAt ?? this.endsAt,
+      linkedTaskId: linkedTaskId ?? this.linkedTaskId,
+      linkedTaskTitle: linkedTaskTitle ?? this.linkedTaskTitle,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (selectedSeconds.present) {
+      map['selected_seconds'] = Variable<int>(selectedSeconds.value);
+    }
+    if (remainingSeconds.present) {
+      map['remaining_seconds'] = Variable<int>(remainingSeconds.value);
+    }
+    if (elapsedSeconds.present) {
+      map['elapsed_seconds'] = Variable<int>(elapsedSeconds.value);
+    }
+    if (rewardedBlocks.present) {
+      map['rewarded_blocks'] = Variable<int>(rewardedBlocks.value);
+    }
+    if (chargedMinutes.present) {
+      map['charged_minutes'] = Variable<int>(chargedMinutes.value);
+    }
+    if (lastCheckpointAt.present) {
+      map['last_checkpoint_at'] = Variable<DateTime>(lastCheckpointAt.value);
+    }
+    if (endsAt.present) {
+      map['ends_at'] = Variable<DateTime>(endsAt.value);
+    }
+    if (linkedTaskId.present) {
+      map['linked_task_id'] = Variable<int>(linkedTaskId.value);
+    }
+    if (linkedTaskTitle.present) {
+      map['linked_task_title'] = Variable<String>(linkedTaskTitle.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActiveTimerSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('mode: $mode, ')
+          ..write('state: $state, ')
+          ..write('selectedSeconds: $selectedSeconds, ')
+          ..write('remainingSeconds: $remainingSeconds, ')
+          ..write('elapsedSeconds: $elapsedSeconds, ')
+          ..write('rewardedBlocks: $rewardedBlocks, ')
+          ..write('chargedMinutes: $chargedMinutes, ')
+          ..write('lastCheckpointAt: $lastCheckpointAt, ')
+          ..write('endsAt: $endsAt, ')
+          ..write('linkedTaskId: $linkedTaskId, ')
+          ..write('linkedTaskTitle: $linkedTaskTitle')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PendingTimerSummariesTable extends PendingTimerSummaries
+    with TableInfo<$PendingTimerSummariesTable, PendingTimerSummaryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingTimerSummariesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedSecondsMeta = const VerificationMeta(
+    'completedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> completedSeconds = GeneratedColumn<int>(
+    'completed_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _gemDeltaMeta = const VerificationMeta(
+    'gemDelta',
+  );
+  @override
+  late final GeneratedColumn<int> gemDelta = GeneratedColumn<int>(
+    'gem_delta',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<int> taskId = GeneratedColumn<int>(
+    'task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _taskTitleMeta = const VerificationMeta(
+    'taskTitle',
+  );
+  @override
+  late final GeneratedColumn<String> taskTitle = GeneratedColumn<String>(
+    'task_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inAppPendingMeta = const VerificationMeta(
+    'inAppPending',
+  );
+  @override
+  late final GeneratedColumn<bool> inAppPending = GeneratedColumn<bool>(
+    'in_app_pending',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("in_app_pending" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _notificationPendingMeta =
+      const VerificationMeta('notificationPending');
+  @override
+  late final GeneratedColumn<bool> notificationPending = GeneratedColumn<bool>(
+    'notification_pending',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("notification_pending" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _adPendingMeta = const VerificationMeta(
+    'adPending',
+  );
+  @override
+  late final GeneratedColumn<bool> adPending = GeneratedColumn<bool>(
+    'ad_pending',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ad_pending" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _taskCompletionPendingMeta =
+      const VerificationMeta('taskCompletionPending');
+  @override
+  late final GeneratedColumn<bool> taskCompletionPending =
+      GeneratedColumn<bool>(
+        'task_completion_pending',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("task_completion_pending" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    sessionId,
+    mode,
+    completedSeconds,
+    gemDelta,
+    completedAt,
+    taskId,
+    taskTitle,
+    inAppPending,
+    notificationPending,
+    adPending,
+    taskCompletionPending,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_timer_summaries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingTimerSummaryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modeMeta);
+    }
+    if (data.containsKey('completed_seconds')) {
+      context.handle(
+        _completedSecondsMeta,
+        completedSeconds.isAcceptableOrUnknown(
+          data['completed_seconds']!,
+          _completedSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_completedSecondsMeta);
+    }
+    if (data.containsKey('gem_delta')) {
+      context.handle(
+        _gemDeltaMeta,
+        gemDelta.isAcceptableOrUnknown(data['gem_delta']!, _gemDeltaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_gemDeltaMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_completedAtMeta);
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    }
+    if (data.containsKey('task_title')) {
+      context.handle(
+        _taskTitleMeta,
+        taskTitle.isAcceptableOrUnknown(data['task_title']!, _taskTitleMeta),
+      );
+    }
+    if (data.containsKey('in_app_pending')) {
+      context.handle(
+        _inAppPendingMeta,
+        inAppPending.isAcceptableOrUnknown(
+          data['in_app_pending']!,
+          _inAppPendingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notification_pending')) {
+      context.handle(
+        _notificationPendingMeta,
+        notificationPending.isAcceptableOrUnknown(
+          data['notification_pending']!,
+          _notificationPendingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ad_pending')) {
+      context.handle(
+        _adPendingMeta,
+        adPending.isAcceptableOrUnknown(data['ad_pending']!, _adPendingMeta),
+      );
+    }
+    if (data.containsKey('task_completion_pending')) {
+      context.handle(
+        _taskCompletionPendingMeta,
+        taskCompletionPending.isAcceptableOrUnknown(
+          data['task_completion_pending']!,
+          _taskCompletionPendingMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sessionId};
+  @override
+  PendingTimerSummaryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingTimerSummaryRow(
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      completedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completed_seconds'],
+      )!,
+      gemDelta: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}gem_delta'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      )!,
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}task_id'],
+      ),
+      taskTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_title'],
+      ),
+      inAppPending: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}in_app_pending'],
+      )!,
+      notificationPending: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notification_pending'],
+      )!,
+      adPending: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ad_pending'],
+      )!,
+      taskCompletionPending: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}task_completion_pending'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingTimerSummariesTable createAlias(String alias) {
+    return $PendingTimerSummariesTable(attachedDatabase, alias);
+  }
+}
+
+class PendingTimerSummaryRow extends DataClass
+    implements Insertable<PendingTimerSummaryRow> {
+  final String sessionId;
+  final String mode;
+  final int completedSeconds;
+  final int gemDelta;
+  final DateTime completedAt;
+  final int? taskId;
+  final String? taskTitle;
+  final bool inAppPending;
+  final bool notificationPending;
+  final bool adPending;
+  final bool taskCompletionPending;
+  const PendingTimerSummaryRow({
+    required this.sessionId,
+    required this.mode,
+    required this.completedSeconds,
+    required this.gemDelta,
+    required this.completedAt,
+    this.taskId,
+    this.taskTitle,
+    required this.inAppPending,
+    required this.notificationPending,
+    required this.adPending,
+    required this.taskCompletionPending,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['session_id'] = Variable<String>(sessionId);
+    map['mode'] = Variable<String>(mode);
+    map['completed_seconds'] = Variable<int>(completedSeconds);
+    map['gem_delta'] = Variable<int>(gemDelta);
+    map['completed_at'] = Variable<DateTime>(completedAt);
+    if (!nullToAbsent || taskId != null) {
+      map['task_id'] = Variable<int>(taskId);
+    }
+    if (!nullToAbsent || taskTitle != null) {
+      map['task_title'] = Variable<String>(taskTitle);
+    }
+    map['in_app_pending'] = Variable<bool>(inAppPending);
+    map['notification_pending'] = Variable<bool>(notificationPending);
+    map['ad_pending'] = Variable<bool>(adPending);
+    map['task_completion_pending'] = Variable<bool>(taskCompletionPending);
+    return map;
+  }
+
+  PendingTimerSummariesCompanion toCompanion(bool nullToAbsent) {
+    return PendingTimerSummariesCompanion(
+      sessionId: Value(sessionId),
+      mode: Value(mode),
+      completedSeconds: Value(completedSeconds),
+      gemDelta: Value(gemDelta),
+      completedAt: Value(completedAt),
+      taskId: taskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taskId),
+      taskTitle: taskTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taskTitle),
+      inAppPending: Value(inAppPending),
+      notificationPending: Value(notificationPending),
+      adPending: Value(adPending),
+      taskCompletionPending: Value(taskCompletionPending),
+    );
+  }
+
+  factory PendingTimerSummaryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingTimerSummaryRow(
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      mode: serializer.fromJson<String>(json['mode']),
+      completedSeconds: serializer.fromJson<int>(json['completedSeconds']),
+      gemDelta: serializer.fromJson<int>(json['gemDelta']),
+      completedAt: serializer.fromJson<DateTime>(json['completedAt']),
+      taskId: serializer.fromJson<int?>(json['taskId']),
+      taskTitle: serializer.fromJson<String?>(json['taskTitle']),
+      inAppPending: serializer.fromJson<bool>(json['inAppPending']),
+      notificationPending: serializer.fromJson<bool>(
+        json['notificationPending'],
+      ),
+      adPending: serializer.fromJson<bool>(json['adPending']),
+      taskCompletionPending: serializer.fromJson<bool>(
+        json['taskCompletionPending'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sessionId': serializer.toJson<String>(sessionId),
+      'mode': serializer.toJson<String>(mode),
+      'completedSeconds': serializer.toJson<int>(completedSeconds),
+      'gemDelta': serializer.toJson<int>(gemDelta),
+      'completedAt': serializer.toJson<DateTime>(completedAt),
+      'taskId': serializer.toJson<int?>(taskId),
+      'taskTitle': serializer.toJson<String?>(taskTitle),
+      'inAppPending': serializer.toJson<bool>(inAppPending),
+      'notificationPending': serializer.toJson<bool>(notificationPending),
+      'adPending': serializer.toJson<bool>(adPending),
+      'taskCompletionPending': serializer.toJson<bool>(taskCompletionPending),
+    };
+  }
+
+  PendingTimerSummaryRow copyWith({
+    String? sessionId,
+    String? mode,
+    int? completedSeconds,
+    int? gemDelta,
+    DateTime? completedAt,
+    Value<int?> taskId = const Value.absent(),
+    Value<String?> taskTitle = const Value.absent(),
+    bool? inAppPending,
+    bool? notificationPending,
+    bool? adPending,
+    bool? taskCompletionPending,
+  }) => PendingTimerSummaryRow(
+    sessionId: sessionId ?? this.sessionId,
+    mode: mode ?? this.mode,
+    completedSeconds: completedSeconds ?? this.completedSeconds,
+    gemDelta: gemDelta ?? this.gemDelta,
+    completedAt: completedAt ?? this.completedAt,
+    taskId: taskId.present ? taskId.value : this.taskId,
+    taskTitle: taskTitle.present ? taskTitle.value : this.taskTitle,
+    inAppPending: inAppPending ?? this.inAppPending,
+    notificationPending: notificationPending ?? this.notificationPending,
+    adPending: adPending ?? this.adPending,
+    taskCompletionPending: taskCompletionPending ?? this.taskCompletionPending,
+  );
+  PendingTimerSummaryRow copyWithCompanion(
+    PendingTimerSummariesCompanion data,
+  ) {
+    return PendingTimerSummaryRow(
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      completedSeconds: data.completedSeconds.present
+          ? data.completedSeconds.value
+          : this.completedSeconds,
+      gemDelta: data.gemDelta.present ? data.gemDelta.value : this.gemDelta,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      taskTitle: data.taskTitle.present ? data.taskTitle.value : this.taskTitle,
+      inAppPending: data.inAppPending.present
+          ? data.inAppPending.value
+          : this.inAppPending,
+      notificationPending: data.notificationPending.present
+          ? data.notificationPending.value
+          : this.notificationPending,
+      adPending: data.adPending.present ? data.adPending.value : this.adPending,
+      taskCompletionPending: data.taskCompletionPending.present
+          ? data.taskCompletionPending.value
+          : this.taskCompletionPending,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingTimerSummaryRow(')
+          ..write('sessionId: $sessionId, ')
+          ..write('mode: $mode, ')
+          ..write('completedSeconds: $completedSeconds, ')
+          ..write('gemDelta: $gemDelta, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('taskId: $taskId, ')
+          ..write('taskTitle: $taskTitle, ')
+          ..write('inAppPending: $inAppPending, ')
+          ..write('notificationPending: $notificationPending, ')
+          ..write('adPending: $adPending, ')
+          ..write('taskCompletionPending: $taskCompletionPending')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    sessionId,
+    mode,
+    completedSeconds,
+    gemDelta,
+    completedAt,
+    taskId,
+    taskTitle,
+    inAppPending,
+    notificationPending,
+    adPending,
+    taskCompletionPending,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingTimerSummaryRow &&
+          other.sessionId == this.sessionId &&
+          other.mode == this.mode &&
+          other.completedSeconds == this.completedSeconds &&
+          other.gemDelta == this.gemDelta &&
+          other.completedAt == this.completedAt &&
+          other.taskId == this.taskId &&
+          other.taskTitle == this.taskTitle &&
+          other.inAppPending == this.inAppPending &&
+          other.notificationPending == this.notificationPending &&
+          other.adPending == this.adPending &&
+          other.taskCompletionPending == this.taskCompletionPending);
+}
+
+class PendingTimerSummariesCompanion
+    extends UpdateCompanion<PendingTimerSummaryRow> {
+  final Value<String> sessionId;
+  final Value<String> mode;
+  final Value<int> completedSeconds;
+  final Value<int> gemDelta;
+  final Value<DateTime> completedAt;
+  final Value<int?> taskId;
+  final Value<String?> taskTitle;
+  final Value<bool> inAppPending;
+  final Value<bool> notificationPending;
+  final Value<bool> adPending;
+  final Value<bool> taskCompletionPending;
+  final Value<int> rowid;
+  const PendingTimerSummariesCompanion({
+    this.sessionId = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.completedSeconds = const Value.absent(),
+    this.gemDelta = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.taskTitle = const Value.absent(),
+    this.inAppPending = const Value.absent(),
+    this.notificationPending = const Value.absent(),
+    this.adPending = const Value.absent(),
+    this.taskCompletionPending = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PendingTimerSummariesCompanion.insert({
+    required String sessionId,
+    required String mode,
+    required int completedSeconds,
+    required int gemDelta,
+    required DateTime completedAt,
+    this.taskId = const Value.absent(),
+    this.taskTitle = const Value.absent(),
+    this.inAppPending = const Value.absent(),
+    this.notificationPending = const Value.absent(),
+    this.adPending = const Value.absent(),
+    this.taskCompletionPending = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       mode = Value(mode),
+       completedSeconds = Value(completedSeconds),
+       gemDelta = Value(gemDelta),
+       completedAt = Value(completedAt);
+  static Insertable<PendingTimerSummaryRow> custom({
+    Expression<String>? sessionId,
+    Expression<String>? mode,
+    Expression<int>? completedSeconds,
+    Expression<int>? gemDelta,
+    Expression<DateTime>? completedAt,
+    Expression<int>? taskId,
+    Expression<String>? taskTitle,
+    Expression<bool>? inAppPending,
+    Expression<bool>? notificationPending,
+    Expression<bool>? adPending,
+    Expression<bool>? taskCompletionPending,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sessionId != null) 'session_id': sessionId,
+      if (mode != null) 'mode': mode,
+      if (completedSeconds != null) 'completed_seconds': completedSeconds,
+      if (gemDelta != null) 'gem_delta': gemDelta,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (taskId != null) 'task_id': taskId,
+      if (taskTitle != null) 'task_title': taskTitle,
+      if (inAppPending != null) 'in_app_pending': inAppPending,
+      if (notificationPending != null)
+        'notification_pending': notificationPending,
+      if (adPending != null) 'ad_pending': adPending,
+      if (taskCompletionPending != null)
+        'task_completion_pending': taskCompletionPending,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PendingTimerSummariesCompanion copyWith({
+    Value<String>? sessionId,
+    Value<String>? mode,
+    Value<int>? completedSeconds,
+    Value<int>? gemDelta,
+    Value<DateTime>? completedAt,
+    Value<int?>? taskId,
+    Value<String?>? taskTitle,
+    Value<bool>? inAppPending,
+    Value<bool>? notificationPending,
+    Value<bool>? adPending,
+    Value<bool>? taskCompletionPending,
+    Value<int>? rowid,
+  }) {
+    return PendingTimerSummariesCompanion(
+      sessionId: sessionId ?? this.sessionId,
+      mode: mode ?? this.mode,
+      completedSeconds: completedSeconds ?? this.completedSeconds,
+      gemDelta: gemDelta ?? this.gemDelta,
+      completedAt: completedAt ?? this.completedAt,
+      taskId: taskId ?? this.taskId,
+      taskTitle: taskTitle ?? this.taskTitle,
+      inAppPending: inAppPending ?? this.inAppPending,
+      notificationPending: notificationPending ?? this.notificationPending,
+      adPending: adPending ?? this.adPending,
+      taskCompletionPending:
+          taskCompletionPending ?? this.taskCompletionPending,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (completedSeconds.present) {
+      map['completed_seconds'] = Variable<int>(completedSeconds.value);
+    }
+    if (gemDelta.present) {
+      map['gem_delta'] = Variable<int>(gemDelta.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<int>(taskId.value);
+    }
+    if (taskTitle.present) {
+      map['task_title'] = Variable<String>(taskTitle.value);
+    }
+    if (inAppPending.present) {
+      map['in_app_pending'] = Variable<bool>(inAppPending.value);
+    }
+    if (notificationPending.present) {
+      map['notification_pending'] = Variable<bool>(notificationPending.value);
+    }
+    if (adPending.present) {
+      map['ad_pending'] = Variable<bool>(adPending.value);
+    }
+    if (taskCompletionPending.present) {
+      map['task_completion_pending'] = Variable<bool>(
+        taskCompletionPending.value,
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingTimerSummariesCompanion(')
+          ..write('sessionId: $sessionId, ')
+          ..write('mode: $mode, ')
+          ..write('completedSeconds: $completedSeconds, ')
+          ..write('gemDelta: $gemDelta, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('taskId: $taskId, ')
+          ..write('taskTitle: $taskTitle, ')
+          ..write('inAppPending: $inAppPending, ')
+          ..write('notificationPending: $notificationPending, ')
+          ..write('adPending: $adPending, ')
+          ..write('taskCompletionPending: $taskCompletionPending, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TimerProgressTable timerProgress = $TimerProgressTable(this);
   late final $TasksTable tasks = $TasksTable(this);
+  late final $ActiveTimerSessionsTable activeTimerSessions =
+      $ActiveTimerSessionsTable(this);
+  late final $PendingTimerSummariesTable pendingTimerSummaries =
+      $PendingTimerSummariesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [timerProgress, tasks];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    timerProgress,
+    tasks,
+    activeTimerSessions,
+    pendingTimerSummaries,
+  ];
 }
 
 typedef $$TimerProgressTableCreateCompanionBuilder =
@@ -1197,6 +2687,727 @@ typedef $$TasksTableProcessedTableManager =
       TaskRow,
       PrefetchHooks Function()
     >;
+typedef $$ActiveTimerSessionsTableCreateCompanionBuilder =
+    ActiveTimerSessionsCompanion Function({
+      Value<int> id,
+      required String sessionId,
+      required String mode,
+      required String state,
+      required int selectedSeconds,
+      required int remainingSeconds,
+      required int elapsedSeconds,
+      required int rewardedBlocks,
+      required int chargedMinutes,
+      required DateTime lastCheckpointAt,
+      Value<DateTime?> endsAt,
+      Value<int?> linkedTaskId,
+      Value<String?> linkedTaskTitle,
+    });
+typedef $$ActiveTimerSessionsTableUpdateCompanionBuilder =
+    ActiveTimerSessionsCompanion Function({
+      Value<int> id,
+      Value<String> sessionId,
+      Value<String> mode,
+      Value<String> state,
+      Value<int> selectedSeconds,
+      Value<int> remainingSeconds,
+      Value<int> elapsedSeconds,
+      Value<int> rewardedBlocks,
+      Value<int> chargedMinutes,
+      Value<DateTime> lastCheckpointAt,
+      Value<DateTime?> endsAt,
+      Value<int?> linkedTaskId,
+      Value<String?> linkedTaskTitle,
+    });
+
+class $$ActiveTimerSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $ActiveTimerSessionsTable> {
+  $$ActiveTimerSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get selectedSeconds => $composableBuilder(
+    column: $table.selectedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remainingSeconds => $composableBuilder(
+    column: $table.remainingSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get elapsedSeconds => $composableBuilder(
+    column: $table.elapsedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rewardedBlocks => $composableBuilder(
+    column: $table.rewardedBlocks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chargedMinutes => $composableBuilder(
+    column: $table.chargedMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastCheckpointAt => $composableBuilder(
+    column: $table.lastCheckpointAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endsAt => $composableBuilder(
+    column: $table.endsAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get linkedTaskId => $composableBuilder(
+    column: $table.linkedTaskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedTaskTitle => $composableBuilder(
+    column: $table.linkedTaskTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ActiveTimerSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActiveTimerSessionsTable> {
+  $$ActiveTimerSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get selectedSeconds => $composableBuilder(
+    column: $table.selectedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remainingSeconds => $composableBuilder(
+    column: $table.remainingSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get elapsedSeconds => $composableBuilder(
+    column: $table.elapsedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rewardedBlocks => $composableBuilder(
+    column: $table.rewardedBlocks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chargedMinutes => $composableBuilder(
+    column: $table.chargedMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastCheckpointAt => $composableBuilder(
+    column: $table.lastCheckpointAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endsAt => $composableBuilder(
+    column: $table.endsAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get linkedTaskId => $composableBuilder(
+    column: $table.linkedTaskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get linkedTaskTitle => $composableBuilder(
+    column: $table.linkedTaskTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ActiveTimerSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActiveTimerSessionsTable> {
+  $$ActiveTimerSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get selectedSeconds => $composableBuilder(
+    column: $table.selectedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remainingSeconds => $composableBuilder(
+    column: $table.remainingSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get elapsedSeconds => $composableBuilder(
+    column: $table.elapsedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rewardedBlocks => $composableBuilder(
+    column: $table.rewardedBlocks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get chargedMinutes => $composableBuilder(
+    column: $table.chargedMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastCheckpointAt => $composableBuilder(
+    column: $table.lastCheckpointAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get endsAt =>
+      $composableBuilder(column: $table.endsAt, builder: (column) => column);
+
+  GeneratedColumn<int> get linkedTaskId => $composableBuilder(
+    column: $table.linkedTaskId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get linkedTaskTitle => $composableBuilder(
+    column: $table.linkedTaskTitle,
+    builder: (column) => column,
+  );
+}
+
+class $$ActiveTimerSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActiveTimerSessionsTable,
+          ActiveTimerSessionRow,
+          $$ActiveTimerSessionsTableFilterComposer,
+          $$ActiveTimerSessionsTableOrderingComposer,
+          $$ActiveTimerSessionsTableAnnotationComposer,
+          $$ActiveTimerSessionsTableCreateCompanionBuilder,
+          $$ActiveTimerSessionsTableUpdateCompanionBuilder,
+          (
+            ActiveTimerSessionRow,
+            BaseReferences<
+              _$AppDatabase,
+              $ActiveTimerSessionsTable,
+              ActiveTimerSessionRow
+            >,
+          ),
+          ActiveTimerSessionRow,
+          PrefetchHooks Function()
+        > {
+  $$ActiveTimerSessionsTableTableManager(
+    _$AppDatabase db,
+    $ActiveTimerSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActiveTimerSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActiveTimerSessionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ActiveTimerSessionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<int> selectedSeconds = const Value.absent(),
+                Value<int> remainingSeconds = const Value.absent(),
+                Value<int> elapsedSeconds = const Value.absent(),
+                Value<int> rewardedBlocks = const Value.absent(),
+                Value<int> chargedMinutes = const Value.absent(),
+                Value<DateTime> lastCheckpointAt = const Value.absent(),
+                Value<DateTime?> endsAt = const Value.absent(),
+                Value<int?> linkedTaskId = const Value.absent(),
+                Value<String?> linkedTaskTitle = const Value.absent(),
+              }) => ActiveTimerSessionsCompanion(
+                id: id,
+                sessionId: sessionId,
+                mode: mode,
+                state: state,
+                selectedSeconds: selectedSeconds,
+                remainingSeconds: remainingSeconds,
+                elapsedSeconds: elapsedSeconds,
+                rewardedBlocks: rewardedBlocks,
+                chargedMinutes: chargedMinutes,
+                lastCheckpointAt: lastCheckpointAt,
+                endsAt: endsAt,
+                linkedTaskId: linkedTaskId,
+                linkedTaskTitle: linkedTaskTitle,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String sessionId,
+                required String mode,
+                required String state,
+                required int selectedSeconds,
+                required int remainingSeconds,
+                required int elapsedSeconds,
+                required int rewardedBlocks,
+                required int chargedMinutes,
+                required DateTime lastCheckpointAt,
+                Value<DateTime?> endsAt = const Value.absent(),
+                Value<int?> linkedTaskId = const Value.absent(),
+                Value<String?> linkedTaskTitle = const Value.absent(),
+              }) => ActiveTimerSessionsCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                mode: mode,
+                state: state,
+                selectedSeconds: selectedSeconds,
+                remainingSeconds: remainingSeconds,
+                elapsedSeconds: elapsedSeconds,
+                rewardedBlocks: rewardedBlocks,
+                chargedMinutes: chargedMinutes,
+                lastCheckpointAt: lastCheckpointAt,
+                endsAt: endsAt,
+                linkedTaskId: linkedTaskId,
+                linkedTaskTitle: linkedTaskTitle,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ActiveTimerSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActiveTimerSessionsTable,
+      ActiveTimerSessionRow,
+      $$ActiveTimerSessionsTableFilterComposer,
+      $$ActiveTimerSessionsTableOrderingComposer,
+      $$ActiveTimerSessionsTableAnnotationComposer,
+      $$ActiveTimerSessionsTableCreateCompanionBuilder,
+      $$ActiveTimerSessionsTableUpdateCompanionBuilder,
+      (
+        ActiveTimerSessionRow,
+        BaseReferences<
+          _$AppDatabase,
+          $ActiveTimerSessionsTable,
+          ActiveTimerSessionRow
+        >,
+      ),
+      ActiveTimerSessionRow,
+      PrefetchHooks Function()
+    >;
+typedef $$PendingTimerSummariesTableCreateCompanionBuilder =
+    PendingTimerSummariesCompanion Function({
+      required String sessionId,
+      required String mode,
+      required int completedSeconds,
+      required int gemDelta,
+      required DateTime completedAt,
+      Value<int?> taskId,
+      Value<String?> taskTitle,
+      Value<bool> inAppPending,
+      Value<bool> notificationPending,
+      Value<bool> adPending,
+      Value<bool> taskCompletionPending,
+      Value<int> rowid,
+    });
+typedef $$PendingTimerSummariesTableUpdateCompanionBuilder =
+    PendingTimerSummariesCompanion Function({
+      Value<String> sessionId,
+      Value<String> mode,
+      Value<int> completedSeconds,
+      Value<int> gemDelta,
+      Value<DateTime> completedAt,
+      Value<int?> taskId,
+      Value<String?> taskTitle,
+      Value<bool> inAppPending,
+      Value<bool> notificationPending,
+      Value<bool> adPending,
+      Value<bool> taskCompletionPending,
+      Value<int> rowid,
+    });
+
+class $$PendingTimerSummariesTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingTimerSummariesTable> {
+  $$PendingTimerSummariesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completedSeconds => $composableBuilder(
+    column: $table.completedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get gemDelta => $composableBuilder(
+    column: $table.gemDelta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taskTitle => $composableBuilder(
+    column: $table.taskTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get inAppPending => $composableBuilder(
+    column: $table.inAppPending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notificationPending => $composableBuilder(
+    column: $table.notificationPending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get adPending => $composableBuilder(
+    column: $table.adPending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get taskCompletionPending => $composableBuilder(
+    column: $table.taskCompletionPending,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PendingTimerSummariesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingTimerSummariesTable> {
+  $$PendingTimerSummariesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completedSeconds => $composableBuilder(
+    column: $table.completedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get gemDelta => $composableBuilder(
+    column: $table.gemDelta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taskTitle => $composableBuilder(
+    column: $table.taskTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get inAppPending => $composableBuilder(
+    column: $table.inAppPending,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notificationPending => $composableBuilder(
+    column: $table.notificationPending,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get adPending => $composableBuilder(
+    column: $table.adPending,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get taskCompletionPending => $composableBuilder(
+    column: $table.taskCompletionPending,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PendingTimerSummariesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingTimerSummariesTable> {
+  $$PendingTimerSummariesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<int> get completedSeconds => $composableBuilder(
+    column: $table.completedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get gemDelta =>
+      $composableBuilder(column: $table.gemDelta, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get taskTitle =>
+      $composableBuilder(column: $table.taskTitle, builder: (column) => column);
+
+  GeneratedColumn<bool> get inAppPending => $composableBuilder(
+    column: $table.inAppPending,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get notificationPending => $composableBuilder(
+    column: $table.notificationPending,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get adPending =>
+      $composableBuilder(column: $table.adPending, builder: (column) => column);
+
+  GeneratedColumn<bool> get taskCompletionPending => $composableBuilder(
+    column: $table.taskCompletionPending,
+    builder: (column) => column,
+  );
+}
+
+class $$PendingTimerSummariesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingTimerSummariesTable,
+          PendingTimerSummaryRow,
+          $$PendingTimerSummariesTableFilterComposer,
+          $$PendingTimerSummariesTableOrderingComposer,
+          $$PendingTimerSummariesTableAnnotationComposer,
+          $$PendingTimerSummariesTableCreateCompanionBuilder,
+          $$PendingTimerSummariesTableUpdateCompanionBuilder,
+          (
+            PendingTimerSummaryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PendingTimerSummariesTable,
+              PendingTimerSummaryRow
+            >,
+          ),
+          PendingTimerSummaryRow,
+          PrefetchHooks Function()
+        > {
+  $$PendingTimerSummariesTableTableManager(
+    _$AppDatabase db,
+    $PendingTimerSummariesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingTimerSummariesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PendingTimerSummariesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PendingTimerSummariesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sessionId = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<int> completedSeconds = const Value.absent(),
+                Value<int> gemDelta = const Value.absent(),
+                Value<DateTime> completedAt = const Value.absent(),
+                Value<int?> taskId = const Value.absent(),
+                Value<String?> taskTitle = const Value.absent(),
+                Value<bool> inAppPending = const Value.absent(),
+                Value<bool> notificationPending = const Value.absent(),
+                Value<bool> adPending = const Value.absent(),
+                Value<bool> taskCompletionPending = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PendingTimerSummariesCompanion(
+                sessionId: sessionId,
+                mode: mode,
+                completedSeconds: completedSeconds,
+                gemDelta: gemDelta,
+                completedAt: completedAt,
+                taskId: taskId,
+                taskTitle: taskTitle,
+                inAppPending: inAppPending,
+                notificationPending: notificationPending,
+                adPending: adPending,
+                taskCompletionPending: taskCompletionPending,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sessionId,
+                required String mode,
+                required int completedSeconds,
+                required int gemDelta,
+                required DateTime completedAt,
+                Value<int?> taskId = const Value.absent(),
+                Value<String?> taskTitle = const Value.absent(),
+                Value<bool> inAppPending = const Value.absent(),
+                Value<bool> notificationPending = const Value.absent(),
+                Value<bool> adPending = const Value.absent(),
+                Value<bool> taskCompletionPending = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PendingTimerSummariesCompanion.insert(
+                sessionId: sessionId,
+                mode: mode,
+                completedSeconds: completedSeconds,
+                gemDelta: gemDelta,
+                completedAt: completedAt,
+                taskId: taskId,
+                taskTitle: taskTitle,
+                inAppPending: inAppPending,
+                notificationPending: notificationPending,
+                adPending: adPending,
+                taskCompletionPending: taskCompletionPending,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PendingTimerSummariesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingTimerSummariesTable,
+      PendingTimerSummaryRow,
+      $$PendingTimerSummariesTableFilterComposer,
+      $$PendingTimerSummariesTableOrderingComposer,
+      $$PendingTimerSummariesTableAnnotationComposer,
+      $$PendingTimerSummariesTableCreateCompanionBuilder,
+      $$PendingTimerSummariesTableUpdateCompanionBuilder,
+      (
+        PendingTimerSummaryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PendingTimerSummariesTable,
+          PendingTimerSummaryRow
+        >,
+      ),
+      PendingTimerSummaryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1205,4 +3416,8 @@ class $AppDatabaseManager {
       $$TimerProgressTableTableManager(_db, _db.timerProgress);
   $$TasksTableTableManager get tasks =>
       $$TasksTableTableManager(_db, _db.tasks);
+  $$ActiveTimerSessionsTableTableManager get activeTimerSessions =>
+      $$ActiveTimerSessionsTableTableManager(_db, _db.activeTimerSessions);
+  $$PendingTimerSummariesTableTableManager get pendingTimerSummaries =>
+      $$PendingTimerSummariesTableTableManager(_db, _db.pendingTimerSummaries);
 }
