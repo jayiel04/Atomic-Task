@@ -9,7 +9,7 @@ abstract final class TimeFormatter {
   }
 
   static String totalFocus(int totalSeconds) {
-    final totalMinutes = totalSeconds ~/ 60;
+    final totalMinutes = _safeTotalMinutes(totalSeconds);
     final hours = totalMinutes ~/ 60;
     final minutes = totalMinutes % 60;
 
@@ -18,6 +18,25 @@ abstract final class TimeFormatter {
     }
 
     return '${hours}h ${minutes}m';
+  }
+
+  static String totalFocusDetailed(int totalSeconds) {
+    final totalMinutes = _safeTotalMinutes(totalSeconds);
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+
+    if (hours == 0) {
+      return '$minutes min';
+    }
+    if (minutes == 0) {
+      return '$hours h';
+    }
+
+    return '$hours h $minutes min';
+  }
+
+  static int _safeTotalMinutes(int totalSeconds) {
+    return totalSeconds < 0 ? 0 : totalSeconds ~/ 60;
   }
 
   static String _twoDigits(int value) => value.toString().padLeft(2, '0');

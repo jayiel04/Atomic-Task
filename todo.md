@@ -8,7 +8,7 @@ Este documento resume el estado real del proyecto y separa lo implementado de la
 
 - [x] Home única con `HomeShellPage`, AppBar compartido y navegación inferior.
 - [x] Vistas embebibles `TasksView` y `FocusView` conservadas en un `IndexedStack`.
-- [x] Encabezado compacto delimitado, con perfil, nombre, tiempo y gemas.
+- [x] Encabezado compacto delimitado, con perfil y cápsulas interactivas de tiempo y gemas.
 - [x] Drawer lateral izquierdo con Tareas, Concentración, Ajustes, Estadísticas y restablecimiento.
 - [x] Footer flotante centrado con cápsula de selección y header responsivo de dos filas.
 - [x] Tareas recurrentes diarias, semanales y mensuales con edición por ocurrencia o serie.
@@ -84,6 +84,7 @@ La navegación se implementa con una sola Home y vistas internas, sin apilar rut
 - En el primer inicio se solicita un nombre obligatorio.
 - El nombre se recorta, admite hasta 18 caracteres y se guarda localmente.
 - Se muestran gemas y tiempo total de concentración.
+- Tiempo y gemas abren paneles inferiores explicativos y mantienen sus valores sincronizados en vivo.
 - El progreso puede restablecerse con confirmación.
 
 #### Temporizador
@@ -169,7 +170,7 @@ El resumen del AppBar respeta esta jerarquía:
 
 ```text
 [tarjeta: avatar + nombre]
-[ícono tiempo + valor] [ícono gema + valor]
+[cápsula dorada: tiempo] [cápsula morada: gemas]
 ```
 
 Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y fuera. En anchos compactos, menú y título ocupan la primera fila y el resumen la segunda. No se muestra la palabra “Hola”.
@@ -184,6 +185,7 @@ Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y 
 - [x] El nombre se alinea en el bloque derecho y está sobre las estadísticas.
 - [x] Avatar y nombre aparecen dentro de la tarjeta; las estadísticas quedan debajo y fuera.
 - [x] Tiempo de concentración y gemas conservan sus respectivos íconos.
+- [x] Tiempo y gemas usan cápsulas interactivas con paneles inferiores de detalle.
 - [x] No se usa el saludo “Hola”.
 - [x] Cambiar de pestaña no debe reiniciar el temporizador ni la lista.
 
@@ -275,7 +277,7 @@ La entrega visual se considera completa cuando:
 2. AppBar y navegación inferior permanecen visibles al cambiar de vista.
 3. La navegación inferior contiene exactamente Tareas y Concentración, en ese orden.
 4. El destino activo se distingue con color/indicador morado y semántica seleccionada.
-5. El resumen del AppBar contiene avatar y nombre dentro de la tarjeta, con tiempo y gemas debajo y fuera.
+5. El resumen del AppBar contiene avatar y nombre dentro de la tarjeta, con cápsulas de tiempo y gemas debajo y fuera.
 6. No aparece “Hola”.
 7. El nombre, el tiempo y las gemas provienen de una sola fuente de estado.
 8. El temporizador activo no se reinicia al abrir Tareas.
@@ -284,6 +286,7 @@ La entrega visual se considera completa cuando:
 11. Todas las funciones actuales siguen disponibles.
 12. No hay overflow ni contenido oculto por las barras del sistema.
 13. `flutter analyze` no reporta errores y todas las pruebas pasan.
+14. Las cápsulas tienen áreas táctiles de 48 × 48 y sus paneles reflejan el progreso en vivo.
 
 ## 8. Fuera de alcance del primer cambio visual
 

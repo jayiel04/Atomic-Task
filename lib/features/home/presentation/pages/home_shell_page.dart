@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../tasks/domain/entities/atomic_task.dart';
 import '../../../tasks/presentation/controllers/task_controller.dart';
 import '../../../tasks/presentation/pages/task_page.dart';
@@ -15,8 +16,11 @@ import '../home_destination.dart';
 import '../widgets/home_app_bar.dart';
 import '../widgets/home_bottom_navigation.dart';
 import '../widgets/home_sidebar.dart';
+import '../widgets/progress_detail_sheet.dart';
 import 'settings_view.dart';
 import 'statistics_view.dart';
+
+enum _ProgressDetailKind { focusTime, gems }
 
 class HomeShellPage extends StatefulWidget {
   const HomeShellPage({
@@ -233,6 +237,56 @@ class _HomeShellPageState extends State<HomeShellPage> {
     });
   }
 
+  Future<void> _showProgressDetail(_ProgressDetailKind kind) {
+    return showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      constraints: const BoxConstraints(maxWidth: 480),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return AnimatedBuilder(
+          animation: _timerController,
+          builder: (context, _) {
+            final progress = _timerController.progress;
+
+            return switch (kind) {
+              _ProgressDetailKind.focusTime => ProgressDetailSheet(
+                key: const Key('focusTimeDetailSheet'),
+                icon: Icons.schedule_rounded,
+                title: 'Tiempo de concentración',
+                value: TimeFormatter.totalFocusDetailed(
+                  progress.totalFocusSeconds,
+                ),
+                description:
+                    'Se acumula mientras una sesión de concentración está en '
+                    'curso. Las pausas y los descansos no cuentan.',
+                accentColor: AppColors.focusAccent,
+                accentSurface: AppColors.focusAccentSoft,
+              ),
+              _ProgressDetailKind.gems => ProgressDetailSheet(
+                key: const Key('gemsDetailSheet'),
+                icon: Icons.diamond_rounded,
+                title: 'Gemas disponibles',
+                value: progress.gems.toString(),
+                description:
+                    'Ganas 1 gema por cada 3 minutos completos de '
+                    'concentración. Cada minuto completo de descanso consume '
+                    '1 gema.',
+                accentColor: AppColors.primaryDark,
+                accentSurface: AppColors.primarySoft,
+              ),
+            };
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _confirmResetProgress() async {
     final accepted = await showDialog<bool>(
       context: context,
@@ -297,6 +351,12 @@ class _HomeShellPageState extends State<HomeShellPage> {
                 onMenuPressed: () => _scaffoldKey.currentState?.openDrawer(),
                 onProfilePressed: () =>
                     _selectDestination(HomeDestination.settings),
+                onFocusTimePressed: () {
+                  unawaited(_showProgressDetail(_ProgressDetailKind.focusTime));
+                },
+                onGemsPressed: () {
+                  unawaited(_showProgressDetail(_ProgressDetailKind.gems));
+                },
               ),
               Expanded(
                 child: IndexedStack(

@@ -11,6 +11,8 @@ class HomeAppBar extends StatelessWidget {
     required this.gems,
     required this.onMenuPressed,
     required this.onProfilePressed,
+    required this.onFocusTimePressed,
+    required this.onGemsPressed,
     super.key,
   });
 
@@ -20,6 +22,8 @@ class HomeAppBar extends StatelessWidget {
   final int gems;
   final VoidCallback onMenuPressed;
   final VoidCallback onProfilePressed;
+  final VoidCallback onFocusTimePressed;
+  final VoidCallback onGemsPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +35,8 @@ class HomeAppBar extends StatelessWidget {
           totalFocusSeconds: totalFocusSeconds,
           gems: gems,
           onProfilePressed: onProfilePressed,
+          onFocusTimePressed: onFocusTimePressed,
+          onGemsPressed: onGemsPressed,
         );
         if (useTwoRows) {
           return Container(
@@ -141,17 +147,21 @@ class _UserSummary extends StatelessWidget {
     required this.totalFocusSeconds,
     required this.gems,
     required this.onProfilePressed,
+    required this.onFocusTimePressed,
+    required this.onGemsPressed,
   });
 
   final String profileName;
   final int totalFocusSeconds;
   final int gems;
   final VoidCallback onProfilePressed;
+  final VoidCallback onFocusTimePressed;
+  final VoidCallback onGemsPressed;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 158,
+      width: 176,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -164,25 +174,42 @@ class _UserSummary extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _HomeStat(
-                key: const Key('focusTimeStat'),
-                icon: Icons.schedule_rounded,
-                value: TimeFormatter.totalFocus(totalFocusSeconds),
-                semanticLabel: 'Tiempo de concentración',
-                maxValueWidth: 60,
-              ),
-              const SizedBox(width: 7),
-              _HomeStat(
-                key: const Key('gemsStat'),
-                icon: Icons.diamond_rounded,
-                value: gems.toString(),
-                semanticLabel: 'Gemas',
-                maxValueWidth: 38,
-              ),
-            ],
+          SizedBox(
+            height: 48,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _ProgressMetricChip(
+                    key: const Key('focusTimeStat'),
+                    icon: Icons.schedule_rounded,
+                    value: TimeFormatter.totalFocus(totalFocusSeconds),
+                    semanticLabel: 'Tiempo de concentración',
+                    tooltip: 'Ver detalle del tiempo de concentración',
+                    foregroundColor: AppColors.focusAccent,
+                    backgroundColor: AppColors.focusAccentSoft,
+                    borderColor: AppColors.focusAccentBorder,
+                    onPressed: onFocusTimePressed,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  flex: 2,
+                  child: _ProgressMetricChip(
+                    key: const Key('gemsStat'),
+                    icon: Icons.diamond_rounded,
+                    value: gems.toString(),
+                    semanticLabel: 'Gemas',
+                    tooltip: 'Ver detalle de las gemas',
+                    foregroundColor: AppColors.primaryDark,
+                    backgroundColor: AppColors.primarySoft,
+                    borderColor: AppColors.border,
+                    onPressed: onGemsPressed,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -259,56 +286,75 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
-class _HomeStat extends StatelessWidget {
-  const _HomeStat({
+class _ProgressMetricChip extends StatelessWidget {
+  const _ProgressMetricChip({
     required this.icon,
     required this.value,
     required this.semanticLabel,
-    required this.maxValueWidth,
+    required this.tooltip,
+    required this.foregroundColor,
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.onPressed,
     super.key,
   });
 
   final IconData icon;
   final String value;
   final String semanticLabel;
-  final double maxValueWidth;
+  final String tooltip;
+  final Color foregroundColor;
+  final Color backgroundColor;
+  final Color borderColor;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '$semanticLabel: $value',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.primary, size: 15),
-          const SizedBox(width: 4),
-          Container(
-            constraints: BoxConstraints(
-              minWidth: 28,
-              maxWidth: maxValueWidth,
-              minHeight: 19,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(7),
-              border: const Border.fromBorderSide(
-                BorderSide(color: AppColors.border),
+      button: true,
+      label: '$semanticLabel: $value. Mostrar detalle',
+      child: ExcludeSemantics(
+        child: Tooltip(
+          message: tooltip,
+          child: Material(
+            color: backgroundColor,
+            shape: StadiumBorder(side: BorderSide(color: borderColor)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPressed,
+              customBorder: const StadiumBorder(),
+              overlayColor: WidgetStatePropertyAll(
+                foregroundColor.withValues(alpha: 0.12),
               ),
-            ),
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.primaryDark,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, color: foregroundColor, size: 17),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          value,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: TextStyle(
+                            color: foregroundColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

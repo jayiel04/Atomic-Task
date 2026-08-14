@@ -9,6 +9,10 @@ abstract final class AppColors {
   static const Color primaryDark = Color(0xFF5F36B8);
   static const Color primarySoft = Color(0xFFE8DCFF);
 
+  static const Color focusAccent = Color(0xFF805500);
+  static const Color focusAccentSoft = Color(0xFFFFF0C2);
+  static const Color focusAccentBorder = Color(0x66B7791F);
+
   static const Color text = Color(0xFF3F2C63);
   static const Color muted = Color(0xFF8B7AA9);
   static const Color danger = Color(0xFFB14C82);

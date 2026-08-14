@@ -63,14 +63,17 @@ Column de resumen
 │   ├── avatar
 │   └── nombre
 └── Row de estadísticas fuera de la tarjeta
-    ├── ícono de tiempo + barra de valor
-    └── ícono de gema + barra de valor
+    ├── cápsula dorada de tiempo: ícono + valor
+    └── cápsula morada de gemas: ícono + valor
 ```
 
 Reglas:
 
 - avatar y nombre son los únicos contenidos de la tarjeta de perfil;
 - tiempo y gemas quedan debajo y fuera de la tarjeta;
+- tiempo usa acento dorado y gemas conserva la paleta morada;
+- cada cápsula tiene un área táctil mínima de 48 × 48 y abre un panel inferior explicativo;
+- los valores del panel continúan sincronizados con la misma fuente de estado mientras está abierto;
 - el título completo nunca usa elipsis; solo el nombre del perfil puede usarla;
 - usar los íconos equivalentes a `person_rounded`, `schedule_rounded` y `diamond_rounded`;
 - no mostrar “Hola” ni otro saludo;

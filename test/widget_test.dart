@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:atomic_task/app.dart';
+import 'package:atomic_task/core/theme/app_colors.dart';
+import 'package:atomic_task/features/home/presentation/pages/home_shell_page.dart';
 import 'package:atomic_task/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:atomic_task/features/tasks/data/datasources/task_local_data_source.dart';
 import 'package:atomic_task/features/tasks/data/models/task_model.dart';
@@ -139,12 +141,18 @@ void main() {
       final title = tester.getRect(find.byKey(const Key('homeTitle')));
       final profile = tester.getRect(find.byKey(const Key('profileCard')));
       final name = tester.getRect(find.byKey(const Key('profileName')));
-      final stats = tester.getRect(find.byKey(const Key('focusTimeStat')));
+      final focusTime = tester.getRect(find.byKey(const Key('focusTimeStat')));
+      final gems = tester.getRect(find.byKey(const Key('gemsStat')));
 
       expect(menu.right, lessThanOrEqualTo(title.left));
       expect(profile.left, lessThan(name.left));
       expect(profile.right, greaterThan(name.right));
-      expect(profile.bottom, lessThanOrEqualTo(stats.top));
+      expect(profile.bottom, lessThanOrEqualTo(focusTime.top));
+      expect(focusTime.right, lessThanOrEqualTo(gems.left));
+      expect(focusTime.height, 48);
+      expect(gems.height, 48);
+      expect(focusTime.width, greaterThanOrEqualTo(48));
+      expect(gems.width, greaterThanOrEqualTo(48));
       expect(profile.width, lessThanOrEqualTo(148));
       expect(title.right, lessThanOrEqualTo(profile.left));
       expect(find.byIcon(Icons.person_rounded), findsOneWidget);
@@ -214,6 +222,141 @@ void main() {
           .getBottomRight(find.byKey(const Key('resetProgressSidebarButton')))
           .dy,
       lessThanOrEqualTo(568),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('uses colored metric capsules with accessible tap targets', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 9999,
+            totalFocusSeconds: 3596400,
+            profileName: 'Nombre de dieciocho',
+          ),
+        ),
+        taskLocalDataSource: _EmptyTaskLocalDataSource(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final focusFinder = find.byKey(const Key('focusTimeStat'));
+    final gemsFinder = find.byKey(const Key('gemsStat'));
+    final focusMaterial = tester.widget<Material>(
+      find.descendant(of: focusFinder, matching: find.byType(Material)).first,
+    );
+    final gemsMaterial = tester.widget<Material>(
+      find.descendant(of: gemsFinder, matching: find.byType(Material)).first,
+    );
+    final focusSemantics = tester.widget<Semantics>(
+      find.descendant(of: focusFinder, matching: find.byType(Semantics)).first,
+    );
+    final gemsSemantics = tester.widget<Semantics>(
+      find.descendant(of: gemsFinder, matching: find.byType(Semantics)).first,
+    );
+
+    expect(focusMaterial.color, AppColors.focusAccentSoft);
+    expect(gemsMaterial.color, AppColors.primarySoft);
+    expect(tester.getSize(focusFinder).height, 48);
+    expect(tester.getSize(gemsFinder).height, 48);
+    expect(focusSemantics.properties.button, isTrue);
+    expect(
+      focusSemantics.properties.label,
+      'Tiempo de concentración: 999h 0m. Mostrar detalle',
+    );
+    expect(gemsSemantics.properties.button, isTrue);
+    expect(gemsSemantics.properties.label, 'Gemas: 9999. Mostrar detalle');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opens progress details and keeps their values live', (
+    tester,
+  ) async {
+    final dataSource = _MemoryTimerLocalDataSource(
+      progress: const ProgressModel(
+        gems: 7,
+        totalFocusSeconds: 1200,
+        profileName: 'Javier',
+      ),
+    );
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: dataSource,
+        taskLocalDataSource: _EmptyTaskLocalDataSource(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final controller = tester
+        .widget<HomeShellPage>(find.byType(HomeShellPage))
+        .timerController;
+
+    await tester.tap(find.byKey(const Key('focusTimeStat')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('focusTimeDetailSheet')), findsOneWidget);
+    expect(find.byKey(const Key('gemsDetailSheet')), findsNothing);
+    expect(find.text('Tiempo de concentración'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('progressDetailValue'))).data,
+      '20 min',
+    );
+    expect(
+      find.textContaining('Las pausas y los descansos no cuentan.'),
+      findsOneWidget,
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('focusTimeDetailSheet'))).width,
+      lessThanOrEqualTo(480),
+    );
+
+    dataSource._progress = const ProgressModel(
+      gems: 12,
+      totalFocusSeconds: 5400,
+      profileName: 'Javier',
+    );
+    await controller.initialize();
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('progressDetailValue'))).data,
+      '1 h 30 min',
+    );
+
+    await tester.tap(find.byKey(const Key('closeProgressDetailButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('focusTimeDetailSheet')), findsNothing);
+    expect(find.text('1h 30m'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('gemsStat')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('gemsDetailSheet')), findsOneWidget);
+    expect(find.byKey(const Key('focusTimeDetailSheet')), findsNothing);
+    expect(find.text('Gemas disponibles'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('progressDetailValue'))).data,
+      '12',
+    );
+    expect(
+      find.textContaining('Cada minuto completo de descanso consume 1 gema.'),
+      findsOneWidget,
+    );
+
+    dataSource._progress = const ProgressModel(
+      gems: 15,
+      totalFocusSeconds: 5400,
+      profileName: 'Javier',
+    );
+    await controller.initialize();
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('progressDetailValue'))).data,
+      '15',
     );
     expect(tester.takeException(), isNull);
   });
@@ -309,6 +452,8 @@ void main() {
                 gems: 999,
                 onMenuPressed: () => menuCalls += 1,
                 onProfilePressed: () => profileCalls += 1,
+                onFocusTimePressed: () {},
+                onGemsPressed: () {},
               ),
             ),
           ),
