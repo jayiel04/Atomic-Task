@@ -56,10 +56,27 @@ void main() {
     expect(await controller.toggleCompletion(controller.tasks.single), isTrue);
     await pumpEventQueue();
     expect(controller.completedTasks, hasLength(1));
+    final completedAt = now;
+    expect(controller.completedTasks.single.completedAt, completedAt);
+    expect(controller.completedTodayCount, 1);
+
+    now = now.add(const Duration(hours: 1));
+    expect(
+      await controller.update(
+        task: controller.completedTasks.single,
+        title: 'Informe completado',
+        dueDate: null,
+      ),
+      isTrue,
+    );
+    await pumpEventQueue();
+    expect(controller.completedTasks.single.completedAt, completedAt);
 
     expect(await controller.toggleCompletion(controller.tasks.single), isTrue);
     await pumpEventQueue();
     expect(controller.pendingTasks, hasLength(1));
+    expect(controller.pendingTasks.single.completedAt, isNull);
+    expect(controller.completedTodayCount, 0);
 
     expect(await controller.delete(controller.tasks.single), isTrue);
     await pumpEventQueue();
@@ -97,6 +114,61 @@ void main() {
     expect(task.isOverdueAt(DateTime(2026, 8, 10, 0, 1)), isTrue);
     expect(task.isOverdueAt(DateTime(2026, 8, 9, 8)), isFalse);
   });
+
+  test(
+    'counts completions from today and orders history newest first',
+    () async {
+      var now = DateTime(2026, 8, 14, 15);
+      final createdAt = DateTime(2026, 8, 1);
+      final repository = MemoryTaskRepository(
+        initialTasks: [
+          AtomicTask(
+            id: 1,
+            title: 'Anterior',
+            isCompleted: true,
+            completedAt: DateTime(2026, 8, 13, 18),
+            createdAt: createdAt,
+            updatedAt: DateTime(2026, 8, 13, 18),
+          ),
+          AtomicTask(
+            id: 2,
+            title: 'Esta mañana',
+            isCompleted: true,
+            completedAt: DateTime(2026, 8, 14, 8),
+            createdAt: createdAt,
+            updatedAt: DateTime(2026, 8, 14, 8),
+          ),
+          AtomicTask(
+            id: 3,
+            title: 'Más reciente',
+            isCompleted: true,
+            completedAt: DateTime(2026, 8, 14, 12),
+            createdAt: createdAt,
+            updatedAt: DateTime(2026, 8, 14, 12),
+          ),
+          AtomicTask(
+            id: 4,
+            title: 'Pendiente',
+            isCompleted: false,
+            createdAt: createdAt,
+            updatedAt: createdAt,
+          ),
+        ],
+      );
+      addTearDown(repository.dispose);
+      final controller = _buildController(repository, now: () => now)
+        ..initialize();
+      addTearDown(controller.dispose);
+      repository.emit();
+      await pumpEventQueue();
+
+      expect(controller.completedTasks.map((task) => task.id), [3, 2, 1]);
+      expect(controller.completedTodayCount, 2);
+
+      now = DateTime(2026, 8, 15, 0, 1);
+      expect(controller.completedTodayCount, 0);
+    },
+  );
 }
 
 TaskController _buildController(

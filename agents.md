@@ -13,20 +13,27 @@ Trabajar de forma incremental. Primero conservar comportamiento; después reduci
 - `HomeShellPage` es la Home real de `AtomicTimerBootstrap`; `TaskPage` y `TimerPage` se conservan únicamente como wrappers compatibles con pruebas y rutas heredadas.
 - La Home usa un único `Scaffold`, `IndexedStack`, `HomeAppBar` y `HomeBottomNavigation`.
 - El inicio normal es Tareas; una sesión persistida preparada, pausada o activa abre Concentración.
-- La persistencia Drift está en versión 4 con `active_timer_sessions` y `pending_timer_summaries`.
+- La persistencia Drift está en versión 5 con sesiones, resúmenes y reglas de recurrencia.
 - Los resúmenes de finalización se entregan por notificación del sistema y SnackBar flotante; el texto nunca usa `Ganaste`.
+- El menú de Home abre un drawer izquierdo con logo, destinos y `Restablecer progreso`; el perfil abre Ajustes.
+- El footer es una píldora flotante centrada y el header usa dos filas por debajo del breakpoint compacto.
+- Las tareas recurrentes diarias, semanales y mensuales usan reglas separadas y ocurrencias idempotentes.
+- Drift está en versión 5 con `task_recurrence_rules` y columnas opcionales de serie/ocurrencia en `tasks`.
+- El cierre del bootstrap espera la cola de persistencia antes de cerrar Drift.
 - La Fase 7 de extracción arquitectónica sigue fuera de esta entrega para respetar el alcance del plan.
 
 ## 2. Fuente de verdad de la nueva Home
 
-La nueva navegación es un único shell con dos vistas internas:
+La navegación es un único shell con cuatro vistas internas:
 
 ```text
 HomeShellPage
 ├── HomeAppBar
 ├── IndexedStack
 │   ├── TasksView
-│   └── FocusView
+│   ├── FocusView
+│   ├── SettingsView
+│   └── StatisticsView
 └── HomeBottomNavigation
     ├── Tareas
     └── Concentración
@@ -34,46 +41,42 @@ HomeShellPage
 
 ### 2.1 AppBar compartido
 
-El AppBar aparece en ambas vistas y tiene dos zonas:
+El AppBar aparece en las cuatro vistas y tiene dos composiciones responsivas:
 
-- izquierda: título de la vista o marca;
-- derecha: resumen compacto del usuario.
+- amplia: menú, título y resumen compacto del usuario en una fila;
+- compacta: menú y título en la primera fila, resumen del usuario en la segunda.
 
 La geometría del resumen derecho es obligatoria:
 
 ```text
-┌──────────────────────────────────────────┐
-│ TÍTULO              (perfil)  JAVIER    │
-│                               ◷ 120m ◆ 8 │
-└──────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│ [menú] Título       [(avatar) nombre]     │
+│                              ◷ 120m  ◆ 8  │
+└────────────────────────────────────────────┘
 ```
 
 Interpretación estructural exacta:
 
 ```text
-Row
-├── título
-├── espacio flexible
-└── Row de usuario
-    ├── ícono de perfil
-    ├── espacio horizontal pequeño
-    └── Column
-        ├── nombre del usuario
-        └── Row de estadísticas
-            ├── ícono de tiempo + tiempo acumulado
-            └── ícono de gema + cantidad de gemas
+Column de resumen
+├── tarjeta de perfil
+│   ├── avatar
+│   └── nombre
+└── Row de estadísticas fuera de la tarjeta
+    ├── ícono de tiempo + barra de valor
+    └── ícono de gema + barra de valor
 ```
 
 Reglas:
 
-- el nombre está arriba del tiempo y las gemas;
-- el ícono de perfil está a la izquierda del bloque de dos líneas;
-- debe existir un espacio pequeño, visible y consistente entre perfil y datos;
+- avatar y nombre son los únicos contenidos de la tarjeta de perfil;
+- tiempo y gemas quedan debajo y fuera de la tarjeta;
+- el título completo nunca usa elipsis; solo el nombre del perfil puede usarla;
 - usar los íconos equivalentes a `person_rounded`, `schedule_rounded` y `diamond_rounded`;
 - no mostrar “Hola” ni otro saludo;
-- el nombre admite hasta 8 caracteres y debe usar `Flexible`, ajuste o elipsis para no desbordar;
-- el perfil y las estadísticas usan la misma fuente de estado en ambas pestañas;
-- tocar el ícono de perfil abre el panel lateral derecho con edición del nombre, progreso y restablecimiento.
+- el nombre admite hasta 18 caracteres y debe usar `Flexible`, ajuste o elipsis para no desbordar;
+- el perfil y las estadísticas usan la misma fuente de estado en las cuatro vistas;
+- tocar la tarjeta de perfil abre directamente Ajustes; el menú abre el drawer izquierdo con restablecimiento.
 
 ### 2.2 Barra inferior
 
@@ -87,6 +90,8 @@ La barra inferior:
 - expone semántica seleccionada y blancos táctiles de al menos 48 × 48;
 - respeta el Safe Area inferior;
 - cambia el contenido de Home sin `Navigator.push` ni `Navigator.pop`.
+- usa una superficie flotante centrada con cápsula morada para el destino activo;
+- no selecciona ningún destino en Ajustes o Estadísticas.
 
 Claves sugeridas para pruebas:
 
@@ -116,6 +121,9 @@ Debe conservar:
 - confirmación antes de eliminar;
 - elección entre completar ahora o usar concentración;
 - formulario y selector de duración adaptables al teclado.
+- recurrencias diarias, semanales y mensuales con intervalo configurable;
+- edición y eliminación diferenciadas entre ocurrencia y serie;
+- pausa, reactivación y generación de la siguiente ocurrencia sin duplicados.
 
 `TasksView` será contenido embebible. No debe crear otro `Scaffold`, AppBar, navegación inferior, fondo o Safe Area exterior.
 
@@ -169,6 +177,8 @@ La tarea no se completa al seleccionar la duración. Si el temporizador está bl
 - Terminar concentración vinculada completa la tarea correspondiente.
 - Reiniciar progreso borra nombre, gemas y tiempo, con confirmación.
 - Drift se mantiene compatible con esquemas anteriores.
+- La recurrencia mensual conserva el día original y usa el último día en meses más cortos.
+- La recuperación crea una sola próxima ocurrencia aunque se hayan omitido varias.
 
 ## 4. Límites de arquitectura
 
@@ -222,10 +232,12 @@ Preferir widgets pequeños que reciban datos y callbacks simples. Un widget comp
 
 ## 6. Datos y migraciones
 
-- El esquema actual de Drift es versión 4.
+- El esquema actual de Drift es versión 5.
+- `task_recurrence_rules` separa la regla del historial de ocurrencias.
+- La combinación serie/fecha de ocurrencia es única y las finalizaciones son transaccionales.
 - `active_timer_sessions` guarda una instantánea única de la sesión y `pending_timer_summaries` guarda los trabajos de finalización pendientes.
 - No renombrar ni eliminar columnas para implementar la nueva Home.
-- Todo cambio de esquema exige migración ascendente y prueba desde cada versión soportada.
+- Todo cambio de esquema exige migración ascendente y prueba desde cada versión soportada; v1–v4 migran actualmente a v5.
 - No editar `lib/core/database/app_database.g.dart` manualmente.
 - Las consultas específicas deben evolucionar hacia DAOs con dueño de funcionalidad.
 - `shared_preferences` se conserva mientras sea necesaria la migración de datos antiguos.
@@ -291,8 +303,8 @@ Pruebas mínimas de la nueva Home:
 
 1. cambiar de pestaña no crea una ruta;
 2. AppBar y barra inferior son únicos y persistentes;
-3. perfil queda a la izquierda del bloque de dos líneas;
-4. nombre queda encima de tiempo y gemas;
+3. avatar y nombre quedan dentro de la tarjeta de perfil;
+4. tiempo y gemas quedan debajo y fuera de esa tarjeta;
 5. los tres valores se actualizan desde una sola fuente;
 6. el temporizador continúa entre pestañas;
 7. preparar una tarea selecciona Concentración;

@@ -16,6 +16,25 @@ class TimerProgress extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('TaskRecurrenceRuleRow')
+class TaskRecurrenceRules extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get frequency => text()();
+
+  IntColumn get interval => integer()();
+
+  DateTimeColumn get startDate => dateTime()();
+
+  DateTimeColumn get endDate => dateTime().nullable()();
+
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
 @DataClassName('TaskRow')
 class Tasks extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -28,9 +47,31 @@ class Tasks extends Table {
 
   IntColumn get focusMinutes => integer().nullable()();
 
+  DateTimeColumn get completedAt => dateTime().nullable()();
+
+  IntColumn get recurrenceRuleId => integer().nullable().references(
+    TaskRecurrenceRules,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  DateTimeColumn get occurrenceDate => dateTime().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
 
   DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {recurrenceRuleId, occurrenceDate},
+  ];
+}
+
+class TaskWithRecurrenceRow {
+  const TaskWithRecurrenceRow({required this.task, this.recurrenceRule});
+
+  final TaskRow? task;
+  final TaskRecurrenceRuleRow? recurrenceRule;
 }
 
 @DataClassName('ActiveTimerSessionRow')
@@ -96,7 +137,13 @@ class PendingTimerSummaries extends Table {
 }
 
 @DriftDatabase(
-  tables: [TimerProgress, Tasks, ActiveTimerSessions, PendingTimerSummaries],
+  tables: [
+    TimerProgress,
+    TaskRecurrenceRules,
+    Tasks,
+    ActiveTimerSessions,
+    PendingTimerSummaries,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor})
@@ -112,12 +159,15 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) => migrator.createAll(),
     onUpgrade: (migrator, from, to) async {
+      if (from < 5) {
+        await migrator.createTable(taskRecurrenceRules);
+      }
       if (from < 2) {
         await migrator.createTable(tasks);
       }
@@ -127,6 +177,21 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         await migrator.createTable(activeTimerSessions);
         await migrator.createTable(pendingTimerSummaries);
+      }
+      if (from >= 2 && from < 5) {
+        await migrator.addColumn(tasks, tasks.recurrenceRuleId);
+        await migrator.addColumn(tasks, tasks.occurrenceDate);
+        await customStatement(
+          'CREATE UNIQUE INDEX tasks_recurrence_occurrence_unique '
+          'ON tasks (recurrence_rule_id, occurrence_date)',
+        );
+      }
+      if (from >= 2 && from < 6) {
+        await migrator.addColumn(tasks, tasks.completedAt);
+        await customStatement(
+          'UPDATE tasks SET completed_at = updated_at '
+          'WHERE is_completed = 1 AND completed_at IS NULL',
+        );
       }
     },
   );
@@ -192,6 +257,31 @@ class AppDatabase extends _$AppDatabase {
     return query.watch();
   }
 
+  Stream<List<TaskWithRecurrenceRow>> watchTasksWithRecurrence() {
+    final query =
+        select(tasks).join([
+          leftOuterJoin(
+            taskRecurrenceRules,
+            taskRecurrenceRules.id.equalsExp(tasks.recurrenceRuleId),
+          ),
+        ])..orderBy([
+          OrderingTerm(expression: tasks.isCompleted),
+          OrderingTerm(expression: tasks.dueDate.isNull()),
+          OrderingTerm(expression: tasks.dueDate),
+          OrderingTerm(expression: tasks.createdAt),
+        ]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => TaskWithRecurrenceRow(
+              task: row.readTable(tasks),
+              recurrenceRule: row.readTableOrNull(taskRecurrenceRules),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
   Future<int> insertTask(TasksCompanion task) {
     return into(tasks).insert(task);
   }
@@ -219,6 +309,7 @@ class AppDatabase extends _$AppDatabase {
     return (update(tasks)..where((task) => task.id.equals(id))).write(
       TasksCompanion(
         isCompleted: Value(isCompleted),
+        completedAt: Value(isCompleted ? updatedAt : null),
         updatedAt: Value(updatedAt),
       ),
     );
@@ -239,5 +330,206 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteTask(int id) {
     return (delete(tasks)..where((task) => task.id.equals(id))).go();
+  }
+
+  Future<int> insertRecurringTask({
+    required TaskRecurrenceRulesCompanion rule,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime occurrenceDate,
+    required DateTime createdAt,
+  }) {
+    return transaction(() async {
+      final ruleId = await into(taskRecurrenceRules).insert(rule);
+      return into(tasks).insert(
+        TasksCompanion.insert(
+          title: title,
+          dueDate: Value(dueDate),
+          recurrenceRuleId: Value(ruleId),
+          occurrenceDate: Value(occurrenceDate),
+          createdAt: createdAt,
+          updatedAt: createdAt,
+        ),
+      );
+    });
+  }
+
+  Future<void> updateRecurringSeries({
+    required int ruleId,
+    required int taskId,
+    required String title,
+    required DateTime? dueDate,
+    required String frequency,
+    required int interval,
+    required DateTime startDate,
+    required DateTime? endDate,
+    required DateTime updatedAt,
+  }) {
+    return transaction(() async {
+      await (update(
+        taskRecurrenceRules,
+      )..where((rule) => rule.id.equals(ruleId))).write(
+        TaskRecurrenceRulesCompanion(
+          frequency: Value(frequency),
+          interval: Value(interval),
+          startDate: Value(startDate),
+          endDate: Value(endDate),
+          updatedAt: Value(updatedAt),
+        ),
+      );
+      await (update(tasks)..where(
+            (task) =>
+                task.recurrenceRuleId.equals(ruleId) &
+                task.isCompleted.equals(false),
+          ))
+          .write(
+            TasksCompanion(
+              title: Value(title),
+              dueDate: Value(dueDate),
+              updatedAt: Value(updatedAt),
+            ),
+          );
+      await (update(tasks)..where((task) => task.id.equals(taskId))).write(
+        TasksCompanion(
+          title: Value(title),
+          dueDate: Value(dueDate),
+          updatedAt: Value(updatedAt),
+        ),
+      );
+    });
+  }
+
+  Future<void> setTaskRecurrenceActive({
+    required int ruleId,
+    required bool isActive,
+    required DateTime updatedAt,
+  }) async {
+    await (update(
+      taskRecurrenceRules,
+    )..where((rule) => rule.id.equals(ruleId))).write(
+      TaskRecurrenceRulesCompanion(
+        isActive: Value(isActive),
+        updatedAt: Value(updatedAt),
+      ),
+    );
+  }
+
+  Future<void> completeRecurringTaskOccurrence({
+    required int taskId,
+    required DateTime? nextOccurrenceDate,
+    required DateTime updatedAt,
+  }) {
+    return transaction(() async {
+      final current = await (select(
+        tasks,
+      )..where((task) => task.id.equals(taskId))).getSingleOrNull();
+      if (current == null) {
+        return;
+      }
+      await (update(tasks)..where((task) => task.id.equals(taskId))).write(
+        TasksCompanion(
+          isCompleted: const Value(true),
+          completedAt: Value(updatedAt),
+          updatedAt: Value(updatedAt),
+        ),
+      );
+      if (nextOccurrenceDate != null) {
+        await _insertNextOccurrence(
+          template: current,
+          occurrenceDate: nextOccurrenceDate,
+          createdAt: updatedAt,
+        );
+      }
+    });
+  }
+
+  Future<void> deleteRecurringTaskOccurrence({
+    required int taskId,
+    required DateTime? nextOccurrenceDate,
+    required DateTime updatedAt,
+  }) {
+    return transaction(() async {
+      final current = await (select(
+        tasks,
+      )..where((task) => task.id.equals(taskId))).getSingleOrNull();
+      if (current == null) {
+        return;
+      }
+      if (nextOccurrenceDate != null) {
+        await _insertNextOccurrence(
+          template: current,
+          occurrenceDate: nextOccurrenceDate,
+          createdAt: updatedAt,
+        );
+      }
+      await (delete(tasks)..where((task) => task.id.equals(taskId))).go();
+    });
+  }
+
+  Future<void> deleteTaskRecurrenceSeries(int ruleId) {
+    return transaction(() async {
+      await (delete(
+        tasks,
+      )..where((task) => task.recurrenceRuleId.equals(ruleId))).go();
+      await (delete(
+        taskRecurrenceRules,
+      )..where((rule) => rule.id.equals(ruleId))).go();
+    });
+  }
+
+  Future<List<TaskWithRecurrenceRow>> readTaskRecurrenceSeries() async {
+    final query = select(taskRecurrenceRules).join([
+      leftOuterJoin(
+        tasks,
+        tasks.recurrenceRuleId.equalsExp(taskRecurrenceRules.id),
+      ),
+    ]);
+    final rows = await query.get();
+    return rows
+        .map(
+          (row) => TaskWithRecurrenceRow(
+            task: row.readTableOrNull(tasks),
+            recurrenceRule: row.readTable(taskRecurrenceRules),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> ensureTaskOccurrence({
+    required int templateTaskId,
+    required DateTime occurrenceDate,
+    required DateTime createdAt,
+  }) {
+    return transaction(() async {
+      final template = await (select(
+        tasks,
+      )..where((task) => task.id.equals(templateTaskId))).getSingleOrNull();
+      if (template != null) {
+        await _insertNextOccurrence(
+          template: template,
+          occurrenceDate: occurrenceDate,
+          createdAt: createdAt,
+        );
+      }
+    });
+  }
+
+  Future<void> _insertNextOccurrence({
+    required TaskRow template,
+    required DateTime occurrenceDate,
+    required DateTime createdAt,
+  }) async {
+    await into(tasks).insert(
+      TasksCompanion.insert(
+        title: template.title,
+        dueDate: Value(template.dueDate),
+        focusMinutes: Value(template.focusMinutes),
+        recurrenceRuleId: Value(template.recurrenceRuleId),
+        occurrenceDate: Value(occurrenceDate),
+        createdAt: createdAt,
+        updatedAt: createdAt,
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
   }
 }

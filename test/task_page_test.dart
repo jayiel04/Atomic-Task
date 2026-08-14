@@ -14,17 +14,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'task_test_support.dart';
 
 void main() {
-  testWidgets('creates, edits, completes and deletes a task', (tester) async {
+  testWidgets('creates, edits and removes a completed task from the view', (
+    tester,
+  ) async {
     final repository = MemoryTaskRepository();
     addTearDown(repository.dispose);
-    final controller = _buildController(repository)..initialize();
+    final now = DateTime(2026, 8, 14, 10);
+    final controller = _buildController(repository, now: () => now)
+      ..initialize();
     addTearDown(controller.dispose);
     repository.emit();
 
     await tester.pumpWidget(_TestApp(controller: controller));
     await tester.pumpAndSettle();
 
-    expect(find.text('Todavía no hay tareas'), findsOneWidget);
+    expect(find.text('No tienes tareas pendientes'), findsOneWidget);
     await tester.tap(find.byKey(const Key('createTaskButton')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -34,6 +38,8 @@ void main() {
     await tester.tap(find.byKey(const Key('saveTaskButton')));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Sin fecha'));
+    await tester.pumpAndSettle();
     expect(find.text('Preparar presentación'), findsOneWidget);
     expect(find.text('Sin fecha límite'), findsOneWidget);
 
@@ -51,14 +57,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('completeTaskNowOption')));
     await tester.pumpAndSettle();
-    expect(find.text('Completadas (1)'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('deleteTask-1')));
-    await tester.pumpAndSettle();
-    expect(find.text('Eliminar tarea'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('confirmDeleteTaskButton')));
-    await tester.pumpAndSettle();
-    expect(find.text('Todavía no hay tareas'), findsOneWidget);
+    expect(find.text('Presentación final'), findsNothing);
+    expect(find.byKey(const Key('taskToggle-1')), findsNothing);
+    expect(find.text('0 pendientes · 1 completada hoy'), findsOneWidget);
+    expect(find.text('No tienes tareas pendientes'), findsOneWidget);
   });
 
   testWidgets('associates a duration without completing the task immediately', (
@@ -94,6 +96,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Sin fecha'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('taskToggle-4')));
     await tester.pumpAndSettle();
     expect(find.text('¿Cómo quieres continuar?'), findsOneWidget);
@@ -135,12 +139,17 @@ void main() {
     await tester.pumpWidget(_TestApp(controller: controller));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Atrasadas'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Vencida'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
 
-TaskController _buildController(MemoryTaskRepository repository) {
+TaskController _buildController(
+  MemoryTaskRepository repository, {
+  DateTime Function()? now,
+}) {
   return TaskController(
     WatchTasks(repository),
     CreateTask(repository),
@@ -148,6 +157,7 @@ TaskController _buildController(MemoryTaskRepository repository) {
     ToggleTaskCompletion(repository),
     DeleteTask(repository),
     AssignTaskFocus(repository),
+    now: now,
   );
 }
 

@@ -309,6 +309,512 @@ class TimerProgressCompanion extends UpdateCompanion<TimerProgressData> {
   }
 }
 
+class $TaskRecurrenceRulesTable extends TaskRecurrenceRules
+    with TableInfo<$TaskRecurrenceRulesTable, TaskRecurrenceRuleRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskRecurrenceRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _frequencyMeta = const VerificationMeta(
+    'frequency',
+  );
+  @override
+  late final GeneratedColumn<String> frequency = GeneratedColumn<String>(
+    'frequency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalMeta = const VerificationMeta(
+    'interval',
+  );
+  @override
+  late final GeneratedColumn<int> interval = GeneratedColumn<int>(
+    'interval',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    frequency,
+    interval,
+    startDate,
+    endDate,
+    isActive,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_recurrence_rules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskRecurrenceRuleRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('frequency')) {
+      context.handle(
+        _frequencyMeta,
+        frequency.isAcceptableOrUnknown(data['frequency']!, _frequencyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_frequencyMeta);
+    }
+    if (data.containsKey('interval')) {
+      context.handle(
+        _intervalMeta,
+        interval.isAcceptableOrUnknown(data['interval']!, _intervalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_intervalMeta);
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TaskRecurrenceRuleRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskRecurrenceRuleRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      frequency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}frequency'],
+      )!,
+      interval: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskRecurrenceRulesTable createAlias(String alias) {
+    return $TaskRecurrenceRulesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskRecurrenceRuleRow extends DataClass
+    implements Insertable<TaskRecurrenceRuleRow> {
+  final int id;
+  final String frequency;
+  final int interval;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TaskRecurrenceRuleRow({
+    required this.id,
+    required this.frequency,
+    required this.interval,
+    required this.startDate,
+    this.endDate,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['frequency'] = Variable<String>(frequency);
+    map['interval'] = Variable<int>(interval);
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TaskRecurrenceRulesCompanion toCompanion(bool nullToAbsent) {
+    return TaskRecurrenceRulesCompanion(
+      id: Value(id),
+      frequency: Value(frequency),
+      interval: Value(interval),
+      startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TaskRecurrenceRuleRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskRecurrenceRuleRow(
+      id: serializer.fromJson<int>(json['id']),
+      frequency: serializer.fromJson<String>(json['frequency']),
+      interval: serializer.fromJson<int>(json['interval']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'frequency': serializer.toJson<String>(frequency),
+      'interval': serializer.toJson<int>(interval),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TaskRecurrenceRuleRow copyWith({
+    int? id,
+    String? frequency,
+    int? interval,
+    DateTime? startDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => TaskRecurrenceRuleRow(
+    id: id ?? this.id,
+    frequency: frequency ?? this.frequency,
+    interval: interval ?? this.interval,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TaskRecurrenceRuleRow copyWithCompanion(TaskRecurrenceRulesCompanion data) {
+    return TaskRecurrenceRuleRow(
+      id: data.id.present ? data.id.value : this.id,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      interval: data.interval.present ? data.interval.value : this.interval,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskRecurrenceRuleRow(')
+          ..write('id: $id, ')
+          ..write('frequency: $frequency, ')
+          ..write('interval: $interval, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    frequency,
+    interval,
+    startDate,
+    endDate,
+    isActive,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskRecurrenceRuleRow &&
+          other.id == this.id &&
+          other.frequency == this.frequency &&
+          other.interval == this.interval &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TaskRecurrenceRulesCompanion
+    extends UpdateCompanion<TaskRecurrenceRuleRow> {
+  final Value<int> id;
+  final Value<String> frequency;
+  final Value<int> interval;
+  final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const TaskRecurrenceRulesCompanion({
+    this.id = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.interval = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  TaskRecurrenceRulesCompanion.insert({
+    this.id = const Value.absent(),
+    required String frequency,
+    required int interval,
+    required DateTime startDate,
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) : frequency = Value(frequency),
+       interval = Value(interval),
+       startDate = Value(startDate),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<TaskRecurrenceRuleRow> custom({
+    Expression<int>? id,
+    Expression<String>? frequency,
+    Expression<int>? interval,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (frequency != null) 'frequency': frequency,
+      if (interval != null) 'interval': interval,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  TaskRecurrenceRulesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? frequency,
+    Value<int>? interval,
+    Value<DateTime>? startDate,
+    Value<DateTime?>? endDate,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return TaskRecurrenceRulesCompanion(
+      id: id ?? this.id,
+      frequency: frequency ?? this.frequency,
+      interval: interval ?? this.interval,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(frequency.value);
+    }
+    if (interval.present) {
+      map['interval'] = Variable<int>(interval.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskRecurrenceRulesCompanion(')
+          ..write('id: $id, ')
+          ..write('frequency: $frequency, ')
+          ..write('interval: $interval, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -373,6 +879,43 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _recurrenceRuleIdMeta = const VerificationMeta(
+    'recurrenceRuleId',
+  );
+  @override
+  late final GeneratedColumn<int> recurrenceRuleId = GeneratedColumn<int>(
+    'recurrence_rule_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES task_recurrence_rules (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _occurrenceDateMeta = const VerificationMeta(
+    'occurrenceDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> occurrenceDate =
+      GeneratedColumn<DateTime>(
+        'occurrence_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -402,6 +945,9 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     isCompleted,
     dueDate,
     focusMinutes,
+    completedAt,
+    recurrenceRuleId,
+    occurrenceDate,
     createdAt,
     updatedAt,
   ];
@@ -452,6 +998,33 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         ),
       );
     }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_rule_id')) {
+      context.handle(
+        _recurrenceRuleIdMeta,
+        recurrenceRuleId.isAcceptableOrUnknown(
+          data['recurrence_rule_id']!,
+          _recurrenceRuleIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occurrence_date')) {
+      context.handle(
+        _occurrenceDateMeta,
+        occurrenceDate.isAcceptableOrUnknown(
+          data['occurrence_date']!,
+          _occurrenceDateMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -473,6 +1046,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {recurrenceRuleId, occurrenceDate},
+  ];
   @override
   TaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -497,6 +1074,18 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.int,
         data['${effectivePrefix}focus_minutes'],
       ),
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      recurrenceRuleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}recurrence_rule_id'],
+      ),
+      occurrenceDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}occurrence_date'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -520,6 +1109,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final bool isCompleted;
   final DateTime? dueDate;
   final int? focusMinutes;
+  final DateTime? completedAt;
+  final int? recurrenceRuleId;
+  final DateTime? occurrenceDate;
   final DateTime createdAt;
   final DateTime updatedAt;
   const TaskRow({
@@ -528,6 +1120,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     required this.isCompleted,
     this.dueDate,
     this.focusMinutes,
+    this.completedAt,
+    this.recurrenceRuleId,
+    this.occurrenceDate,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -542,6 +1137,15 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     }
     if (!nullToAbsent || focusMinutes != null) {
       map['focus_minutes'] = Variable<int>(focusMinutes);
+    }
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    if (!nullToAbsent || recurrenceRuleId != null) {
+      map['recurrence_rule_id'] = Variable<int>(recurrenceRuleId);
+    }
+    if (!nullToAbsent || occurrenceDate != null) {
+      map['occurrence_date'] = Variable<DateTime>(occurrenceDate);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -559,6 +1163,15 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       focusMinutes: focusMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(focusMinutes),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      recurrenceRuleId: recurrenceRuleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceRuleId),
+      occurrenceDate: occurrenceDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occurrenceDate),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -575,6 +1188,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
       dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
       focusMinutes: serializer.fromJson<int?>(json['focusMinutes']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      recurrenceRuleId: serializer.fromJson<int?>(json['recurrenceRuleId']),
+      occurrenceDate: serializer.fromJson<DateTime?>(json['occurrenceDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -588,6 +1204,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'isCompleted': serializer.toJson<bool>(isCompleted),
       'dueDate': serializer.toJson<DateTime?>(dueDate),
       'focusMinutes': serializer.toJson<int?>(focusMinutes),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'recurrenceRuleId': serializer.toJson<int?>(recurrenceRuleId),
+      'occurrenceDate': serializer.toJson<DateTime?>(occurrenceDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -599,6 +1218,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     bool? isCompleted,
     Value<DateTime?> dueDate = const Value.absent(),
     Value<int?> focusMinutes = const Value.absent(),
+    Value<DateTime?> completedAt = const Value.absent(),
+    Value<int?> recurrenceRuleId = const Value.absent(),
+    Value<DateTime?> occurrenceDate = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => TaskRow(
@@ -607,6 +1229,13 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     isCompleted: isCompleted ?? this.isCompleted,
     dueDate: dueDate.present ? dueDate.value : this.dueDate,
     focusMinutes: focusMinutes.present ? focusMinutes.value : this.focusMinutes,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    recurrenceRuleId: recurrenceRuleId.present
+        ? recurrenceRuleId.value
+        : this.recurrenceRuleId,
+    occurrenceDate: occurrenceDate.present
+        ? occurrenceDate.value
+        : this.occurrenceDate,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -621,6 +1250,15 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       focusMinutes: data.focusMinutes.present
           ? data.focusMinutes.value
           : this.focusMinutes,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      recurrenceRuleId: data.recurrenceRuleId.present
+          ? data.recurrenceRuleId.value
+          : this.recurrenceRuleId,
+      occurrenceDate: data.occurrenceDate.present
+          ? data.occurrenceDate.value
+          : this.occurrenceDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -634,6 +1272,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('isCompleted: $isCompleted, ')
           ..write('dueDate: $dueDate, ')
           ..write('focusMinutes: $focusMinutes, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('recurrenceRuleId: $recurrenceRuleId, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -647,6 +1288,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     isCompleted,
     dueDate,
     focusMinutes,
+    completedAt,
+    recurrenceRuleId,
+    occurrenceDate,
     createdAt,
     updatedAt,
   );
@@ -659,6 +1303,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.isCompleted == this.isCompleted &&
           other.dueDate == this.dueDate &&
           other.focusMinutes == this.focusMinutes &&
+          other.completedAt == this.completedAt &&
+          other.recurrenceRuleId == this.recurrenceRuleId &&
+          other.occurrenceDate == this.occurrenceDate &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -669,6 +1316,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<bool> isCompleted;
   final Value<DateTime?> dueDate;
   final Value<int?> focusMinutes;
+  final Value<DateTime?> completedAt;
+  final Value<int?> recurrenceRuleId;
+  final Value<DateTime?> occurrenceDate;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const TasksCompanion({
@@ -677,6 +1327,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.isCompleted = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.focusMinutes = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.recurrenceRuleId = const Value.absent(),
+    this.occurrenceDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -686,6 +1339,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.isCompleted = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.focusMinutes = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.recurrenceRuleId = const Value.absent(),
+    this.occurrenceDate = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   }) : title = Value(title),
@@ -697,6 +1353,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<bool>? isCompleted,
     Expression<DateTime>? dueDate,
     Expression<int>? focusMinutes,
+    Expression<DateTime>? completedAt,
+    Expression<int>? recurrenceRuleId,
+    Expression<DateTime>? occurrenceDate,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -706,6 +1365,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (isCompleted != null) 'is_completed': isCompleted,
       if (dueDate != null) 'due_date': dueDate,
       if (focusMinutes != null) 'focus_minutes': focusMinutes,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (recurrenceRuleId != null) 'recurrence_rule_id': recurrenceRuleId,
+      if (occurrenceDate != null) 'occurrence_date': occurrenceDate,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -717,6 +1379,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<bool>? isCompleted,
     Value<DateTime?>? dueDate,
     Value<int?>? focusMinutes,
+    Value<DateTime?>? completedAt,
+    Value<int?>? recurrenceRuleId,
+    Value<DateTime?>? occurrenceDate,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -726,6 +1391,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       isCompleted: isCompleted ?? this.isCompleted,
       dueDate: dueDate ?? this.dueDate,
       focusMinutes: focusMinutes ?? this.focusMinutes,
+      completedAt: completedAt ?? this.completedAt,
+      recurrenceRuleId: recurrenceRuleId ?? this.recurrenceRuleId,
+      occurrenceDate: occurrenceDate ?? this.occurrenceDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -749,6 +1417,15 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (focusMinutes.present) {
       map['focus_minutes'] = Variable<int>(focusMinutes.value);
     }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (recurrenceRuleId.present) {
+      map['recurrence_rule_id'] = Variable<int>(recurrenceRuleId.value);
+    }
+    if (occurrenceDate.present) {
+      map['occurrence_date'] = Variable<DateTime>(occurrenceDate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -766,6 +1443,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('isCompleted: $isCompleted, ')
           ..write('dueDate: $dueDate, ')
           ..write('focusMinutes: $focusMinutes, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('recurrenceRuleId: $recurrenceRuleId, ')
+          ..write('occurrenceDate: $occurrenceDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2258,6 +2938,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $TimerProgressTable timerProgress = $TimerProgressTable(this);
+  late final $TaskRecurrenceRulesTable taskRecurrenceRules =
+      $TaskRecurrenceRulesTable(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $ActiveTimerSessionsTable activeTimerSessions =
       $ActiveTimerSessionsTable(this);
@@ -2269,10 +2951,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     timerProgress,
+    taskRecurrenceRules,
     tasks,
     activeTimerSessions,
     pendingTimerSummaries,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'task_recurrence_rules',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('tasks', kind: UpdateKind.update)],
+    ),
+  ]);
 }
 
 typedef $$TimerProgressTableCreateCompanionBuilder =
@@ -2458,6 +3151,378 @@ typedef $$TimerProgressTableProcessedTableManager =
       TimerProgressData,
       PrefetchHooks Function()
     >;
+typedef $$TaskRecurrenceRulesTableCreateCompanionBuilder =
+    TaskRecurrenceRulesCompanion Function({
+      Value<int> id,
+      required String frequency,
+      required int interval,
+      required DateTime startDate,
+      Value<DateTime?> endDate,
+      Value<bool> isActive,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+    });
+typedef $$TaskRecurrenceRulesTableUpdateCompanionBuilder =
+    TaskRecurrenceRulesCompanion Function({
+      Value<int> id,
+      Value<String> frequency,
+      Value<int> interval,
+      Value<DateTime> startDate,
+      Value<DateTime?> endDate,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$TaskRecurrenceRulesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TaskRecurrenceRulesTable,
+          TaskRecurrenceRuleRow
+        > {
+  $$TaskRecurrenceRulesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$TasksTable, List<TaskRow>> _tasksRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.tasks,
+    aliasName: 'task_recurrence_rules__id__tasks__recurrence_rule_id',
+  );
+
+  $$TasksTableProcessedTableManager get tasksRefs {
+    final manager = $$TasksTableTableManager(
+      $_db,
+      $_db.tasks,
+    ).filter((f) => f.recurrenceRuleId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_tasksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$TaskRecurrenceRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskRecurrenceRulesTable> {
+  $$TaskRecurrenceRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> tasksRefs(
+    Expression<bool> Function($$TasksTableFilterComposer f) f,
+  ) {
+    final $$TasksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.recurrenceRuleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TasksTableFilterComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TaskRecurrenceRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskRecurrenceRulesTable> {
+  $$TaskRecurrenceRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get interval => $composableBuilder(
+    column: $table.interval,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskRecurrenceRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskRecurrenceRulesTable> {
+  $$TaskRecurrenceRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<int> get interval =>
+      $composableBuilder(column: $table.interval, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> tasksRefs<T extends Object>(
+    Expression<T> Function($$TasksTableAnnotationComposer a) f,
+  ) {
+    final $$TasksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.recurrenceRuleId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TasksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TaskRecurrenceRulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskRecurrenceRulesTable,
+          TaskRecurrenceRuleRow,
+          $$TaskRecurrenceRulesTableFilterComposer,
+          $$TaskRecurrenceRulesTableOrderingComposer,
+          $$TaskRecurrenceRulesTableAnnotationComposer,
+          $$TaskRecurrenceRulesTableCreateCompanionBuilder,
+          $$TaskRecurrenceRulesTableUpdateCompanionBuilder,
+          (TaskRecurrenceRuleRow, $$TaskRecurrenceRulesTableReferences),
+          TaskRecurrenceRuleRow,
+          PrefetchHooks Function({bool tasksRefs})
+        > {
+  $$TaskRecurrenceRulesTableTableManager(
+    _$AppDatabase db,
+    $TaskRecurrenceRulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskRecurrenceRulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskRecurrenceRulesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TaskRecurrenceRulesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> frequency = const Value.absent(),
+                Value<int> interval = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => TaskRecurrenceRulesCompanion(
+                id: id,
+                frequency: frequency,
+                interval: interval,
+                startDate: startDate,
+                endDate: endDate,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String frequency,
+                required int interval,
+                required DateTime startDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+              }) => TaskRecurrenceRulesCompanion.insert(
+                id: id,
+                frequency: frequency,
+                interval: interval,
+                startDate: startDate,
+                endDate: endDate,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TaskRecurrenceRulesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({tasksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (tasksRefs) db.tasks],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (tasksRefs)
+                    await $_getPrefetchedData<
+                      TaskRecurrenceRuleRow,
+                      $TaskRecurrenceRulesTable,
+                      TaskRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$TaskRecurrenceRulesTableReferences
+                          ._tasksRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$TaskRecurrenceRulesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).tasksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.recurrenceRuleId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TaskRecurrenceRulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskRecurrenceRulesTable,
+      TaskRecurrenceRuleRow,
+      $$TaskRecurrenceRulesTableFilterComposer,
+      $$TaskRecurrenceRulesTableOrderingComposer,
+      $$TaskRecurrenceRulesTableAnnotationComposer,
+      $$TaskRecurrenceRulesTableCreateCompanionBuilder,
+      $$TaskRecurrenceRulesTableUpdateCompanionBuilder,
+      (TaskRecurrenceRuleRow, $$TaskRecurrenceRulesTableReferences),
+      TaskRecurrenceRuleRow,
+      PrefetchHooks Function({bool tasksRefs})
+    >;
 typedef $$TasksTableCreateCompanionBuilder =
     TasksCompanion Function({
       Value<int> id,
@@ -2465,6 +3530,9 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<bool> isCompleted,
       Value<DateTime?> dueDate,
       Value<int?> focusMinutes,
+      Value<DateTime?> completedAt,
+      Value<int?> recurrenceRuleId,
+      Value<DateTime?> occurrenceDate,
       required DateTime createdAt,
       required DateTime updatedAt,
     });
@@ -2475,9 +3543,36 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<bool> isCompleted,
       Value<DateTime?> dueDate,
       Value<int?> focusMinutes,
+      Value<DateTime?> completedAt,
+      Value<int?> recurrenceRuleId,
+      Value<DateTime?> occurrenceDate,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
+
+final class $$TasksTableReferences
+    extends BaseReferences<_$AppDatabase, $TasksTable, TaskRow> {
+  $$TasksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $TaskRecurrenceRulesTable _recurrenceRuleIdTable(_$AppDatabase db) =>
+      db.taskRecurrenceRules.createAlias(
+        'tasks__recurrence_rule_id__task_recurrence_rules__id',
+      );
+
+  $$TaskRecurrenceRulesTableProcessedTableManager? get recurrenceRuleId {
+    final $_column = $_itemColumn<int>('recurrence_rule_id');
+    if ($_column == null) return null;
+    final manager = $$TaskRecurrenceRulesTableTableManager(
+      $_db,
+      $_db.taskRecurrenceRules,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_recurrenceRuleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
   $$TasksTableFilterComposer({
@@ -2512,6 +3607,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -2521,6 +3626,29 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$TaskRecurrenceRulesTableFilterComposer get recurrenceRuleId {
+    final $$TaskRecurrenceRulesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.recurrenceRuleId,
+      referencedTable: $db.taskRecurrenceRules,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskRecurrenceRulesTableFilterComposer(
+            $db: $db,
+            $table: $db.taskRecurrenceRules,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TasksTableOrderingComposer
@@ -2557,6 +3685,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -2566,6 +3704,30 @@ class $$TasksTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$TaskRecurrenceRulesTableOrderingComposer get recurrenceRuleId {
+    final $$TaskRecurrenceRulesTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.recurrenceRuleId,
+          referencedTable: $db.taskRecurrenceRules,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskRecurrenceRulesTableOrderingComposer(
+                $db: $db,
+                $table: $db.taskRecurrenceRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$TasksTableAnnotationComposer
@@ -2596,11 +3758,45 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get occurrenceDate => $composableBuilder(
+    column: $table.occurrenceDate,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$TaskRecurrenceRulesTableAnnotationComposer get recurrenceRuleId {
+    final $$TaskRecurrenceRulesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.recurrenceRuleId,
+          referencedTable: $db.taskRecurrenceRules,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TaskRecurrenceRulesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.taskRecurrenceRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$TasksTableTableManager
@@ -2614,9 +3810,9 @@ class $$TasksTableTableManager
           $$TasksTableAnnotationComposer,
           $$TasksTableCreateCompanionBuilder,
           $$TasksTableUpdateCompanionBuilder,
-          (TaskRow, BaseReferences<_$AppDatabase, $TasksTable, TaskRow>),
+          (TaskRow, $$TasksTableReferences),
           TaskRow,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool recurrenceRuleId})
         > {
   $$TasksTableTableManager(_$AppDatabase db, $TasksTable table)
     : super(
@@ -2636,6 +3832,9 @@ class $$TasksTableTableManager
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
                 Value<int?> focusMinutes = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int?> recurrenceRuleId = const Value.absent(),
+                Value<DateTime?> occurrenceDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => TasksCompanion(
@@ -2644,6 +3843,9 @@ class $$TasksTableTableManager
                 isCompleted: isCompleted,
                 dueDate: dueDate,
                 focusMinutes: focusMinutes,
+                completedAt: completedAt,
+                recurrenceRuleId: recurrenceRuleId,
+                occurrenceDate: occurrenceDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -2654,6 +3856,9 @@ class $$TasksTableTableManager
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
                 Value<int?> focusMinutes = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int?> recurrenceRuleId = const Value.absent(),
+                Value<DateTime?> occurrenceDate = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
               }) => TasksCompanion.insert(
@@ -2662,13 +3867,59 @@ class $$TasksTableTableManager
                 isCompleted: isCompleted,
                 dueDate: dueDate,
                 focusMinutes: focusMinutes,
+                completedAt: completedAt,
+                recurrenceRuleId: recurrenceRuleId,
+                occurrenceDate: occurrenceDate,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) =>
+                    (e.readTable(table), $$TasksTableReferences(db, table, e)),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({recurrenceRuleId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (recurrenceRuleId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.recurrenceRuleId,
+                                referencedTable: $$TasksTableReferences
+                                    ._recurrenceRuleIdTable(db),
+                                referencedColumn: $$TasksTableReferences
+                                    ._recurrenceRuleIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -2683,9 +3934,9 @@ typedef $$TasksTableProcessedTableManager =
       $$TasksTableAnnotationComposer,
       $$TasksTableCreateCompanionBuilder,
       $$TasksTableUpdateCompanionBuilder,
-      (TaskRow, BaseReferences<_$AppDatabase, $TasksTable, TaskRow>),
+      (TaskRow, $$TasksTableReferences),
       TaskRow,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool recurrenceRuleId})
     >;
 typedef $$ActiveTimerSessionsTableCreateCompanionBuilder =
     ActiveTimerSessionsCompanion Function({
@@ -3414,6 +4665,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$TimerProgressTableTableManager get timerProgress =>
       $$TimerProgressTableTableManager(_db, _db.timerProgress);
+  $$TaskRecurrenceRulesTableTableManager get taskRecurrenceRules =>
+      $$TaskRecurrenceRulesTableTableManager(_db, _db.taskRecurrenceRules);
   $$TasksTableTableManager get tasks =>
       $$TasksTableTableManager(_db, _db.tasks);
   $$ActiveTimerSessionsTableTableManager get activeTimerSessions =>

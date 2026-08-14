@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:atomic_task/core/theme/app_theme.dart';
+import 'package:atomic_task/features/home/presentation/pages/statistics_view.dart';
 import 'package:atomic_task/features/tasks/domain/entities/atomic_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/assign_task_focus.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/create_task.dart';
@@ -44,6 +45,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
+      await _expandTaskGroup(tester, 'Atrasadas');
       final screen = Offset.zero & profile.value;
       expect(
         screen.contains(
@@ -62,8 +64,11 @@ void main() {
 
       await _capture(tester, captureKey, '${profile.key}_mixed');
 
+      await tester.tap(find.text('Atrasadas'));
+      await tester.pumpAndSettle();
+      await _expandTaskGroup(tester, 'Sin fecha');
       await tester.scrollUntilVisible(
-        find.byKey(const Key('taskToggle-8')),
+        find.byKey(const Key('taskToggle-7')),
         180,
         scrollable: find.descendant(
           of: find.byKey(const Key('taskList')),
@@ -71,7 +76,42 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('taskToggle-8')), findsOneWidget);
+      expect(find.byKey(const Key('taskToggle-7')), findsOneWidget);
+      expect(find.byKey(const Key('taskToggle-8')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final profileName in ['iphone-se', 'compact-landscape']) {
+    testWidgets('statistics history is responsive on $profileName', (
+      tester,
+    ) async {
+      _configureView(tester, _profiles[profileName]!);
+      final repository = MemoryTaskRepository(initialTasks: _mixedTasks());
+      addTearDown(repository.dispose);
+      final controller = _buildController(repository)..initialize();
+      addTearDown(controller.dispose);
+      repository.emit();
+
+      await tester.pumpWidget(_StatisticsTestApp(controller: controller));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('statisticsView')), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('completedTasksSection')),
+        180,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('statisticsView')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('completedTasksSection')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('taskToggle-8')));
+      expect(
+        tester.getSize(find.byKey(const Key('taskToggle-8'))).height,
+        greaterThanOrEqualTo(48),
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -116,6 +156,7 @@ void main() {
       _ResponsiveTestApp(controller: controller, captureKey: captureKey),
     );
     await tester.pumpAndSettle();
+    await _expandTaskGroup(tester, 'Atrasadas');
     await tester.tap(find.byKey(const Key('taskToggle-1')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -172,6 +213,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _expandTaskGroup(tester, 'Atrasadas');
     await tester.tap(find.byKey(const Key('editTask-1')));
     await tester.pumpAndSettle();
 
@@ -180,6 +222,21 @@ void main() {
     expect(tester.takeException(), isNull);
     await _capture(tester, captureKey, 'pixel-7_edit-with-keyboard');
   });
+}
+
+Future<void> _expandTaskGroup(WidgetTester tester, String label) async {
+  await tester.scrollUntilVisible(
+    find.text(label),
+    180,
+    scrollable: find.descendant(
+      of: find.byKey(const Key('taskList')),
+      matching: find.byType(Scrollable),
+    ),
+  );
+  await tester.ensureVisible(find.text(label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
 }
 
 void _configureView(WidgetTester tester, Size size) {
@@ -242,10 +299,31 @@ List<AtomicTask> _mixedTasks() {
       title: 'Organizar archivos del proyecto',
       isCompleted: true,
       focusMinutes: 15,
+      completedAt: DateTime(2026, 8, 14, 8),
       createdAt: createdAt,
       updatedAt: createdAt,
     ),
   ];
+}
+
+class _StatisticsTestApp extends StatelessWidget {
+  const _StatisticsTestApp({required this.controller});
+
+  final TaskController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: StatisticsView(
+          totalFocusSeconds: 7200,
+          gems: 8,
+          controller: controller,
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> _capture(

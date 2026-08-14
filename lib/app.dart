@@ -7,10 +7,21 @@ import 'core/theme/app_theme.dart';
 import 'features/tasks/data/datasources/task_local_data_source.dart';
 import 'features/tasks/data/repositories/task_repository_impl.dart';
 import 'features/tasks/domain/usecases/assign_task_focus.dart';
+import 'features/tasks/domain/services/recurrence_calculator.dart';
+import 'features/tasks/domain/services/recurrence_generation_policy.dart';
+import 'features/tasks/domain/usecases/complete_task_occurrence.dart';
+import 'features/tasks/domain/usecases/calculate_next_occurrence.dart';
 import 'features/tasks/domain/usecases/create_task.dart';
+import 'features/tasks/domain/usecases/create_recurring_task.dart';
 import 'features/tasks/domain/usecases/delete_task.dart';
+import 'features/tasks/domain/usecases/delete_task_occurrence.dart';
+import 'features/tasks/domain/usecases/delete_task_series.dart';
+import 'features/tasks/domain/usecases/reconcile_task_recurrences.dart';
+import 'features/tasks/domain/usecases/set_task_recurrence_active.dart';
 import 'features/tasks/domain/usecases/toggle_task_completion.dart';
 import 'features/tasks/domain/usecases/update_task.dart';
+import 'features/tasks/domain/usecases/update_recurring_occurrence.dart';
+import 'features/tasks/domain/usecases/update_recurring_series.dart';
 import 'features/tasks/domain/usecases/watch_tasks.dart';
 import 'features/tasks/presentation/controllers/task_controller.dart';
 import 'features/timer/data/datasources/timer_local_data_source.dart';
@@ -73,13 +84,51 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     final taskLocalDataSource =
         widget.taskLocalDataSource ?? DriftTaskLocalDataSource(database!);
     final taskRepository = TaskRepositoryImpl(taskLocalDataSource);
+    final supportsRecurrence =
+        taskLocalDataSource is TaskRecurrenceLocalDataSource;
+    const recurrenceCalculator = RecurrenceCalculator();
+    const recurrencePolicy = RecurrenceGenerationPolicy(recurrenceCalculator);
+    const calculateNextOccurrence = CalculateNextOccurrence(recurrencePolicy);
+    final updateTask = UpdateTask(taskRepository);
     _taskController = TaskController(
       WatchTasks(taskRepository),
       CreateTask(taskRepository),
-      UpdateTask(taskRepository),
+      updateTask,
       ToggleTaskCompletion(taskRepository),
       DeleteTask(taskRepository),
       AssignTaskFocus(taskRepository),
+      createRecurringTaskUseCase: supportsRecurrence
+          ? CreateRecurringTask(taskRepository)
+          : null,
+      updateRecurringOccurrenceUseCase: supportsRecurrence
+          ? UpdateRecurringOccurrence(updateTask)
+          : null,
+      updateRecurringSeriesUseCase: supportsRecurrence
+          ? UpdateRecurringSeries(taskRepository)
+          : null,
+      completeTaskOccurrenceUseCase: supportsRecurrence
+          ? CompleteTaskOccurrence(
+              taskRepository,
+              taskRepository,
+              calculateNextOccurrence,
+            )
+          : null,
+      setTaskRecurrenceActiveUseCase: supportsRecurrence
+          ? SetTaskRecurrenceActive(taskRepository)
+          : null,
+      deleteTaskOccurrenceUseCase: supportsRecurrence
+          ? DeleteTaskOccurrence(
+              taskRepository,
+              taskRepository,
+              calculateNextOccurrence,
+            )
+          : null,
+      deleteTaskSeriesUseCase: supportsRecurrence
+          ? DeleteTaskSeries(taskRepository)
+          : null,
+      reconcileTaskRecurrencesUseCase: supportsRecurrence
+          ? ReconcileTaskRecurrences(taskRepository, recurrencePolicy)
+          : null,
     )..initialize();
 
     _controller = TimerController(
@@ -89,7 +138,7 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
       notificationService: notificationService,
       focusCompletionAdService: focusCompletionAdService,
       sessionRepository: sessionRepository,
-      onLinkedTaskFocusCompletedAsync: _taskController.completeById,
+      onLinkedTaskFocusCompletedAtAsync: _taskController.completeByIdAt,
     )..initialize();
 
     _lifecycleListener = AppLifecycleListener(
@@ -106,9 +155,14 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     _taskController.dispose();
     final database = _database;
     if (database != null) {
-      unawaited(database.close());
+      unawaited(_flushControllerAndCloseDatabase(database));
     }
     super.dispose();
+  }
+
+  Future<void> _flushControllerAndCloseDatabase(AppDatabase database) async {
+    await _controller.flushPersistence();
+    await database.close();
   }
 
   @override

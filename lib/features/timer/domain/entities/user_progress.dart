@@ -5,7 +5,7 @@ class UserProgress {
     required this.profileName,
   });
 
-  static const int maxProfileNameLength = 8;
+  static const int maxProfileNameLength = 18;
   static const String defaultProfileName = 'NOMBRE';
 
   final int gems;

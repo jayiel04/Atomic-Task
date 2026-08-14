@@ -2,23 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/time_formatter.dart';
+import '../../../tasks/presentation/controllers/task_controller.dart';
+import '../../../tasks/presentation/widgets/task_section.dart';
 
 class StatisticsView extends StatelessWidget {
   const StatisticsView({
     required this.totalFocusSeconds,
     required this.gems,
-    required this.pendingTasks,
-    required this.completedTasks,
+    required this.controller,
     super.key,
   });
 
   final int totalFocusSeconds;
   final int gems;
-  final int pendingTasks;
-  final int completedTasks;
+  final TaskController controller;
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    if (controller.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final completed = controller.completedTasks;
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 680 ? 4 : 2;
@@ -50,7 +62,7 @@ class StatisticsView extends StatelessWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 32),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columns,
@@ -74,16 +86,49 @@ class StatisticsView extends StatelessWidget {
                   _StatisticCard(
                     key: const Key('pendingTasksStatistic'),
                     icon: Icons.pending_actions_rounded,
-                    value: pendingTasks.toString(),
+                    value: controller.pendingTasks.length.toString(),
                     label: 'Tareas pendientes',
                   ),
                   _StatisticCard(
                     key: const Key('completedTasksStatistic'),
                     icon: Icons.task_alt_rounded,
-                    value: completedTasks.toString(),
+                    value: completed.length.toString(),
                     label: 'Tareas completadas',
                   ),
                 ]),
+              ),
+            ),
+            if (controller.errorMessage != null)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                sliver: SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: TaskControllerErrorCard(
+                        message: controller.errorMessage!,
+                        onDismiss: controller.clearError,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 32),
+              sliver: SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: TaskSection(
+                      key: const Key('completedTasksSection'),
+                      title: 'Tareas completadas',
+                      count: completed.length,
+                      tasks: completed,
+                      controller: controller,
+                      emptyMessage: 'Todavía no has completado tareas.',
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

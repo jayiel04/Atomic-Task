@@ -1,3 +1,5 @@
+import 'recurrence_rule.dart';
+
 class AtomicTask {
   const AtomicTask({
     required this.id,
@@ -7,6 +9,9 @@ class AtomicTask {
     required this.updatedAt,
     this.dueDate,
     this.focusMinutes,
+    this.completedAt,
+    this.occurrenceDate,
+    this.recurrenceRule,
   });
 
   final int id;
@@ -14,8 +19,13 @@ class AtomicTask {
   final bool isCompleted;
   final DateTime? dueDate;
   final int? focusMinutes;
+  final DateTime? completedAt;
+  final DateTime? occurrenceDate;
+  final RecurrenceRule? recurrenceRule;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  bool get isRecurring => recurrenceRule != null;
 
   bool isOverdueAt(DateTime now) {
     final deadline = dueDate;

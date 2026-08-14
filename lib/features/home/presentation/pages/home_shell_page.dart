@@ -317,8 +317,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
                     StatisticsView(
                       totalFocusSeconds: progress.totalFocusSeconds,
                       gems: progress.gems,
-                      pendingTasks: _taskController.pendingTasks.length,
-                      completedTasks: _taskController.completedTasks.length,
+                      controller: _taskController,
                     ),
                   ],
                 ),

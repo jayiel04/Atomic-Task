@@ -1,6 +1,6 @@
 # Atomic Task: contexto y hoja de ruta
 
-Última actualización: 13 de agosto de 2026 (implementación del plan completada).
+Última actualización: 14 de agosto de 2026 (recurrencias y Home responsiva implementadas).
 
 Este documento resume el estado real del proyecto y separa lo implementado de la evolución futura. La especificación visual está en [agents.md](agents.md) y la arquitectura objetivo en [arquitecture.md](arquitecture.md).
 
@@ -9,10 +9,12 @@ Este documento resume el estado real del proyecto y separa lo implementado de la
 - [x] Home única con `HomeShellPage`, AppBar compartido y navegación inferior.
 - [x] Vistas embebibles `TasksView` y `FocusView` conservadas en un `IndexedStack`.
 - [x] Encabezado compacto delimitado, con perfil, nombre, tiempo y gemas.
-- [x] Panel lateral derecho para edición del nombre, progreso y restablecimiento.
+- [x] Drawer lateral izquierdo con Tareas, Concentración, Ajustes, Estadísticas y restablecimiento.
+- [x] Footer flotante centrado con cápsula de selección y header responsivo de dos filas.
+- [x] Tareas recurrentes diarias, semanales y mensuales con edición por ocurrencia o serie.
 - [x] Resúmenes de concentración/descanso, notificación del sistema, aviso flotante y flujo de anuncio.
-- [x] Persistencia Drift versión 4 para sesión activa y resumen pendiente, con recuperación al reabrir.
-- [x] Pruebas de Home, geometría, migraciones v1–v3, CRUD, temporizador y responsividad.
+- [x] Persistencia Drift versión 5 para recurrencias, sesión activa y resumen pendiente.
+- [x] Pruebas de Home, geometría, migraciones v1–v4, CRUD, recurrencias, temporizador y responsividad.
 - [x] `flutter analyze`, `flutter test` y `git diff --check` sin errores.
 
 ## 1. Propósito del producto
@@ -73,14 +75,14 @@ lib/
 - Una sesión preparada, pausada o en ejecución recuperada selecciona Concentración automáticamente.
 - La tarea vinculada se comunica con el temporizador mediante el callback existente, conservando el estado de ambos controladores.
 
-Esta navegación será reemplazada por una sola Home con dos vistas internas.
+La navegación se implementa con una sola Home y vistas internas, sin apilar rutas.
 
 ### 2.4 Funciones que ya existen y deben conservarse
 
 #### Perfil y progreso
 
 - En el primer inicio se solicita un nombre obligatorio.
-- El nombre se recorta, admite hasta 8 caracteres y se guarda localmente.
+- El nombre se recorta, admite hasta 18 caracteres y se guarda localmente.
 - Se muestran gemas y tiempo total de concentración.
 - El progreso puede restablecerse con confirmación.
 
@@ -111,17 +113,23 @@ Esta navegación será reemplazada por una sola Home con dos vistas internas.
   - asignarle entre 1 y 120 minutos y preparar una sesión de concentración.
 - La tarea asociada permanece pendiente hasta finalizar la sesión.
 - Al finalizar la sesión vinculada, la tarea se completa automáticamente.
+- Las tareas recurrentes admiten intervalo, inicio, fin opcional, pausa y reactivación.
+- Completar una ocurrencia crea la siguiente de forma transaccional e idempotente.
+- Editar o eliminar una tarea recurrente permite elegir entre ocurrencia y serie.
+- La recuperación salta fechas omitidas y crea únicamente la próxima ocurrencia pendiente.
 
 ### 2.5 Persistencia actual
 
-La base Drift usa esquema versión 4:
+La base Drift usa esquema versión 5:
 
 - `timer_progress`: registro único con nombre, gemas y segundos acumulados;
 - `tasks`: título, estado, fecha límite, minutos de concentración y marcas de tiempo;
+- `task_recurrence_rules`: frecuencia, intervalo, fechas de inicio/fin y estado activo;
+- `tasks` relaciona opcionalmente cada ocurrencia con su regla y fecha única;
 - `active_timer_sessions`: instantánea única de una sesión preparada, pausada o en ejecución;
 - `pending_timer_summaries`: resumen único con pendientes de aviso, notificación, anuncio y tarea.
 
-Las migraciones desde las versiones 1, 2 y 3 conservan el progreso y las tareas.
+Las migraciones desde las versiones 1, 2, 3 y 4 conservan el progreso y las tareas.
 
 ### 2.6 Cobertura existente
 
@@ -135,54 +143,58 @@ Hay pruebas de:
 - primer inicio y persistencia del nombre;
 - diseños compactos, regulares, tablet y landscape;
 - tareas con Safe Area, texto ampliado y teclado visible.
+- cálculo, persistencia, reconciliación e integración con Concentración de recurrencias;
+- footer flotante, semántica de selección y títulos completos en el header compacto.
 
-## 3. Próximo objetivo: una Home compartida
+## 3. Home compartida implementada
 
-La próxima entrega debe convertir Tareas y Concentración en dos vistas de la misma pantalla:
+La Home mantiene cuatro vistas montadas y dos accesos rápidos en el footer:
 
 ```text
 HomeShellPage
 ├── HomeAppBar compartido
 │   ├── título contextual a la izquierda
 │   └── resumen del usuario a la derecha
-├── cuerpo que conserva ambas vistas
+├── cuerpo que conserva las cuatro vistas
 │   ├── TasksView
-│   └── FocusView
+│   ├── FocusView
+│   ├── SettingsView
+│   └── StatisticsView
 └── HomeBottomNavigation persistente
     ├── Tareas
     └── Concentración
 ```
 
-El resumen derecho del AppBar debe respetar exactamente esta jerarquía:
+El resumen del AppBar respeta esta jerarquía:
 
 ```text
-[ícono de perfil]  [nombre del usuario]
-                   [ícono tiempo + valor] [ícono gema + valor]
+[tarjeta: avatar + nombre]
+[ícono tiempo + valor] [ícono gema + valor]
 ```
 
-El nombre está arriba de las estadísticas. El ícono de perfil queda a su izquierda con un espacio pequeño. No se muestra la palabra “Hola”.
+Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y fuera. En anchos compactos, menú y título ocupan la primera fila y el resumen la segunda. No se muestra la palabra “Hola”.
 
 ## 4. Decisiones ya acordadas
 
-- [x] Una sola Home contiene las dos vistas.
+- [x] Una sola Home contiene las cuatro vistas montadas.
 - [x] La navegación primaria se realiza con dos íconos en la parte inferior.
 - [x] Orden de destinos: Tareas y Concentración.
 - [x] La barra inferior permanece visible en ambas vistas.
 - [x] El AppBar es compartido.
 - [x] El nombre se alinea en el bloque derecho y está sobre las estadísticas.
-- [x] El ícono de perfil aparece a la izquierda del nombre y las estadísticas.
+- [x] Avatar y nombre aparecen dentro de la tarjeta; las estadísticas quedan debajo y fuera.
 - [x] Tiempo de concentración y gemas conservan sus respectivos íconos.
 - [x] No se usa el saludo “Hola”.
 - [x] Cambiar de pestaña no debe reiniciar el temporizador ni la lista.
 
-## 5. Decisiones de producto pendientes
+## 5. Decisiones de producto resueltas
 
 - [x] La pestaña inicial normal es Tareas; una sesión recuperada abre Concentración.
-- [x] El título contextual cambia entre `TAREAS` y `CONCENTRACIÓN`.
-- [x] El ícono de perfil abre el panel lateral derecho con progreso y restablecimiento.
-- [x] El nombre se edita desde el panel, no directamente en el encabezado.
+- [x] El título contextual usa `Tareas`, `Concentración`, `Ajustes` y `Estadísticas`.
+- [x] El menú abre el drawer izquierdo con restablecimiento; el perfil abre directamente Ajustes.
+- [x] El nombre se edita desde Ajustes, no directamente en el encabezado.
 
-Estas decisiones no bloquean la extracción de componentes, pero deben resolverse antes de cerrar el diseño final.
+Estas decisiones están cerradas en la implementación actual.
 
 ## 6. Plan de implementación
 
@@ -223,7 +235,7 @@ Estas decisiones no bloquean la extracción de componentes, pero deben resolvers
 - [x] Actualizar esos valores en vivo sin duplicar estado.
 - [x] Hacer accesible el progreso/restablecimiento desde el ícono de perfil.
 - [x] Eliminar del panel de perfil el acceso redundante a Tareas.
-- [x] Evitar desbordamiento con nombres de 8 caracteres y escala de texto 1.3.
+- [x] Evitar desbordamiento con nombres de 18 caracteres y escala de texto 1.3.
 
 ### Fase 5: responsividad y accesibilidad
 
@@ -263,7 +275,7 @@ La entrega visual se considera completa cuando:
 2. AppBar y navegación inferior permanecen visibles al cambiar de vista.
 3. La navegación inferior contiene exactamente Tareas y Concentración, en ese orden.
 4. El destino activo se distingue con color/indicador morado y semántica seleccionada.
-5. El bloque derecho del AppBar contiene ícono de perfil, nombre arriba, y tiempo más gemas abajo.
+5. El resumen del AppBar contiene avatar y nombre dentro de la tarjeta, con tiempo y gemas debajo y fuera.
 6. No aparece “Hola”.
 7. El nombre, el tiempo y las gemas provienen de una sola fuente de estado.
 8. El temporizador activo no se reinicia al abrir Tareas.
@@ -300,7 +312,6 @@ El archivo generado `app_database.g.dart` nunca debe editarse manualmente.
 
 ## Verificación de esta entrega
 
-- `flutter test --reporter compact`: 43 pruebas exitosas.
-- `flutter analyze`: sin issues.
-- `git diff --check`: sin errores de whitespace.
-- La refactorización arquitectónica amplia de la Fase 7 permanece deliberadamente pendiente; el plan pidió conservar los controladores actuales durante esta entrega.
+- Generación Drift v5 ejecutada con `build_runner`.
+- Migraciones desde las versiones 1, 2, 3 y 4 cubiertas por pruebas.
+- La refactorización arquitectónica amplia de la Fase 7 permanece pendiente; esta entrega añadió los contratos y casos de uso necesarios para recurrencias sin reescribir el temporizador.

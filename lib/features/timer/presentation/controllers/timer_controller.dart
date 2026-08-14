@@ -24,6 +24,7 @@ class TimerController extends ChangeNotifier {
     required FocusCompletionAdService focusCompletionAdService,
     this.onLinkedTaskFocusCompleted,
     this.onLinkedTaskFocusCompletedAsync,
+    this.onLinkedTaskFocusCompletedAtAsync,
     this.onCompletionSummary,
     TimerSessionRepository? sessionRepository,
     DateTime Function()? now,
@@ -44,6 +45,8 @@ class TimerController extends ChangeNotifier {
   final DateTime Function() _now;
   final ValueChanged<int>? onLinkedTaskFocusCompleted;
   final Future<bool> Function(int taskId)? onLinkedTaskFocusCompletedAsync;
+  final Future<bool> Function(int taskId, DateTime completedAt)?
+  onLinkedTaskFocusCompletedAtAsync;
   final ValueChanged<CompletionSummary>? onCompletionSummary;
 
   Timer? _ticker;
@@ -115,6 +118,7 @@ class TimerController extends ChangeNotifier {
     _setStatus(
       'Concentración preparada para “$taskTitle”. Inicia cuando estés listo.',
     );
+    _hasPersistableSession = true;
     _persistActiveSession();
     _notifyListeners();
     return true;
@@ -154,6 +158,7 @@ class TimerController extends ChangeNotifier {
 
   bool _hasRestoredSession = false;
   bool _hasRestoredRunningSession = false;
+  bool _hasPersistableSession = false;
 
   Future<void> _restoreActiveSession() async {
     final repository = _sessionRepository;
@@ -167,6 +172,7 @@ class TimerController extends ChangeNotifier {
     }
 
     _hasRestoredSession = true;
+    _hasPersistableSession = true;
     _sessionId = session.sessionId;
     _mode = session.mode;
     _minutes = (session.selectedSeconds ~/ 60).clamp(
@@ -271,6 +277,7 @@ class TimerController extends ChangeNotifier {
     }
 
     _sessionCompleted = false;
+    _hasPersistableSession = true;
     _isRunning = true;
     _endsAt = _now().add(Duration(seconds: _remainingSeconds));
     _setStatus(
@@ -332,6 +339,8 @@ class TimerController extends ChangeNotifier {
 
     _isRunning = false;
     _sessionCompleted = false;
+    _hasRestoredSession = false;
+    _hasPersistableSession = false;
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
@@ -364,6 +373,8 @@ class TimerController extends ChangeNotifier {
     _minutes = TimerConstants.defaultFocusMinutes;
     _isRunning = false;
     _sessionCompleted = false;
+    _hasRestoredSession = false;
+    _hasPersistableSession = false;
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
@@ -493,6 +504,8 @@ class TimerController extends ChangeNotifier {
     _endsAt = null;
     _isRunning = false;
     _sessionCompleted = true;
+    _hasRestoredSession = false;
+    _hasPersistableSession = false;
     _remainingSeconds = 0;
     _setStatus(
       mode == TimerMode.focus
@@ -524,20 +537,26 @@ class TimerController extends ChangeNotifier {
         await sessionRepository?.savePendingSummary(summary);
       });
     }
-    await _notificationService.showTimerCompleted(
-      title: _summaryTitle(summary),
-      body: _summaryBody(summary),
-    );
+    var notificationPending = summary.notificationPending;
+    try {
+      await _notificationService.showTimerCompleted(
+        title: _summaryTitle(summary),
+        body: _summaryBody(summary),
+      );
+      notificationPending = false;
+    } catch (_) {
+      // Keep the summary pending so the next app session can retry it.
+    }
 
     final taskCompleted = summary.taskId == null
         ? true
-        : await _completeLinkedTask(summary.taskId!);
+        : await _completeLinkedTask(summary.taskId!, summary.completedAt);
 
     final adResult = summary.mode != TimerMode.focus
         ? FocusCompletionAdResult.unsupported
         : await _tryShowCompletionAd();
     final delivered = summary.copyWith(
-      notificationPending: false,
+      notificationPending: notificationPending,
       adPending: adResult == FocusCompletionAdResult.retry,
       taskCompletionPending: summary.taskId != null && !taskCompleted,
     );
@@ -549,15 +568,22 @@ class TimerController extends ChangeNotifier {
   Future<void> _deliverPendingSummary(CompletionSummary summary) async {
     var current = summary;
     if (current.notificationPending) {
-      await _notificationService.showTimerCompleted(
-        title: _summaryTitle(current),
-        body: _summaryBody(current),
-      );
-      current = current.copyWith(notificationPending: false);
+      try {
+        await _notificationService.showTimerCompleted(
+          title: _summaryTitle(current),
+          body: _summaryBody(current),
+        );
+        current = current.copyWith(notificationPending: false);
+      } catch (_) {
+        // Keep notificationPending true and continue retryable work.
+      }
     }
 
     if (current.taskCompletionPending && current.taskId != null) {
-      final taskCompleted = await _completeLinkedTask(current.taskId!);
+      final taskCompleted = await _completeLinkedTask(
+        current.taskId!,
+        current.completedAt,
+      );
       if (taskCompleted) {
         current = current.copyWith(taskCompletionPending: false);
       }
@@ -606,6 +632,8 @@ class TimerController extends ChangeNotifier {
     _endsAt = null;
     _isRunning = false;
     _sessionCompleted = true;
+    _hasRestoredSession = false;
+    _hasPersistableSession = false;
     _elapsedSeconds = 0;
     _rewardedBlocks = 0;
     _chargedMinutes = 0;
@@ -714,7 +742,7 @@ class TimerController extends ChangeNotifier {
 
   void _persistActiveSession() {
     final repository = _sessionRepository;
-    if (repository == null || !_isInitialized) {
+    if (repository == null || !_isInitialized || !_hasPersistableSession) {
       return;
     }
 
@@ -778,6 +806,14 @@ class TimerController extends ChangeNotifier {
     return queued;
   }
 
+  Future<void> flushPersistence() async {
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = null;
+    await _flushProgress();
+    _persistActiveSession();
+    await _sessionWriteQueue;
+  }
+
   Future<FocusCompletionAdResult> _tryShowCompletionAd() async {
     try {
       return await _focusCompletionAdService.showAfterFocusCompletionResult();
@@ -790,8 +826,12 @@ class TimerController extends ChangeNotifier {
     }
   }
 
-  Future<bool> _completeLinkedTask(int taskId) async {
+  Future<bool> _completeLinkedTask(int taskId, DateTime completedAt) async {
     try {
+      final timestampedCallback = onLinkedTaskFocusCompletedAtAsync;
+      if (timestampedCallback != null) {
+        return await timestampedCallback(taskId, completedAt);
+      }
       final asyncCallback = onLinkedTaskFocusCompletedAsync;
       if (asyncCallback != null) {
         return await asyncCallback(taskId);

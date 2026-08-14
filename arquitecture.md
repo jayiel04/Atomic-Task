@@ -1,6 +1,6 @@
 # Arquitectura escalable de Atomic Task
 
-Última actualización: 13 de agosto de 2026 (Home y persistencia de sesiones implementadas).
+Última actualización: 14 de agosto de 2026 (recurrencias Drift v5 y Home responsiva implementadas).
 
 Este documento define la arquitectura objetivo y una ruta incremental para alcanzarla. La Home y la persistencia de sesiones descritas en `plan.md` ya están implementadas; la extracción arquitectónica amplia continúa como trabajo futuro.
 
@@ -31,7 +31,7 @@ main.dart
     → crea TaskController y TimerController
     → presenta HomeShellPage
       ├── HomeAppBar compartido
-      ├── IndexedStack (TasksView, FocusView)
+      ├── IndexedStack (TasksView, FocusView, SettingsView, StatisticsView)
       └── HomeBottomNavigation
 ```
 
@@ -56,6 +56,7 @@ Widget
 - fuentes de datos reemplazables en pruebas;
 - lectura reactiva de tareas mediante `Stream`;
 - pruebas de migración y comportamiento;
+- reglas recurrentes separadas de sus ocurrencias y finalización transaccional;
 - widgets del temporizador y tareas parcialmente extraídos.
 
 ### Deuda principal
@@ -259,7 +260,7 @@ Será dueño del nombre y, si el producto crece, preferencias. Las estadísticas
 
 ### `features/tasks/`
 
-Es dueño del ciclo de vida de tareas y su persistencia. No controla el temporizador ni navega directamente a su pantalla.
+Es dueño del ciclo de vida de tareas, reglas de recurrencia, ocurrencias y su persistencia. No controla el temporizador ni navega directamente a su pantalla.
 
 ### `features/timer/`
 
@@ -274,7 +275,9 @@ HomeShellPage
 ├── appBar: HomeAppBar
 ├── body: IndexedStack
 │   ├── TasksView
-│   └── FocusView
+│   ├── FocusView
+│   ├── SettingsView
+│   └── StatisticsView
 └── bottomNavigationBar: HomeBottomNavigation
 ```
 
@@ -285,7 +288,7 @@ HomeShellPage
 - conserva scroll, formularios y controles cuando sigan montados;
 - hace que la navegación sea estado local y no historial de rutas.
 
-Los controladores se crean por encima del shell y viven durante toda la sesión. Las vistas no contienen `Scaffold` anidados.
+Los controladores se crean por encima del shell y viven durante toda la sesión. Las vistas no contienen `Scaffold` anidados. El drawer de Home es propiedad del shell; `ProgressDrawer` se conserva únicamente para el wrapper heredado de `TimerPage`.
 
 ### Contrato del AppBar
 
@@ -382,16 +385,20 @@ FocusStatistics → totalFocusSeconds
 GemBalance      → amount
 ```
 
-La Home usa contratos/modelos separados para sesiones. Drift está en versión 4 y añade, sin alterar las tablas existentes:
+La Home usa contratos/modelos separados para sesiones. Drift está en versión 5 y conserva las tablas existentes mientras añade recurrencias de forma aditiva:
 
 ```text
 active_timer_sessions   → instantánea única de sesión preparada/pausada/activa
 pending_timer_summaries → resumen y trabajos de finalización pendientes
+task_recurrence_rules    → regla independiente de la serie
+tasks                    → relación y fecha opcionales de ocurrencia
 ```
 
 La restauración usa `endsAt` y segundos guardados, evita duplicar recompensas y conserva pendientes de anuncio o tarea cuando corresponde.
 
 Home puede consumir inicialmente un `UserSummaryViewModel` derivado de la fuente existente.
+
+La implementación vigente mantiene `UserProgress` como fuente única para nombre, tiempo y gemas. `SettingsView` edita el nombre obligatorio, recortado y limitado a 18 caracteres; `StatisticsView` recibe los conteos de tareas y el progreso actual mediante propiedades simples y se actualiza con los listeners de los controladores.
 
 ## 10. Persistencia y DAOs
 
@@ -412,7 +419,7 @@ Reglas:
 - conservar pruebas desde versiones 1, 2 y 3;
 - esperar escrituras pendientes antes de cerrar la DB.
 
-Las migraciones v1, v2 y v3 hacia v4 están cubiertas por pruebas. Una futura normalización física debe conservar estas tablas y añadir migraciones ascendentes.
+Las migraciones v1, v2, v3 y v4 hacia v5 están cubiertas por pruebas. La unicidad serie/fecha evita ocurrencias duplicadas y completar una ocurrencia junto con crear la siguiente ocurre en una transacción.
 
 ## 11. Estado e inyección de dependencias
 
@@ -502,6 +509,8 @@ Esto reduce reconstrucciones, mejora pruebas y evita dependencias circulares.
 - actualización visible de gemas/tiempo;
 - primer inicio y restablecimiento;
 - matriz responsiva existente.
+- crear recurrencia → completar o Concentración → siguiente ocurrencia;
+- reconciliación idempotente después de fechas omitidas.
 
 ## 14. Plan de migración recomendado
 
@@ -515,11 +524,21 @@ Esto reduce reconstrucciones, mejora pruebas y evita dependencias circulares.
 6. Añadir Drift v4, repositorio de ejecución y reconciliación al reabrir.
 7. Entregar resúmenes tipados, aviso interno y estado del anuncio.
 
+El cierre de `AtomicTimerBootstrap` espera `TimerController.flushPersistence()` antes de cerrar `AppDatabase`. Una sesión por defecto o reiniciada no se persiste como sesión recuperable; solo se guardan sesiones preparadas explícitamente, pausadas o activas.
+
 ### Etapa 2: composición y lifecycle (futura)
 
 1. Extraer `AppDependencies` de `app.dart`.
 2. Extraer `AppLifecycleCoordinator`.
 3. Definir cierre ordenado de servicios y DB.
+
+### Recurrencias de tareas (completada)
+
+1. Añadir frecuencia, regla, calculador y política de generación en dominio.
+2. Migrar Drift de v4 a v5 de forma aditiva.
+3. Completar ocurrencias y crear la siguiente dentro de una transacción.
+4. Reconciliar una sola próxima ocurrencia al abrir la aplicación.
+5. Añadir formulario, acciones de ocurrencia/serie, pausa y reactivación.
 
 ### Etapa 3: coordinación entre funcionalidades
 
@@ -545,11 +564,11 @@ Esto reduce reconstrucciones, mejora pruebas y evita dependencias circulares.
 ## 15. Decisiones arquitectónicas vigentes
 
 - Un solo `Scaffold` para Home.
-- `IndexedStack` para conservar las dos vistas.
+- `IndexedStack` para conservar las cuatro vistas de Home.
 - Inyección manual por constructor.
 - `ChangeNotifier` puede mantenerse durante la primera migración.
 - Sin paquete nuevo de router/DI/estado por ahora.
-- Drift versión 4 con tablas nuevas, sin renombrar ni eliminar las existentes.
+- Drift versión 5 con recurrencias aditivas, sin renombrar ni eliminar tablas existentes.
 - Resúmenes de finalización como eventos persistibles y consumibles una sola vez por la UI.
 - Componentes compartidos basados en reutilización real.
 - Coordinación entre funcionalidades fuera de sus widgets.

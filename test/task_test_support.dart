@@ -58,6 +58,9 @@ class MemoryTaskRepository implements TaskRepository {
       isCompleted: current.isCompleted,
       dueDate: dueDate,
       focusMinutes: current.focusMinutes,
+      completedAt: current.completedAt,
+      occurrenceDate: current.occurrenceDate,
+      recurrenceRule: current.recurrenceRule,
       createdAt: current.createdAt,
       updatedAt: updatedAt,
     );
@@ -78,6 +81,9 @@ class MemoryTaskRepository implements TaskRepository {
       isCompleted: isCompleted,
       dueDate: current.dueDate,
       focusMinutes: current.focusMinutes,
+      completedAt: isCompleted ? updatedAt : null,
+      occurrenceDate: current.occurrenceDate,
+      recurrenceRule: current.recurrenceRule,
       createdAt: current.createdAt,
       updatedAt: updatedAt,
     );
@@ -98,6 +104,9 @@ class MemoryTaskRepository implements TaskRepository {
       isCompleted: current.isCompleted,
       dueDate: current.dueDate,
       focusMinutes: focusMinutes,
+      completedAt: current.completedAt,
+      occurrenceDate: current.occurrenceDate,
+      recurrenceRule: current.recurrenceRule,
       createdAt: current.createdAt,
       updatedAt: updatedAt,
     );

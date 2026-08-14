@@ -1,6 +1,8 @@
 import 'package:atomic_task/features/timer/domain/entities/timer_mode.dart';
+import 'package:atomic_task/features/timer/domain/entities/timer_session.dart';
 import 'package:atomic_task/features/timer/domain/entities/user_progress.dart';
 import 'package:atomic_task/features/timer/domain/repositories/timer_repository.dart';
+import 'package:atomic_task/features/timer/domain/repositories/timer_session_repository.dart';
 import 'package:atomic_task/features/timer/domain/services/focus_completion_ad_service.dart';
 import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
 import 'package:atomic_task/features/timer/domain/usecases/clear_progress.dart';
@@ -10,7 +12,7 @@ import 'package:atomic_task/features/timer/presentation/controllers/timer_contro
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('limits normalized profile names to eight characters', () async {
+  test('limits normalized profile names to eighteen characters', () async {
     final repository = _MemoryTimerRepository(
       progress: const UserProgress(
         gems: 0,
@@ -28,13 +30,13 @@ void main() {
     addTearDown(controller.dispose);
 
     await controller.initialize();
-    expect(controller.progress.profileName, 'Nombre d');
+    expect(controller.progress.profileName, 'Nombre demasiado l');
 
     controller.updateProfileName('  Alejandro  ');
     await Future<void>.delayed(Duration.zero);
 
-    expect(controller.progress.profileName, 'Alejandr');
-    expect(repository.progress.profileName, 'Alejandr');
+    expect(controller.progress.profileName, 'Alejandro');
+    expect(repository.progress.profileName, 'Alejandro');
   });
 
   test(
@@ -176,13 +178,18 @@ void main() {
       final completionAds = _FakeFocusCompletionAdService();
       var now = DateTime(2026, 8, 10, 10);
       int? completedTaskId;
+      DateTime? completedTaskAt;
       final controller = TimerController(
         loadProgress: LoadProgress(repository),
         saveProgress: SaveProgress(repository),
         clearProgress: ClearProgress(repository),
         notificationService: notifications,
         focusCompletionAdService: completionAds,
-        onLinkedTaskFocusCompleted: (taskId) => completedTaskId = taskId,
+        onLinkedTaskFocusCompletedAtAsync: (taskId, completedAt) async {
+          completedTaskId = taskId;
+          completedTaskAt = completedAt;
+          return true;
+        },
         now: () => now,
       );
       addTearDown(controller.dispose);
@@ -208,10 +215,158 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(completedTaskId, 42);
+      expect(completedTaskAt, now);
       expect(controller.linkedTaskId, isNull);
       expect(controller.sessionCompleted, isTrue);
     },
   );
+
+  test(
+    'restores an active session after the controller is recreated',
+    () async {
+      final repository = _MemoryTimerRepository();
+      final sessions = _MemoryTimerSessionRepository();
+      var now = DateTime(2026, 8, 14, 10);
+      final firstController = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: _FakeTimerNotificationService(),
+        focusCompletionAdService: _FakeFocusCompletionAdService(),
+        sessionRepository: sessions,
+        now: () => now,
+      );
+
+      await firstController.initialize();
+      firstController.setMinutes(1);
+      firstController.startOrPause();
+      now = now.add(const Duration(seconds: 10));
+      firstController.syncWithClock();
+      await firstController.flushPersistence();
+      firstController.dispose();
+
+      final secondController = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: _FakeTimerNotificationService(),
+        focusCompletionAdService: _FakeFocusCompletionAdService(),
+        sessionRepository: sessions,
+        now: () => now,
+      );
+      addTearDown(secondController.dispose);
+
+      await secondController.initialize();
+
+      expect(secondController.hasRestorableSession, isTrue);
+      expect(secondController.isRunning, isTrue);
+      expect(secondController.remainingSeconds, 50);
+
+      secondController.resetTimer();
+      await secondController.flushPersistence();
+      expect(await sessions.loadActiveSession(), isNull);
+    },
+  );
+
+  test(
+    'retries pending completion work after the controller is recreated',
+    () async {
+      final repository = _MemoryTimerRepository();
+      final sessions = _MemoryTimerSessionRepository();
+      var now = DateTime(2026, 8, 14, 10);
+      final firstController = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: _FakeTimerNotificationService(),
+        focusCompletionAdService: _FakeFocusCompletionAdService(
+          failOnShow: true,
+        ),
+        sessionRepository: sessions,
+        now: () => now,
+      );
+
+      await firstController.initialize();
+      firstController.setMinutes(1);
+      firstController.startOrPause();
+      now = now.add(const Duration(minutes: 1));
+      firstController.syncWithClock();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await firstController.flushPersistence();
+      expect((await sessions.loadPendingSummary())?.adPending, isTrue);
+      firstController.dispose();
+
+      final recoveredAds = _FakeFocusCompletionAdService();
+      CompletionSummary? recoveredSummary;
+      final secondController = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: _FakeTimerNotificationService(),
+        focusCompletionAdService: recoveredAds,
+        sessionRepository: sessions,
+        onCompletionSummary: (summary) => recoveredSummary = summary,
+        now: () => now,
+      );
+      addTearDown(secondController.dispose);
+
+      await secondController.initialize();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(recoveredAds.showCalls, 1);
+      expect(recoveredSummary?.adPending, isFalse);
+      secondController.consumePendingCompletionSummary();
+      await secondController.flushPersistence();
+      expect(await sessions.loadPendingSummary(), isNull);
+    },
+  );
+
+  test('does not persist the default timer as an active session', () async {
+    final sessions = _MemoryTimerSessionRepository();
+    final repository = _MemoryTimerRepository();
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      sessionRepository: sessions,
+    );
+
+    await controller.initialize();
+    controller.dispose();
+    await controller.flushPersistence();
+
+    expect(await sessions.loadActiveSession(), isNull);
+  });
+
+  test('keeps a completion notification pending when delivery fails', () async {
+    final sessions = _MemoryTimerSessionRepository();
+    final repository = _MemoryTimerRepository();
+    final notifications = _FakeTimerNotificationService(failOnCompletion: true);
+    var now = DateTime(2026, 8, 14, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: notifications,
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      sessionRepository: sessions,
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    now = now.add(const Duration(minutes: 1));
+    controller.syncWithClock();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await controller.flushPersistence();
+
+    expect(controller.sessionCompleted, isTrue);
+    expect((await sessions.loadPendingSummary())?.notificationPending, isTrue);
+  });
 }
 
 class _FakeFocusCompletionAdService implements FocusCompletionAdService {
@@ -266,7 +421,41 @@ class _MemoryTimerRepository implements TimerRepository {
   }
 }
 
+class _MemoryTimerSessionRepository implements TimerSessionRepository {
+  ActiveTimerSession? activeSession;
+  CompletionSummary? pendingSummary;
+
+  @override
+  Future<ActiveTimerSession?> loadActiveSession() async => activeSession;
+
+  @override
+  Future<void> saveActiveSession(ActiveTimerSession session) async {
+    activeSession = session;
+  }
+
+  @override
+  Future<void> clearActiveSession() async {
+    activeSession = null;
+  }
+
+  @override
+  Future<CompletionSummary?> loadPendingSummary() async => pendingSummary;
+
+  @override
+  Future<void> savePendingSummary(CompletionSummary summary) async {
+    pendingSummary = summary;
+  }
+
+  @override
+  Future<void> clearPendingSummary() async {
+    pendingSummary = null;
+  }
+}
+
 class _FakeTimerNotificationService implements TimerNotificationService {
+  _FakeTimerNotificationService({this.failOnCompletion = false});
+
+  final bool failOnCompletion;
   int runningTimerCalls = 0;
   int cancelCalls = 0;
   int completedTimerCalls = 0;
@@ -303,6 +492,9 @@ class _FakeTimerNotificationService implements TimerNotificationService {
     required String title,
     required String body,
   }) async {
+    if (failOnCompletion) {
+      throw StateError('simulated notification failure');
+    }
     completedTimerCalls += 1;
     lastCompletedTitle = title;
     lastCompletedBody = body;

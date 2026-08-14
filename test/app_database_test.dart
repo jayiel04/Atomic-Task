@@ -69,10 +69,11 @@ void main() {
       dueDate: null,
       updatedAt: now.add(const Duration(hours: 1)),
     );
+    final completedAt = now.add(const Duration(hours: 2));
     await dataSource.setCompleted(
       id: noDateId,
       isCompleted: true,
-      updatedAt: now.add(const Duration(hours: 2)),
+      updatedAt: completedAt,
     );
     await dataSource.setFocusMinutes(
       id: datedId,
@@ -86,6 +87,42 @@ void main() {
     expect(tasks.first.dueDate, isNull);
     expect(tasks.first.focusMinutes, 45);
     expect(tasks.last.isCompleted, isTrue);
+    expect(tasks.last.completedAt, completedAt);
+
+    await dataSource.update(
+      id: noDateId,
+      title: 'Completada editada',
+      dueDate: null,
+      updatedAt: now.add(const Duration(hours: 4)),
+    );
+    tasks = await dataSource.watchAll().first;
+    expect(
+      tasks.singleWhere((task) => task.id == noDateId).completedAt,
+      completedAt,
+    );
+
+    await dataSource.setCompleted(
+      id: noDateId,
+      isCompleted: false,
+      updatedAt: now.add(const Duration(hours: 5)),
+    );
+    tasks = await dataSource.watchAll().first;
+    expect(
+      tasks.singleWhere((task) => task.id == noDateId).completedAt,
+      isNull,
+    );
+
+    final recompletedAt = now.add(const Duration(hours: 6));
+    await dataSource.setCompleted(
+      id: noDateId,
+      isCompleted: true,
+      updatedAt: recompletedAt,
+    );
+    tasks = await dataSource.watchAll().first;
+    expect(
+      tasks.singleWhere((task) => task.id == noDateId).completedAt,
+      recompletedAt,
+    );
 
     await dataSource.delete(datedId);
     tasks = await dataSource.watchAll().first;
@@ -162,6 +199,47 @@ void main() {
     );
     tasks = await dataSource.watchAll().first;
     expect(tasks.single.focusMinutes, 30);
+  });
+
+  test('migrates version 5 and backfills completedAt from updatedAt', () async {
+    final sqliteDatabase = sqlite3.openInMemory();
+    sqliteDatabase.execute('''
+      CREATE TABLE task_recurrence_rules (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        frequency TEXT NOT NULL,
+        "interval" INTEGER NOT NULL,
+        start_date INTEGER NOT NULL,
+        end_date INTEGER NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE tasks (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        due_date INTEGER NULL,
+        focus_minutes INTEGER NULL,
+        recurrence_rule_id INTEGER NULL,
+        occurrence_date INTEGER NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      INSERT INTO tasks
+        (title, is_completed, created_at, updated_at)
+      VALUES ('Tarea completada v5', 1, 1786348800, 1786356000);
+      PRAGMA user_version = 5;
+    ''');
+
+    final database = AppDatabase(
+      executor: NativeDatabase.opened(sqliteDatabase),
+    );
+    addTearDown(database.close);
+    final dataSource = DriftTaskLocalDataSource(database);
+
+    final task = (await dataSource.watchAll().first).single;
+    expect(task.isCompleted, isTrue);
+    expect(task.completedAt, task.updatedAt);
   });
 
   test('persists active sessions and pending summaries', () async {

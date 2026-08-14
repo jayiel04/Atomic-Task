@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/atomic_task.dart';
 import '../controllers/task_controller.dart';
-import '../widgets/focus_duration_sheet.dart';
-import '../widgets/task_card.dart';
+import '../task_date_group.dart';
 import '../widgets/task_form_sheet.dart';
+import '../widgets/task_section.dart';
 
 class TaskPage extends StatelessWidget {
   const TaskPage({
@@ -81,7 +81,7 @@ class TasksView extends StatelessWidget {
     }
 
     final pending = controller.pendingTasks;
-    final completed = controller.completedTasks;
+    final pendingGroups = groupPendingTasksByDate(pending, DateTime.now());
 
     return Center(
       child: ConstrainedBox(
@@ -92,44 +92,45 @@ class TasksView extends StatelessWidget {
           children: [
             _SummaryCard(
               pendingCount: pending.length,
-              completedCount: completed.length,
+              completedTodayCount: controller.completedTodayCount,
             ),
             if (controller.errorMessage != null) ...[
               const SizedBox(height: 14),
-              _ErrorCard(
+              TaskControllerErrorCard(
                 message: controller.errorMessage!,
                 onDismiss: controller.clearError,
               ),
             ],
             const SizedBox(height: 24),
-            if (pending.isEmpty && completed.isEmpty) ...[
+            if (pending.isEmpty) ...[
               const _EmptyTasks(),
               if (showCreateAction) ...[
                 const SizedBox(height: 16),
                 _CreateTaskButton(controller: controller),
               ],
             ] else ...[
-              _TaskSection(
-                title: 'Pendientes',
+              _PendingTasksHeader(
                 count: pending.length,
-                emptyMessage: 'No tienes tareas pendientes.',
-                tasks: pending,
                 controller: controller,
-                onStartFocus: onStartFocus,
-                onFocusPrepared: onFocusPrepared,
                 showCreateAction: showCreateAction,
               ),
-              if (completed.isNotEmpty) ...[
-                const SizedBox(height: 22),
-                _TaskSection(
-                  title: 'Completadas',
-                  count: completed.length,
-                  tasks: completed,
-                  controller: controller,
-                  onStartFocus: onStartFocus,
-                  onFocusPrepared: onFocusPrepared,
-                ),
-              ],
+              const SizedBox(height: 12),
+              for (final group in TaskDateGroup.values)
+                if (pendingGroups[group]!.isNotEmpty) ...[
+                  TaskSection(
+                    key: PageStorageKey<String>('pending-${group.name}'),
+                    title: group.label,
+                    count: pendingGroups[group]!.length,
+                    tasks: pendingGroups[group]!,
+                    controller: controller,
+                    onStartFocus: onStartFocus,
+                    onFocusPrepared: onFocusPrepared,
+                    collapsible: true,
+                    initiallyExpanded: group == TaskDateGroup.today,
+                    icon: _groupIcon(group),
+                  ),
+                  const SizedBox(height: 10),
+                ],
             ],
           ],
         ),
@@ -138,14 +139,60 @@ class TasksView extends StatelessWidget {
   }
 }
 
+class _PendingTasksHeader extends StatelessWidget {
+  const _PendingTasksHeader({
+    required this.count,
+    required this.controller,
+    required this.showCreateAction,
+  });
+
+  final int count;
+  final TaskController controller;
+  final bool showCreateAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Pendientes ($count)',
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        if (showCreateAction)
+          IconButton(
+            key: const Key('createTaskButton'),
+            tooltip: 'Nueva tarea',
+            onPressed: () =>
+                TaskFormSheet.show(context, controller: controller),
+            icon: const Icon(Icons.add_task_rounded),
+          ),
+      ],
+    );
+  }
+}
+
+IconData _groupIcon(TaskDateGroup group) => switch (group) {
+  TaskDateGroup.overdue => Icons.warning_amber_rounded,
+  TaskDateGroup.noDate => Icons.event_busy_rounded,
+  TaskDateGroup.today => Icons.today_rounded,
+  TaskDateGroup.tomorrow => Icons.event_available_rounded,
+  TaskDateGroup.future => Icons.date_range_rounded,
+};
+
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.pendingCount,
-    required this.completedCount,
+    required this.completedTodayCount,
   });
 
   final int pendingCount;
-  final int completedCount;
+  final int completedTodayCount;
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +225,8 @@ class _SummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$pendingCount pendientes · $completedCount completadas',
+                  '${_taskLabel(pendingCount, 'pendiente', 'pendientes')} · '
+                  '${_taskLabel(completedTodayCount, 'completada hoy', 'completadas hoy')}',
                   style: const TextStyle(
                     color: AppColors.muted,
                     fontWeight: FontWeight.w600,
@@ -191,206 +239,11 @@ class _SummaryCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _TaskSection extends StatelessWidget {
-  const _TaskSection({
-    required this.title,
-    required this.count,
-    required this.tasks,
-    required this.controller,
-    required this.onStartFocus,
-    this.onFocusPrepared,
-    this.showCreateAction = false,
-    this.emptyMessage,
-  });
-
-  final String title;
-  final int count;
-  final List<AtomicTask> tasks;
-  final TaskController controller;
-  final Future<bool> Function(AtomicTask task, int minutes) onStartFocus;
-  final VoidCallback? onFocusPrepared;
-  final bool showCreateAction;
-  final String? emptyMessage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '$title ($count)',
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            if (showCreateAction)
-              IconButton(
-                key: const Key('createTaskButton'),
-                tooltip: 'Nueva tarea',
-                onPressed: () =>
-                    TaskFormSheet.show(context, controller: controller),
-                icon: const Icon(Icons.add_task_rounded),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (tasks.isEmpty)
-          Text(
-            emptyMessage ?? '',
-            style: const TextStyle(color: AppColors.muted),
-          )
-        else
-          for (final task in tasks)
-            TaskCard(
-              task: task,
-              now: DateTime.now(),
-              onToggle: () => _handleCompletion(context, task),
-              onEdit: () => TaskFormSheet.show(
-                context,
-                controller: controller,
-                task: task,
-              ),
-              onDelete: () => _confirmDelete(context, task),
-            ),
-      ],
-    );
-  }
-
-  Future<void> _handleCompletion(BuildContext context, AtomicTask task) async {
-    if (task.isCompleted) {
-      await controller.toggleCompletion(task);
-      return;
-    }
-
-    final choice = await showDialog<_CompletionChoice>(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: const Text('¿Cómo quieres continuar?'),
-        children: [
-          SimpleDialogOption(
-            key: const Key('completeTaskNowOption'),
-            onPressed: () =>
-                Navigator.pop(dialogContext, _CompletionChoice.completeNow),
-            child: const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.task_alt_rounded),
-              title: Text('Completar ahora'),
-              subtitle: Text('Marcar la tarea como completada.'),
-            ),
-          ),
-          SimpleDialogOption(
-            key: const Key('associateTaskFocusOption'),
-            onPressed: () =>
-                Navigator.pop(dialogContext, _CompletionChoice.focusFirst),
-            child: const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.center_focus_strong_rounded),
-              title: Text('Usar modo concentración'),
-              subtitle: Text('Completar al finalizar el temporizador.'),
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
-              'Cancelar',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (!context.mounted || choice == null) {
-      return;
-    }
-
-    if (choice == _CompletionChoice.completeNow) {
-      await controller.toggleCompletion(task);
-      return;
-    }
-
-    final minutes = await FocusDurationSheet.show(
-      context,
-      initialMinutes: task.focusMinutes ?? 25,
-    );
-    if (!context.mounted || minutes == null) {
-      return;
-    }
-
-    final assigned = await controller.assignFocus(task, minutes);
-    if (!context.mounted) {
-      return;
-    }
-    if (!assigned) {
-      _showMessage(context, 'No fue posible asociar la tarea.');
-      return;
-    }
-
-    final started = await onStartFocus(task, minutes);
-    if (!context.mounted) {
-      return;
-    }
-    if (!started) {
-      _showMessage(
-        context,
-        'El tiempo quedó guardado. Reinicia la sesión actual para usarlo.',
-      );
-      return;
-    }
-
-    if (onFocusPrepared != null) {
-      onFocusPrepared!.call();
-      return;
-    }
-
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
-  }
-
-  void _showMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _confirmDelete(BuildContext context, AtomicTask task) async {
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar tarea'),
-        content: Text('¿Quieres eliminar “${task.title}”?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            key: const Key('confirmDeleteTaskButton'),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (accepted == true) {
-      await controller.delete(task);
-    }
+  static String _taskLabel(int count, String singular, String plural) {
+    return '$count ${count == 1 ? singular : plural}';
   }
 }
-
-enum _CompletionChoice { completeNow, focusFirst }
 
 class _EmptyTasks extends StatelessWidget {
   const _EmptyTasks();
@@ -409,7 +262,7 @@ class _EmptyTasks extends StatelessWidget {
           Icon(Icons.task_alt_rounded, color: AppColors.primary, size: 52),
           SizedBox(height: 14),
           Text(
-            'Todavía no hay tareas',
+            'No tienes tareas pendientes',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.text,
@@ -443,39 +296,6 @@ class _CreateTaskButton extends StatelessWidget {
         onPressed: () => TaskFormSheet.show(context, controller: controller),
         icon: const Icon(Icons.add_task_rounded),
         label: const Text('Nueva tarea'),
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message, required this.onDismiss});
-
-  final String message;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF5DCE9),
-      borderRadius: BorderRadius.circular(16),
-      child: ListTile(
-        leading: const Icon(
-          Icons.error_outline_rounded,
-          color: AppColors.danger,
-        ),
-        title: Text(
-          message,
-          style: const TextStyle(
-            color: AppColors.danger,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        trailing: IconButton(
-          tooltip: 'Cerrar mensaje',
-          onPressed: onDismiss,
-          icon: const Icon(Icons.close_rounded),
-        ),
       ),
     );
   }

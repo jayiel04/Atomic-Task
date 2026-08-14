@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:atomic_task/app.dart';
+import 'package:atomic_task/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:atomic_task/features/tasks/data/datasources/task_local_data_source.dart';
 import 'package:atomic_task/features/tasks/data/models/task_model.dart';
 import 'package:atomic_task/features/timer/data/datasources/timer_local_data_source.dart';
@@ -85,8 +86,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('\u00a1Bienvenido!'), findsNothing);
-    expect(find.text('Sebastia'), findsOneWidget);
-    expect(find.text('Sebastian'), findsNothing);
+    expect(find.text('Sebastian'), findsOneWidget);
   });
 
   testWidgets('does not ask for the name again when it is saved', (
@@ -195,10 +195,17 @@ void main() {
     );
     final title = tester.getRect(find.byKey(const Key('homeTitle')));
     final profile = tester.getRect(find.byKey(const Key('profileCard')));
-    expect(profile.width, lessThanOrEqualTo(138));
-    expect(title.width, greaterThanOrEqualTo(98));
-    expect(title.right, lessThanOrEqualTo(profile.left));
-    expect(find.text('Sebastia'), findsOneWidget);
+    final firstRow = tester.getRect(
+      find.byKey(const Key('compactHomeHeaderFirstRow')),
+    );
+    final summary = tester.getRect(
+      find.byKey(const Key('compactHomeHeaderSummary')),
+    );
+    expect(profile.width, lessThanOrEqualTo(148));
+    expect(title.width, greaterThan(0));
+    expect(title.right, lessThanOrEqualTo(firstRow.right));
+    expect(firstRow.bottom, lessThanOrEqualTo(summary.top));
+    expect(find.text('Sebastian'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('homeMenuButton')));
     await tester.pumpAndSettle();
@@ -209,6 +216,120 @@ void main() {
       lessThanOrEqualTo(568),
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('uses a centered floating footer with semantic selection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 0,
+            totalFocusSeconds: 0,
+            profileName: 'Javier',
+          ),
+        ),
+        taskLocalDataSource: _EmptyTaskLocalDataSource(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final exterior = tester.getRect(
+      find.byKey(const Key('homeBottomNavigation')),
+    );
+    final surface = tester.getRect(
+      find.byKey(const Key('homeBottomNavigationSurface')),
+    );
+    expect(surface.width, lessThanOrEqualTo(460));
+    expect(surface.width, lessThan(exterior.width));
+    expect(surface.center.dx, closeTo(exterior.center.dx, 0.1));
+    expect(tester.getSize(find.byKey(const Key('tasksTab'))).height, 48);
+    expect(tester.getSize(find.byKey(const Key('focusTab'))).height, 48);
+    expect(find.text('Tareas'), findsWidgets);
+    expect(find.text('Concentración'), findsOneWidget);
+
+    Semantics taskSemantics() => tester.widget<Semantics>(
+      find
+          .descendant(
+            of: find.byKey(const Key('tasksTab')),
+            matching: find.byType(Semantics),
+          )
+          .first,
+    );
+    Semantics focusSemantics() => tester.widget<Semantics>(
+      find
+          .descendant(
+            of: find.byKey(const Key('focusTab')),
+            matching: find.byType(Semantics),
+          )
+          .first,
+    );
+
+    expect(taskSemantics().properties.selected, isTrue);
+    expect(focusSemantics().properties.selected, isFalse);
+    await tester.tap(find.byKey(const Key('focusTab')));
+    await tester.pumpAndSettle();
+    expect(taskSemantics().properties.selected, isFalse);
+    expect(focusSemantics().properties.selected, isTrue);
+
+    await tester.tap(find.byKey(const Key('profileButton')));
+    await tester.pumpAndSettle();
+    expect(taskSemantics().properties.selected, isFalse);
+    expect(focusSemantics().properties.selected, isFalse);
+  });
+
+  testWidgets('shows every compact header title without ellipsis', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var menuCalls = 0;
+    var profileCalls = 0;
+    for (final title in [
+      'Tareas',
+      'Concentración',
+      'Ajustes',
+      'Estadísticas',
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+            child: Scaffold(
+              body: HomeAppBar(
+                title: title,
+                profileName: 'Nombre muy extenso',
+                totalFocusSeconds: 3600,
+                gems: 999,
+                onMenuPressed: () => menuCalls += 1,
+                onProfilePressed: () => profileCalls += 1,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final widget = tester.widget<Text>(find.byKey(const Key('homeTitle')));
+      expect(widget.data, title);
+      expect(widget.overflow, isNot(TextOverflow.ellipsis));
+      expect(find.byKey(const Key('homeTitle')), findsOneWidget);
+      expect(
+        find.byKey(const Key('compactHomeHeaderFirstRow')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.tap(find.byKey(const Key('profileButton')));
+    expect(menuCalls, 1);
+    expect(profileCalls, 1);
   });
 
   testWidgets('switches between tasks and focus in one home shell', (
@@ -266,6 +387,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('tasksTab')), findsOneWidget);
+    await tester.tap(find.text('Sin fecha'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('taskToggle-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('associateTaskFocusOption')));
@@ -307,6 +430,7 @@ void main() {
 
     final sidebar = find.byKey(const Key('homeSidebar'));
     expect(sidebar, findsOneWidget);
+    expect(tester.getRect(sidebar).left, 0);
     expect(find.byKey(const Key('sidebarLogo')), findsOneWidget);
     expect(find.text('Atomic Task'), findsOneWidget);
     expect(find.byKey(const Key('sidebarTasksDestination')), findsOneWidget);
@@ -348,10 +472,16 @@ void main() {
     await tester.tap(find.byKey(const Key('closeSidebarButton')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('homeSidebar')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(400, 300));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('homeSidebar')), findsNothing);
   });
 
   testWidgets(
-    'opens settings and limits the profile name to eight characters',
+    'opens settings and limits the profile name to eighteen characters',
     (tester) async {
       await tester.pumpWidget(
         AtomicTimerBootstrap(
@@ -380,8 +510,7 @@ void main() {
       await tester.tap(find.byKey(const Key('saveSettingsNameButton')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Alejandr'), findsWidgets);
-      expect(find.text('Alejandro'), findsNothing);
+      expect(find.text('Alejandro'), findsWidgets);
     },
   );
 
@@ -441,6 +570,121 @@ void main() {
     );
   });
 
+  testWidgets('moves a completed task to statistics and allows restoring it', (
+    tester,
+  ) async {
+    final taskDataSource = _SeededTaskLocalDataSource();
+    addTearDown(taskDataSource.dispose);
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 0,
+            totalFocusSeconds: 0,
+            profileName: 'Javier',
+          ),
+        ),
+        taskLocalDataSource: taskDataSource,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sin fecha'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('taskToggle-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('completeTaskNowOption')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Escribir informe'), findsNothing);
+    expect(find.text('0 pendientes · 1 completada hoy'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sidebarStatisticsDestination')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('completedTasksSection')), findsOneWidget);
+    expect(find.text('Escribir informe'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('completedTasksStatistic')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('editTask-1')));
+    await tester.tap(find.byKey(const Key('editTask-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('taskTitleField')),
+      'Informe terminado',
+    );
+    await tester.tap(find.byKey(const Key('saveTaskButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('Informe terminado'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('taskToggle-1')));
+    await tester.tap(find.byKey(const Key('taskToggle-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todavía no has completado tareas.'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('completedTasksStatistic')),
+        matching: find.text('0'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('tasksTab')));
+    await tester.pumpAndSettle();
+    expect(find.text('Informe terminado'), findsOneWidget);
+    expect(find.text('1 pendiente · 0 completadas hoy'), findsOneWidget);
+  });
+
+  testWidgets('deletes a completed task from statistics', (tester) async {
+    final taskDataSource = _SeededTaskLocalDataSource();
+    addTearDown(taskDataSource.dispose);
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 0,
+            totalFocusSeconds: 0,
+            profileName: 'Javier',
+          ),
+        ),
+        taskLocalDataSource: taskDataSource,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sin fecha'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('taskToggle-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('completeTaskNowOption')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sidebarStatisticsDestination')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('deleteTask-1')));
+    await tester.tap(find.byKey(const Key('deleteTask-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmDeleteTaskButton')));
+    await tester.pumpAndSettle();
+
+    expect(taskDataSource.isDeleted, isTrue);
+    expect(find.text('Todavía no has completado tareas.'), findsOneWidget);
+  });
+
   testWidgets('confirms reset and requests the profile name again', (
     tester,
   ) async {
@@ -482,6 +726,7 @@ void main() {
 
 class _SeededTaskLocalDataSource implements TaskLocalDataSource {
   final _changes = StreamController<List<TaskModel>>.broadcast();
+  bool _isDeleted = false;
   TaskModel task = TaskModel(
     id: 1,
     title: 'Escribir informe',
@@ -490,9 +735,13 @@ class _SeededTaskLocalDataSource implements TaskLocalDataSource {
     updatedAt: DateTime(2026, 8, 10),
   );
 
+  bool get isDeleted => _isDeleted;
+
+  List<TaskModel> get _tasks => _isDeleted ? const [] : [task];
+
   @override
   Stream<List<TaskModel>> watchAll() async* {
-    yield [task];
+    yield _tasks;
     yield* _changes.stream;
   }
 
@@ -508,10 +757,13 @@ class _SeededTaskLocalDataSource implements TaskLocalDataSource {
       isCompleted: task.isCompleted,
       dueDate: task.dueDate,
       focusMinutes: focusMinutes,
+      completedAt: task.completedAt,
+      occurrenceDate: task.occurrenceDate,
+      recurrenceRule: task.recurrenceRule,
       createdAt: task.createdAt,
       updatedAt: updatedAt,
     );
-    _changes.add([task]);
+    _changes.add(_tasks);
   }
 
   @override
@@ -526,10 +778,13 @@ class _SeededTaskLocalDataSource implements TaskLocalDataSource {
       isCompleted: isCompleted,
       dueDate: task.dueDate,
       focusMinutes: task.focusMinutes,
+      completedAt: isCompleted ? updatedAt : null,
+      occurrenceDate: task.occurrenceDate,
+      recurrenceRule: task.recurrenceRule,
       createdAt: task.createdAt,
       updatedAt: updatedAt,
     );
-    _changes.add([task]);
+    _changes.add(_tasks);
   }
 
   @override
@@ -545,10 +800,27 @@ class _SeededTaskLocalDataSource implements TaskLocalDataSource {
     required String title,
     required DateTime? dueDate,
     required DateTime updatedAt,
-  }) async {}
+  }) async {
+    task = TaskModel(
+      id: task.id,
+      title: title,
+      isCompleted: task.isCompleted,
+      dueDate: dueDate,
+      focusMinutes: task.focusMinutes,
+      completedAt: task.completedAt,
+      occurrenceDate: task.occurrenceDate,
+      recurrenceRule: task.recurrenceRule,
+      createdAt: task.createdAt,
+      updatedAt: updatedAt,
+    );
+    _changes.add(_tasks);
+  }
 
   @override
-  Future<void> delete(int id) async {}
+  Future<void> delete(int id) async {
+    _isDeleted = true;
+    _changes.add(_tasks);
+  }
 
   Future<void> dispose() => _changes.close();
 }

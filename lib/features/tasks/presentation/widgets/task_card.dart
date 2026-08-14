@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/atomic_task.dart';
 import '../task_date_formatter.dart';
+import '../task_recurrence_formatter.dart';
 
 class TaskCard extends StatelessWidget {
   const TaskCard({
@@ -11,6 +12,7 @@ class TaskCard extends StatelessWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
+    this.onToggleRecurrence,
     super.key,
   });
 
@@ -19,6 +21,7 @@ class TaskCard extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onToggleRecurrence;
 
   @override
   Widget build(BuildContext context) {
@@ -128,9 +131,69 @@ class TaskCard extends StatelessWidget {
                     ],
                   ),
                 ],
+                if (task.recurrenceRule case final rule?) ...[
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Icon(
+                        rule.isActive
+                            ? Icons.repeat_rounded
+                            : Icons.pause_circle_outline_rounded,
+                        size: 16,
+                        color: rule.isActive
+                            ? AppColors.primary
+                            : AppColors.muted,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          '${TaskRecurrenceFormatter.frequency(rule)} · '
+                          '${rule.isActive ? 'Activa' : 'Pausada'}',
+                          key: Key('taskRecurrence-${task.id}'),
+                          style: TextStyle(
+                            color: rule.isActive
+                                ? AppColors.primaryDark
+                                : AppColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (task.occurrenceDate case final occurrenceDate?)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 21, top: 2),
+                      child: Text(
+                        TaskRecurrenceFormatter.occurrence(
+                          occurrenceDate,
+                          completed: task.isCompleted,
+                        ),
+                        key: Key('taskOccurrenceDate-${task.id}'),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
+          if (task.isRecurring)
+            IconButton(
+              key: Key('toggleTaskRecurrence-${task.id}'),
+              tooltip: task.recurrenceRule!.isActive
+                  ? 'Pausar serie'
+                  : 'Reactivar serie',
+              onPressed: onToggleRecurrence,
+              icon: Icon(
+                task.recurrenceRule!.isActive
+                    ? Icons.pause_circle_outline_rounded
+                    : Icons.play_circle_outline_rounded,
+              ),
+            ),
           IconButton(
             key: Key('editTask-${task.id}'),
             tooltip: 'Editar tarea',
