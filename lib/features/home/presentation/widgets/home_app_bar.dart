@@ -29,52 +29,56 @@ class HomeAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useTwoRows = constraints.maxWidth < 520;
-        final summary = _UserSummary(
+        final isCompact = constraints.maxWidth < 520;
+        final profile = _ProfileCard(
           profileName: profileName,
+          onPressed: onProfilePressed,
+        );
+        final metrics = _ProgressMetrics(
           totalFocusSeconds: totalFocusSeconds,
           gems: gems,
-          onProfilePressed: onProfilePressed,
           onFocusTimePressed: onFocusTimePressed,
           onGemsPressed: onGemsPressed,
         );
-        if (useTwoRows) {
-          return Container(
-            key: const Key('compactHomeHeader'),
-            padding: const EdgeInsets.fromLTRB(8, 4, 10, 5),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  key: const Key('compactHomeHeaderFirstRow'),
-                  children: [
-                    _MenuButton(onPressed: onMenuPressed),
-                    const SizedBox(width: 8),
-                    Expanded(child: _HeaderTitle(title: title)),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Align(
-                  key: const Key('compactHomeHeaderSummary'),
-                  alignment: Alignment.centerRight,
-                  child: summary,
-                ),
-              ],
-            ),
-          );
-        }
-
         return Container(
-          key: const Key('wideHomeHeader'),
-          constraints: const BoxConstraints(minHeight: 82),
-          padding: const EdgeInsets.fromLTRB(12, 6, 10, 6),
-          child: Row(
+          key: Key(isCompact ? 'compactHomeHeader' : 'wideHomeHeader'),
+          constraints: const BoxConstraints(minHeight: 104),
+          padding: isCompact
+              ? const EdgeInsets.fromLTRB(8, 4, 10, 5)
+              : const EdgeInsets.fromLTRB(12, 6, 10, 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _MenuButton(onPressed: onMenuPressed),
-              const SizedBox(width: 8),
-              Expanded(child: _HeaderTitle(title: title)),
-              const SizedBox(width: 8),
-              summary,
+              Row(
+                key: Key(
+                  isCompact
+                      ? 'compactHomeHeaderFirstRow'
+                      : 'wideHomeHeaderFirstRow',
+                ),
+                children: [
+                  _MenuButton(onPressed: onMenuPressed),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 3, child: _HeaderTitle(title: title)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    flex: 2,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 148),
+                      child: profile,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                key: Key(
+                  isCompact
+                      ? 'compactHomeHeaderSummary'
+                      : 'wideHomeHeaderSummary',
+                ),
+                alignment: Alignment.centerRight,
+                child: SizedBox(width: 176, child: metrics),
+              ),
             ],
           ),
         );
@@ -141,74 +145,53 @@ class _HeaderTitle extends StatelessWidget {
   }
 }
 
-class _UserSummary extends StatelessWidget {
-  const _UserSummary({
-    required this.profileName,
+class _ProgressMetrics extends StatelessWidget {
+  const _ProgressMetrics({
     required this.totalFocusSeconds,
     required this.gems,
-    required this.onProfilePressed,
     required this.onFocusTimePressed,
     required this.onGemsPressed,
   });
 
-  final String profileName;
   final int totalFocusSeconds;
   final int gems;
-  final VoidCallback onProfilePressed;
   final VoidCallback onFocusTimePressed;
   final VoidCallback onGemsPressed;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 176,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      height: 48,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            width: 148,
-            child: _ProfileCard(
-              profileName: profileName,
-              onPressed: onProfilePressed,
+          Expanded(
+            flex: 3,
+            child: _ProgressMetricChip(
+              key: const Key('focusTimeStat'),
+              icon: Icons.schedule_rounded,
+              value: TimeFormatter.totalFocus(totalFocusSeconds),
+              semanticLabel: 'Tiempo de concentración',
+              tooltip: 'Ver detalle del tiempo de concentración',
+              foregroundColor: AppColors.focusAccent,
+              backgroundColor: AppColors.focusAccentSoft,
+              borderColor: AppColors.focusAccentBorder,
+              onPressed: onFocusTimePressed,
             ),
           ),
-          const SizedBox(height: 4),
-          SizedBox(
-            height: 48,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: _ProgressMetricChip(
-                    key: const Key('focusTimeStat'),
-                    icon: Icons.schedule_rounded,
-                    value: TimeFormatter.totalFocus(totalFocusSeconds),
-                    semanticLabel: 'Tiempo de concentración',
-                    tooltip: 'Ver detalle del tiempo de concentración',
-                    foregroundColor: AppColors.focusAccent,
-                    backgroundColor: AppColors.focusAccentSoft,
-                    borderColor: AppColors.focusAccentBorder,
-                    onPressed: onFocusTimePressed,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  flex: 2,
-                  child: _ProgressMetricChip(
-                    key: const Key('gemsStat'),
-                    icon: Icons.diamond_rounded,
-                    value: gems.toString(),
-                    semanticLabel: 'Gemas',
-                    tooltip: 'Ver detalle de las gemas',
-                    foregroundColor: AppColors.primaryDark,
-                    backgroundColor: AppColors.primarySoft,
-                    borderColor: AppColors.border,
-                    onPressed: onGemsPressed,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 6),
+          Expanded(
+            flex: 2,
+            child: _ProgressMetricChip(
+              key: const Key('gemsStat'),
+              icon: Icons.diamond_rounded,
+              value: gems.toString(),
+              semanticLabel: 'Gemas',
+              tooltip: 'Ver detalle de las gemas',
+              foregroundColor: AppColors.primaryDark,
+              backgroundColor: AppColors.primarySoft,
+              borderColor: AppColors.border,
+              onPressed: onGemsPressed,
             ),
           ),
         ],
@@ -244,7 +227,7 @@ class _ProfileCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             child: Container(
               key: const Key('profileCard'),
-              constraints: const BoxConstraints(minHeight: 43),
+              constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.fromLTRB(6, 4, 10, 4),
               child: Row(
                 children: [

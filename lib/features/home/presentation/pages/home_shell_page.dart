@@ -12,6 +12,7 @@ import '../../../timer/domain/entities/timer_mode.dart';
 import '../../../timer/domain/entities/timer_session.dart';
 import '../../../timer/presentation/controllers/timer_controller.dart';
 import '../../../timer/presentation/pages/timer_page.dart';
+import '../../../timer/presentation/widgets/focus_completion_summary_sheet.dart';
 import '../home_destination.dart';
 import '../widgets/home_app_bar.dart';
 import '../widgets/home_bottom_navigation.dart';
@@ -107,7 +108,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
       _lastSummaryId = summary.sessionId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _showCompletionSummary(summary);
+          unawaited(_showCompletionSummary(summary));
         }
       });
     }
@@ -193,7 +194,37 @@ class _HomeShellPageState extends State<HomeShellPage> {
     Navigator.of(dialogContext).pop();
   }
 
-  void _showCompletionSummary(CompletionSummary summary) {
+  Future<void> _showCompletionSummary(CompletionSummary summary) async {
+    if (summary.mode == TimerMode.focus) {
+      await showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        showDragHandle: true,
+        isScrollControlled: true,
+        backgroundColor: AppColors.surface,
+        constraints: const BoxConstraints(maxWidth: 480),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (sheetContext) => FocusCompletionSummarySheet(
+          gemsGenerated: summary.gemDelta,
+          completedSeconds: summary.completedSeconds,
+          completedTaskTitle:
+              summary.taskId != null && !summary.taskCompletionPending
+              ? summary.taskTitle
+              : null,
+          awaySecondsAfterCompletion: summary.completedWhileAppWasAway
+              ? summary.awaySecondsAfterCompletion
+              : null,
+          onClose: () => Navigator.pop(sheetContext),
+        ),
+      );
+      if (mounted) {
+        _timerController.consumePendingCompletionSummary();
+      }
+      return;
+    }
+
     final taskLine = summary.taskTitle == null
         ? ''
         : '\nTarea: ${summary.taskTitle}';

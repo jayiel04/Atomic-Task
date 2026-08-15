@@ -13,12 +13,12 @@ Trabajar de forma incremental. Primero conservar comportamiento; después reduci
 - `HomeShellPage` es la Home real de `AtomicTimerBootstrap`; `TaskPage` y `TimerPage` se conservan únicamente como wrappers compatibles con pruebas y rutas heredadas.
 - La Home usa un único `Scaffold`, `IndexedStack`, `HomeAppBar` y `HomeBottomNavigation`.
 - El inicio normal es Tareas; una sesión persistida preparada, pausada o activa abre Concentración.
-- La persistencia Drift está en versión 5 con sesiones, resúmenes y reglas de recurrencia.
-- Los resúmenes de finalización se entregan por notificación del sistema y SnackBar flotante; el texto nunca usa `Ganaste`.
+- La persistencia Drift está en versión 7 con sesiones, resúmenes recuperables, tiempo fuera y reglas de recurrencia.
+- Las concentraciones muestran un panel de resumen después de cerrar la publicidad; los descansos conservan el SnackBar flotante.
 - El menú de Home abre un drawer izquierdo con logo, destinos y `Restablecer progreso`; el perfil abre Ajustes.
 - El footer es una píldora flotante centrada y el header usa dos filas por debajo del breakpoint compacto.
 - Las tareas recurrentes diarias, semanales y mensuales usan reglas separadas y ocurrencias idempotentes.
-- Drift está en versión 5 con `task_recurrence_rules` y columnas opcionales de serie/ocurrencia en `tasks`.
+- Drift está en versión 7 con `task_recurrence_rules`, columnas opcionales de serie/ocurrencia y metadatos de tiempo fuera en los resúmenes pendientes.
 - El cierre del bootstrap espera la cola de persistencia antes de cerrar Drift.
 - La Fase 7 de extracción arquitectónica sigue fuera de esta entrega para respetar el alcance del plan.
 
@@ -41,10 +41,10 @@ HomeShellPage
 
 ### 2.1 AppBar compartido
 
-El AppBar aparece en las cuatro vistas y tiene dos composiciones responsivas:
+El AppBar aparece en las cuatro vistas y mantiene la misma jerarquía en ambos tamaños:
 
-- amplia: menú, título y resumen compacto del usuario en una fila;
-- compacta: menú y título en la primera fila, resumen del usuario en la segunda.
+- primera fila: menú, título contextual completo y tarjeta de perfil;
+- segunda fila: cápsulas de tiempo y gemas alineadas bajo el perfil.
 
 La geometría del resumen derecho es obligatoria:
 
@@ -132,6 +132,8 @@ Debe conservar:
 
 La acción “Nueva tarea” debe permanecer visible y accesible dentro de esta vista. La lista continúa siendo desplazable y mantiene un ancho máximo razonable en pantallas grandes.
 
+Al crear una tarea, la tarjeta `Fecha límite` muestra debajo los accesos rápidos `Mañana`, `Una semana` y `Un mes`. Se calculan con calendario local a partir del instante en que se abre el formulario; el mes conserva el día cuando existe y se ajusta al último día cuando no. El selector de calendario sigue disponible. Si existe una fecha, la acción para quitarla es `close_rounded`, roja, con tooltip y semántica `Quitar fecha límite`. Los accesos rápidos no aparecen al editar.
+
 ### 2.4 Vista Concentración
 
 Debe conservar:
@@ -149,6 +151,8 @@ Debe conservar:
 `FocusView` será contenido embebible. No debe crear otro `Scaffold`, AppBar, barra inferior ni Safe Area exterior.
 
 Al cambiar a Tareas, un temporizador activo sigue ejecutándose. Al volver, conserva modo, duración, segundos restantes, estado y tarea vinculada.
+
+Al finalizar una concentración, el controlador persiste el resumen, completa la tarea vinculada si corresponde, espera el cierre o fallo terminal de la publicidad y solo entonces publica un panel con gemas, duración, tarea opcional y tiempo fuera opcional. El tiempo fuera se mide desde el fin programado hasta la primera reanudación, no incluye el anuncio y queda congelado. Los resultados transitorios de publicidad se reintentan al volver a primer plano sin duplicar recompensas ni tareas. Los descansos mantienen el aviso flotante existente.
 
 ### 2.5 Flujo Tareas → Concentración
 
@@ -235,12 +239,12 @@ Preferir widgets pequeños que reciban datos y callbacks simples. Un widget comp
 
 ## 6. Datos y migraciones
 
-- El esquema actual de Drift es versión 5.
+- El esquema actual de Drift es versión 7.
 - `task_recurrence_rules` separa la regla del historial de ocurrencias.
 - La combinación serie/fecha de ocurrencia es única y las finalizaciones son transaccionales.
-- `active_timer_sessions` guarda una instantánea única de la sesión y `pending_timer_summaries` guarda los trabajos de finalización pendientes.
+- `active_timer_sessions` guarda una instantánea única de la sesión y `pending_timer_summaries` guarda los trabajos de finalización pendientes, incluido si la concentración terminó fuera de la aplicación y los segundos hasta la primera reanudación.
 - No renombrar ni eliminar columnas para implementar la nueva Home.
-- Todo cambio de esquema exige migración ascendente y prueba desde cada versión soportada; v1–v4 migran actualmente a v5.
+- Todo cambio de esquema exige migración ascendente y prueba desde cada versión soportada; v1–v6 migran actualmente a v7.
 - No editar `lib/core/database/app_database.g.dart` manualmente.
 - Las consultas específicas deben evolucionar hacia DAOs con dueño de funcionalidad.
 - `shared_preferences` se conserva mientras sea necesaria la migración de datos antiguos.
@@ -262,6 +266,8 @@ dart run build_runner build --delete-conflicting-outputs
 - Tratar notificaciones y anuncios como adaptadores reemplazables y tolerantes a fallos.
 - Un fallo de anuncio nunca convierte una sesión completada en fallida.
 - El adaptador de anuncios informa `shown`, `retry` o `unsupported`; solo `retry` conserva un anuncio pendiente.
+- `shown` se informa después de cerrar el intersticial, no al invocar `show`; `TimerController` es el único coordinador de reintentos de anuncio y publicación del resumen.
+- Un resumen de concentración no se expone a Home mientras la tarea o el anuncio sigan pendientes. Se consume únicamente después de cerrar el panel.
 - Reiniciar elimina la sesión activa sin crear resumen; restablecer progreso elimina también resúmenes y pendientes.
 
 ## 8. Responsividad y accesibilidad

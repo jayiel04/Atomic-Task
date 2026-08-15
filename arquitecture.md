@@ -1,6 +1,6 @@
 # Arquitectura escalable de Atomic Task
 
-Última actualización: 14 de agosto de 2026 (recurrencias Drift v5 y Home responsiva implementadas).
+Última actualización: 15 de agosto de 2026 (resúmenes posteriores al anuncio y Drift v7).
 
 Este documento define la arquitectura objetivo y una ruta incremental para alcanzarla. La Home y la persistencia de sesiones descritas en `plan.md` ya están implementadas; la extracción arquitectónica amplia continúa como trabajo futuro.
 
@@ -385,16 +385,16 @@ FocusStatistics → totalFocusSeconds
 GemBalance      → amount
 ```
 
-La Home usa contratos/modelos separados para sesiones. Drift está en versión 5 y conserva las tablas existentes mientras añade recurrencias de forma aditiva:
+La Home usa contratos/modelos separados para sesiones. Drift está en versión 7 y conserva las tablas existentes mientras añade recurrencias y datos de finalización fuera de la aplicación de forma aditiva:
 
 ```text
 active_timer_sessions   → instantánea única de sesión preparada/pausada/activa
-pending_timer_summaries → resumen y trabajos de finalización pendientes
+pending_timer_summaries → resumen, trabajos pendientes y tiempo fuera tras finalizar
 task_recurrence_rules    → regla independiente de la serie
 tasks                    → relación y fecha opcionales de ocurrencia
 ```
 
-La restauración usa `endsAt` y segundos guardados, evita duplicar recompensas y conserva pendientes de anuncio o tarea cuando corresponde.
+La restauración usa `endsAt` y segundos guardados, evita duplicar recompensas y conserva pendientes de anuncio, tarea o panel. Si la sesión vence en segundo plano, el resumen registra los segundos desde `endsAt` hasta la primera reanudación; el tiempo del anuncio queda excluido.
 
 Home puede consumir inicialmente un `UserSummaryViewModel` derivado de la fuente existente.
 
@@ -419,7 +419,7 @@ Reglas:
 - conservar pruebas desde versiones 1, 2 y 3;
 - esperar escrituras pendientes antes de cerrar la DB.
 
-Las migraciones v1, v2, v3 y v4 hacia v5 están cubiertas por pruebas. La unicidad serie/fecha evita ocurrencias duplicadas y completar una ocurrencia junto con crear la siguiente ocurre en una transacción.
+Las migraciones v1, v2, v3, v4, v5 y v6 hacia v7 están cubiertas por pruebas. La v7 añade `completed_while_app_was_away` y `away_seconds_after_completion` a los resúmenes pendientes. La unicidad serie/fecha evita ocurrencias duplicadas y completar una ocurrencia junto con crear la siguiente ocurre en una transacción.
 
 ## 11. Estado e inyección de dependencias
 
@@ -540,6 +540,14 @@ El cierre de `AtomicTimerBootstrap` espera `TimerController.flushPersistence()` 
 4. Reconciliar una sola próxima ocurrencia al abrir la aplicación.
 5. Añadir formulario, acciones de ocurrencia/serie, pausa y reactivación.
 
+### Resumen posterior a concentración (completada)
+
+1. Persistir si la sesión terminó fuera de la aplicación y los segundos hasta la primera reanudación.
+2. Mantener `TimerController` como coordinador único de tarea, publicidad y publicación del resumen.
+3. Esperar el cierre del intersticial antes de exponer el panel de concentración.
+4. Consumir el resumen solo al cerrar el panel y recuperarlo si la aplicación se reinicia antes.
+5. Migrar Drift de v6 a v7 de forma aditiva y conservar todas las rutas soportadas.
+
 ### Etapa 3: coordinación entre funcionalidades
 
 1. Crear contratos para preparar/finalizar una sesión vinculada.
@@ -568,7 +576,7 @@ El cierre de `AtomicTimerBootstrap` espera `TimerController.flushPersistence()` 
 - Inyección manual por constructor.
 - `ChangeNotifier` puede mantenerse durante la primera migración.
 - Sin paquete nuevo de router/DI/estado por ahora.
-- Drift versión 5 con recurrencias aditivas, sin renombrar ni eliminar tablas existentes.
+- Drift versión 7 con recurrencias y metadatos de tiempo fuera aditivos, sin renombrar ni eliminar tablas existentes.
 - Resúmenes de finalización como eventos persistibles y consumibles una sola vez por la UI.
 - Componentes compartidos basados en reutilización real.
 - Coordinación entre funcionalidades fuera de sus widgets.

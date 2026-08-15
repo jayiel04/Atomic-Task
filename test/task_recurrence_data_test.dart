@@ -108,6 +108,19 @@ void main() {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
+      CREATE TABLE pending_timer_summaries (
+        session_id TEXT NOT NULL PRIMARY KEY,
+        mode TEXT NOT NULL,
+        completed_seconds INTEGER NOT NULL,
+        gem_delta INTEGER NOT NULL,
+        completed_at INTEGER NOT NULL,
+        task_id INTEGER NULL,
+        task_title TEXT NULL,
+        in_app_pending INTEGER NOT NULL DEFAULT 1,
+        notification_pending INTEGER NOT NULL DEFAULT 1,
+        ad_pending INTEGER NOT NULL DEFAULT 0,
+        task_completion_pending INTEGER NOT NULL DEFAULT 0
+      );
       INSERT INTO tasks
         (title, is_completed, created_at, updated_at)
       VALUES ('Tarea v4', 0, 1786348800, 1786348800);

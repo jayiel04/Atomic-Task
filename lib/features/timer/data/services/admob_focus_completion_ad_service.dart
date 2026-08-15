@@ -6,14 +6,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../domain/services/focus_completion_ad_service.dart';
 
-class AdMobFocusCompletionAdService
-    with WidgetsBindingObserver
-    implements FocusCompletionAdService {
-  AdMobFocusCompletionAdService() {
-    if (_testAdUnitId != null) {
-      WidgetsBinding.instance.addObserver(this);
-    }
-  }
+class AdMobFocusCompletionAdService implements FocusCompletionAdService {
+  AdMobFocusCompletionAdService();
 
   static const _androidTestAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
   static const _iosTestAdUnitId = 'ca-app-pub-3940256099942544/4411468910';
@@ -24,7 +18,7 @@ class AdMobFocusCompletionAdService
   bool _sdkInitialized = false;
   bool _isLoading = false;
   bool _isDisposed = false;
-  bool _showOnNextResume = false;
+  Future<FocusCompletionAdResult>? _showing;
 
   @override
   Future<void> initialize() {
@@ -112,7 +106,6 @@ class AdMobFocusCompletionAdService
     }
 
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
-      _showOnNextResume = true;
       return FocusCompletionAdResult.retry;
     }
 
@@ -126,31 +119,30 @@ class AdMobFocusCompletionAdService
       return FocusCompletionAdResult.retry;
     }
 
+    final activeShow = _showing;
+    if (activeShow != null) {
+      return activeShow;
+    }
+
+    final show = _showIfReady();
+    _showing = show;
     try {
-      await _showIfReady();
-      return FocusCompletionAdResult.shown;
-    } catch (error, stackTrace) {
-      _reportError('mostrar el anuncio de prueba', error, stackTrace);
-      return FocusCompletionAdResult.retry;
+      return await show;
+    } finally {
+      if (identical(_showing, show)) {
+        _showing = null;
+      }
     }
   }
 
-  Future<void> _showIfReady() async {
-    if (!_sdkInitialized) {
-      unawaited(initialize());
-      return;
-    }
-
-    final ad = _interstitialAd;
-    if (ad == null) {
-      unawaited(_loadAd());
-      return;
-    }
+  Future<FocusCompletionAdResult> _showIfReady() async {
+    final ad = _interstitialAd!;
 
     _interstitialAd = null;
+    final completion = Completer<FocusCompletionAdResult>();
     var finalized = false;
 
-    void finishAd(InterstitialAd finishedAd) {
+    void finishAd(InterstitialAd finishedAd, FocusCompletionAdResult result) {
       if (finalized) {
         return;
       }
@@ -159,13 +151,18 @@ class AdMobFocusCompletionAdService
       if (!_isDisposed) {
         unawaited(_loadAd());
       }
+      if (!completion.isCompleted) {
+        completion.complete(result);
+      }
     }
 
     ad.fullScreenContentCallback = FullScreenContentCallback<InterstitialAd>(
-      onAdDismissedFullScreenContent: finishAd,
+      onAdDismissedFullScreenContent: (dismissedAd) {
+        finishAd(dismissedAd, FocusCompletionAdResult.shown);
+      },
       onAdFailedToShowFullScreenContent: (failedAd, error) {
         _reportError('mostrar el anuncio de prueba', error, StackTrace.current);
-        finishAd(failedAd);
+        finishAd(failedAd, FocusCompletionAdResult.unsupported);
       },
     );
 
@@ -173,29 +170,14 @@ class AdMobFocusCompletionAdService
       await ad.show();
     } catch (error, stackTrace) {
       _reportError('mostrar el anuncio de prueba', error, stackTrace);
-      finishAd(ad);
+      finishAd(ad, FocusCompletionAdResult.unsupported);
     }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed ||
-        !_showOnNextResume ||
-        _isDisposed) {
-      return;
-    }
-
-    _showOnNextResume = false;
-    unawaited(_showIfReady());
+    return completion.future;
   }
 
   @override
   Future<void> dispose() async {
     _isDisposed = true;
-    _showOnNextResume = false;
-    if (_testAdUnitId != null) {
-      WidgetsBinding.instance.removeObserver(this);
-    }
     final ad = _interstitialAd;
     _interstitialAd = null;
     if (ad != null) {

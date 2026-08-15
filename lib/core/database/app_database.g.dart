@@ -2372,6 +2372,32 @@ class $PendingTimerSummariesTable extends PendingTimerSummaries
         ),
         defaultValue: const Constant(false),
       );
+  static const VerificationMeta _completedWhileAppWasAwayMeta =
+      const VerificationMeta('completedWhileAppWasAway');
+  @override
+  late final GeneratedColumn<bool> completedWhileAppWasAway =
+      GeneratedColumn<bool>(
+        'completed_while_app_was_away',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("completed_while_app_was_away" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _awaySecondsAfterCompletionMeta =
+      const VerificationMeta('awaySecondsAfterCompletion');
+  @override
+  late final GeneratedColumn<int> awaySecondsAfterCompletion =
+      GeneratedColumn<int>(
+        'away_seconds_after_completion',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     sessionId,
@@ -2385,6 +2411,8 @@ class $PendingTimerSummariesTable extends PendingTimerSummaries
     notificationPending,
     adPending,
     taskCompletionPending,
+    completedWhileAppWasAway,
+    awaySecondsAfterCompletion,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2489,6 +2517,24 @@ class $PendingTimerSummariesTable extends PendingTimerSummaries
         ),
       );
     }
+    if (data.containsKey('completed_while_app_was_away')) {
+      context.handle(
+        _completedWhileAppWasAwayMeta,
+        completedWhileAppWasAway.isAcceptableOrUnknown(
+          data['completed_while_app_was_away']!,
+          _completedWhileAppWasAwayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('away_seconds_after_completion')) {
+      context.handle(
+        _awaySecondsAfterCompletionMeta,
+        awaySecondsAfterCompletion.isAcceptableOrUnknown(
+          data['away_seconds_after_completion']!,
+          _awaySecondsAfterCompletionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2542,6 +2588,14 @@ class $PendingTimerSummariesTable extends PendingTimerSummaries
         DriftSqlType.bool,
         data['${effectivePrefix}task_completion_pending'],
       )!,
+      completedWhileAppWasAway: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}completed_while_app_was_away'],
+      )!,
+      awaySecondsAfterCompletion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}away_seconds_after_completion'],
+      ),
     );
   }
 
@@ -2564,6 +2618,8 @@ class PendingTimerSummaryRow extends DataClass
   final bool notificationPending;
   final bool adPending;
   final bool taskCompletionPending;
+  final bool completedWhileAppWasAway;
+  final int? awaySecondsAfterCompletion;
   const PendingTimerSummaryRow({
     required this.sessionId,
     required this.mode,
@@ -2576,6 +2632,8 @@ class PendingTimerSummaryRow extends DataClass
     required this.notificationPending,
     required this.adPending,
     required this.taskCompletionPending,
+    required this.completedWhileAppWasAway,
+    this.awaySecondsAfterCompletion,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2595,6 +2653,14 @@ class PendingTimerSummaryRow extends DataClass
     map['notification_pending'] = Variable<bool>(notificationPending);
     map['ad_pending'] = Variable<bool>(adPending);
     map['task_completion_pending'] = Variable<bool>(taskCompletionPending);
+    map['completed_while_app_was_away'] = Variable<bool>(
+      completedWhileAppWasAway,
+    );
+    if (!nullToAbsent || awaySecondsAfterCompletion != null) {
+      map['away_seconds_after_completion'] = Variable<int>(
+        awaySecondsAfterCompletion,
+      );
+    }
     return map;
   }
 
@@ -2615,6 +2681,11 @@ class PendingTimerSummaryRow extends DataClass
       notificationPending: Value(notificationPending),
       adPending: Value(adPending),
       taskCompletionPending: Value(taskCompletionPending),
+      completedWhileAppWasAway: Value(completedWhileAppWasAway),
+      awaySecondsAfterCompletion:
+          awaySecondsAfterCompletion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(awaySecondsAfterCompletion),
     );
   }
 
@@ -2639,6 +2710,12 @@ class PendingTimerSummaryRow extends DataClass
       taskCompletionPending: serializer.fromJson<bool>(
         json['taskCompletionPending'],
       ),
+      completedWhileAppWasAway: serializer.fromJson<bool>(
+        json['completedWhileAppWasAway'],
+      ),
+      awaySecondsAfterCompletion: serializer.fromJson<int?>(
+        json['awaySecondsAfterCompletion'],
+      ),
     );
   }
   @override
@@ -2656,6 +2733,12 @@ class PendingTimerSummaryRow extends DataClass
       'notificationPending': serializer.toJson<bool>(notificationPending),
       'adPending': serializer.toJson<bool>(adPending),
       'taskCompletionPending': serializer.toJson<bool>(taskCompletionPending),
+      'completedWhileAppWasAway': serializer.toJson<bool>(
+        completedWhileAppWasAway,
+      ),
+      'awaySecondsAfterCompletion': serializer.toJson<int?>(
+        awaySecondsAfterCompletion,
+      ),
     };
   }
 
@@ -2671,6 +2754,8 @@ class PendingTimerSummaryRow extends DataClass
     bool? notificationPending,
     bool? adPending,
     bool? taskCompletionPending,
+    bool? completedWhileAppWasAway,
+    Value<int?> awaySecondsAfterCompletion = const Value.absent(),
   }) => PendingTimerSummaryRow(
     sessionId: sessionId ?? this.sessionId,
     mode: mode ?? this.mode,
@@ -2683,6 +2768,11 @@ class PendingTimerSummaryRow extends DataClass
     notificationPending: notificationPending ?? this.notificationPending,
     adPending: adPending ?? this.adPending,
     taskCompletionPending: taskCompletionPending ?? this.taskCompletionPending,
+    completedWhileAppWasAway:
+        completedWhileAppWasAway ?? this.completedWhileAppWasAway,
+    awaySecondsAfterCompletion: awaySecondsAfterCompletion.present
+        ? awaySecondsAfterCompletion.value
+        : this.awaySecondsAfterCompletion,
   );
   PendingTimerSummaryRow copyWithCompanion(
     PendingTimerSummariesCompanion data,
@@ -2709,6 +2799,12 @@ class PendingTimerSummaryRow extends DataClass
       taskCompletionPending: data.taskCompletionPending.present
           ? data.taskCompletionPending.value
           : this.taskCompletionPending,
+      completedWhileAppWasAway: data.completedWhileAppWasAway.present
+          ? data.completedWhileAppWasAway.value
+          : this.completedWhileAppWasAway,
+      awaySecondsAfterCompletion: data.awaySecondsAfterCompletion.present
+          ? data.awaySecondsAfterCompletion.value
+          : this.awaySecondsAfterCompletion,
     );
   }
 
@@ -2725,7 +2821,9 @@ class PendingTimerSummaryRow extends DataClass
           ..write('inAppPending: $inAppPending, ')
           ..write('notificationPending: $notificationPending, ')
           ..write('adPending: $adPending, ')
-          ..write('taskCompletionPending: $taskCompletionPending')
+          ..write('taskCompletionPending: $taskCompletionPending, ')
+          ..write('completedWhileAppWasAway: $completedWhileAppWasAway, ')
+          ..write('awaySecondsAfterCompletion: $awaySecondsAfterCompletion')
           ..write(')'))
         .toString();
   }
@@ -2743,6 +2841,8 @@ class PendingTimerSummaryRow extends DataClass
     notificationPending,
     adPending,
     taskCompletionPending,
+    completedWhileAppWasAway,
+    awaySecondsAfterCompletion,
   );
   @override
   bool operator ==(Object other) =>
@@ -2758,7 +2858,9 @@ class PendingTimerSummaryRow extends DataClass
           other.inAppPending == this.inAppPending &&
           other.notificationPending == this.notificationPending &&
           other.adPending == this.adPending &&
-          other.taskCompletionPending == this.taskCompletionPending);
+          other.taskCompletionPending == this.taskCompletionPending &&
+          other.completedWhileAppWasAway == this.completedWhileAppWasAway &&
+          other.awaySecondsAfterCompletion == this.awaySecondsAfterCompletion);
 }
 
 class PendingTimerSummariesCompanion
@@ -2774,6 +2876,8 @@ class PendingTimerSummariesCompanion
   final Value<bool> notificationPending;
   final Value<bool> adPending;
   final Value<bool> taskCompletionPending;
+  final Value<bool> completedWhileAppWasAway;
+  final Value<int?> awaySecondsAfterCompletion;
   final Value<int> rowid;
   const PendingTimerSummariesCompanion({
     this.sessionId = const Value.absent(),
@@ -2787,6 +2891,8 @@ class PendingTimerSummariesCompanion
     this.notificationPending = const Value.absent(),
     this.adPending = const Value.absent(),
     this.taskCompletionPending = const Value.absent(),
+    this.completedWhileAppWasAway = const Value.absent(),
+    this.awaySecondsAfterCompletion = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PendingTimerSummariesCompanion.insert({
@@ -2801,6 +2907,8 @@ class PendingTimerSummariesCompanion
     this.notificationPending = const Value.absent(),
     this.adPending = const Value.absent(),
     this.taskCompletionPending = const Value.absent(),
+    this.completedWhileAppWasAway = const Value.absent(),
+    this.awaySecondsAfterCompletion = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : sessionId = Value(sessionId),
        mode = Value(mode),
@@ -2819,6 +2927,8 @@ class PendingTimerSummariesCompanion
     Expression<bool>? notificationPending,
     Expression<bool>? adPending,
     Expression<bool>? taskCompletionPending,
+    Expression<bool>? completedWhileAppWasAway,
+    Expression<int>? awaySecondsAfterCompletion,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2835,6 +2945,10 @@ class PendingTimerSummariesCompanion
       if (adPending != null) 'ad_pending': adPending,
       if (taskCompletionPending != null)
         'task_completion_pending': taskCompletionPending,
+      if (completedWhileAppWasAway != null)
+        'completed_while_app_was_away': completedWhileAppWasAway,
+      if (awaySecondsAfterCompletion != null)
+        'away_seconds_after_completion': awaySecondsAfterCompletion,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2851,6 +2965,8 @@ class PendingTimerSummariesCompanion
     Value<bool>? notificationPending,
     Value<bool>? adPending,
     Value<bool>? taskCompletionPending,
+    Value<bool>? completedWhileAppWasAway,
+    Value<int?>? awaySecondsAfterCompletion,
     Value<int>? rowid,
   }) {
     return PendingTimerSummariesCompanion(
@@ -2866,6 +2982,10 @@ class PendingTimerSummariesCompanion
       adPending: adPending ?? this.adPending,
       taskCompletionPending:
           taskCompletionPending ?? this.taskCompletionPending,
+      completedWhileAppWasAway:
+          completedWhileAppWasAway ?? this.completedWhileAppWasAway,
+      awaySecondsAfterCompletion:
+          awaySecondsAfterCompletion ?? this.awaySecondsAfterCompletion,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2908,6 +3028,16 @@ class PendingTimerSummariesCompanion
         taskCompletionPending.value,
       );
     }
+    if (completedWhileAppWasAway.present) {
+      map['completed_while_app_was_away'] = Variable<bool>(
+        completedWhileAppWasAway.value,
+      );
+    }
+    if (awaySecondsAfterCompletion.present) {
+      map['away_seconds_after_completion'] = Variable<int>(
+        awaySecondsAfterCompletion.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2928,6 +3058,8 @@ class PendingTimerSummariesCompanion
           ..write('notificationPending: $notificationPending, ')
           ..write('adPending: $adPending, ')
           ..write('taskCompletionPending: $taskCompletionPending, ')
+          ..write('completedWhileAppWasAway: $completedWhileAppWasAway, ')
+          ..write('awaySecondsAfterCompletion: $awaySecondsAfterCompletion, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4329,6 +4461,8 @@ typedef $$PendingTimerSummariesTableCreateCompanionBuilder =
       Value<bool> notificationPending,
       Value<bool> adPending,
       Value<bool> taskCompletionPending,
+      Value<bool> completedWhileAppWasAway,
+      Value<int?> awaySecondsAfterCompletion,
       Value<int> rowid,
     });
 typedef $$PendingTimerSummariesTableUpdateCompanionBuilder =
@@ -4344,6 +4478,8 @@ typedef $$PendingTimerSummariesTableUpdateCompanionBuilder =
       Value<bool> notificationPending,
       Value<bool> adPending,
       Value<bool> taskCompletionPending,
+      Value<bool> completedWhileAppWasAway,
+      Value<int?> awaySecondsAfterCompletion,
       Value<int> rowid,
     });
 
@@ -4408,6 +4544,16 @@ class $$PendingTimerSummariesTableFilterComposer
 
   ColumnFilters<bool> get taskCompletionPending => $composableBuilder(
     column: $table.taskCompletionPending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get completedWhileAppWasAway => $composableBuilder(
+    column: $table.completedWhileAppWasAway,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get awaySecondsAfterCompletion => $composableBuilder(
+    column: $table.awaySecondsAfterCompletion,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4475,6 +4621,16 @@ class $$PendingTimerSummariesTableOrderingComposer
     column: $table.taskCompletionPending,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get completedWhileAppWasAway => $composableBuilder(
+    column: $table.completedWhileAppWasAway,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get awaySecondsAfterCompletion => $composableBuilder(
+    column: $table.awaySecondsAfterCompletion,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PendingTimerSummariesTableAnnotationComposer
@@ -4526,6 +4682,16 @@ class $$PendingTimerSummariesTableAnnotationComposer
 
   GeneratedColumn<bool> get taskCompletionPending => $composableBuilder(
     column: $table.taskCompletionPending,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get completedWhileAppWasAway => $composableBuilder(
+    column: $table.completedWhileAppWasAway,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get awaySecondsAfterCompletion => $composableBuilder(
+    column: $table.awaySecondsAfterCompletion,
     builder: (column) => column,
   );
 }
@@ -4587,6 +4753,8 @@ class $$PendingTimerSummariesTableTableManager
                 Value<bool> notificationPending = const Value.absent(),
                 Value<bool> adPending = const Value.absent(),
                 Value<bool> taskCompletionPending = const Value.absent(),
+                Value<bool> completedWhileAppWasAway = const Value.absent(),
+                Value<int?> awaySecondsAfterCompletion = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PendingTimerSummariesCompanion(
                 sessionId: sessionId,
@@ -4600,6 +4768,8 @@ class $$PendingTimerSummariesTableTableManager
                 notificationPending: notificationPending,
                 adPending: adPending,
                 taskCompletionPending: taskCompletionPending,
+                completedWhileAppWasAway: completedWhileAppWasAway,
+                awaySecondsAfterCompletion: awaySecondsAfterCompletion,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4615,6 +4785,8 @@ class $$PendingTimerSummariesTableTableManager
                 Value<bool> notificationPending = const Value.absent(),
                 Value<bool> adPending = const Value.absent(),
                 Value<bool> taskCompletionPending = const Value.absent(),
+                Value<bool> completedWhileAppWasAway = const Value.absent(),
+                Value<int?> awaySecondsAfterCompletion = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PendingTimerSummariesCompanion.insert(
                 sessionId: sessionId,
@@ -4628,6 +4800,8 @@ class $$PendingTimerSummariesTableTableManager
                 notificationPending: notificationPending,
                 adPending: adPending,
                 taskCompletionPending: taskCompletionPending,
+                completedWhileAppWasAway: completedWhileAppWasAway,
+                awaySecondsAfterCompletion: awaySecondsAfterCompletion,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

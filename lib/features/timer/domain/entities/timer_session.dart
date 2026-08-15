@@ -45,6 +45,8 @@ class CompletionSummary {
     this.notificationPending = true,
     this.adPending = false,
     this.taskCompletionPending = false,
+    this.completedWhileAppWasAway = false,
+    this.awaySecondsAfterCompletion,
   });
 
   final String sessionId;
@@ -58,12 +60,16 @@ class CompletionSummary {
   final bool notificationPending;
   final bool adPending;
   final bool taskCompletionPending;
+  final bool completedWhileAppWasAway;
+  final int? awaySecondsAfterCompletion;
 
   CompletionSummary copyWith({
     bool? inAppPending,
     bool? notificationPending,
     bool? adPending,
     bool? taskCompletionPending,
+    bool? completedWhileAppWasAway,
+    int? awaySecondsAfterCompletion,
   }) {
     return CompletionSummary(
       sessionId: sessionId,
@@ -78,6 +84,10 @@ class CompletionSummary {
       adPending: adPending ?? this.adPending,
       taskCompletionPending:
           taskCompletionPending ?? this.taskCompletionPending,
+      completedWhileAppWasAway:
+          completedWhileAppWasAway ?? this.completedWhileAppWasAway,
+      awaySecondsAfterCompletion:
+          awaySecondsAfterCompletion ?? this.awaySecondsAfterCompletion,
     );
   }
 }

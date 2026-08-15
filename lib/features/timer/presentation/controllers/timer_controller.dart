@@ -77,6 +77,9 @@ class TimerController extends ChangeNotifier {
   String _sessionId = _newSessionId();
   CompletionSummary? _pendingCompletionSummary;
   bool _pendingSummaryDeliveryInProgress = false;
+  bool _appIsResumed = true;
+  bool _completionOccurredWhileAway = false;
+  DateTime? _lastResumedAt;
 
   String _statusMessage =
       'Obtendrás 1 gema por cada 3 minutos completos de concentración.';
@@ -93,8 +96,18 @@ class TimerController extends ChangeNotifier {
   String get statusMessage => _statusMessage;
   int? get linkedTaskId => _linkedTaskId;
   String? get linkedTaskTitle => _linkedTaskTitle;
-  CompletionSummary? get pendingCompletionSummary =>
-      _pendingSummaryDeliveryInProgress ? null : _pendingCompletionSummary;
+  CompletionSummary? get pendingCompletionSummary {
+    final summary = _pendingCompletionSummary;
+    if (_pendingSummaryDeliveryInProgress ||
+        summary == null ||
+        !summary.inAppPending ||
+        summary.adPending ||
+        summary.taskCompletionPending) {
+      return null;
+    }
+    return summary;
+  }
+
   bool get hasRestorableSession =>
       _hasRestoredSession || _linkedTaskTitle != null || _elapsedSeconds > 0;
 
@@ -149,7 +162,13 @@ class TimerController extends ChangeNotifier {
     }
 
     if (_hasRestoredRunningSession) {
+      final resumedAt = _now();
+      _lastResumedAt = resumedAt;
+      final endsAt = _endsAt;
+      _completionOccurredWhileAway =
+          endsAt != null && !resumedAt.isBefore(endsAt);
       syncWithClock();
+      _completionOccurredWhileAway = false;
     }
     if (_pendingCompletionSummary != null) {
       unawaited(_deliverPendingSummary(_pendingCompletionSummary!));
@@ -217,7 +236,10 @@ class TimerController extends ChangeNotifier {
     if (repository == null) {
       return;
     }
-    _pendingCompletionSummary = await repository.loadPendingSummary();
+    final restored = await repository.loadPendingSummary();
+    _pendingCompletionSummary = restored == null
+        ? null
+        : _withAwayDuration(restored, _now());
     _pendingSummaryDeliveryInProgress = _pendingCompletionSummary != null;
   }
 
@@ -392,7 +414,8 @@ class TimerController extends ChangeNotifier {
       return;
     }
 
-    final millisecondsLeft = endsAt.difference(_now()).inMilliseconds;
+    final detectedAt = _now();
+    final millisecondsLeft = endsAt.difference(detectedAt).inMilliseconds;
     final calculatedRemaining = millisecondsLeft <= 0
         ? 0
         : (millisecondsLeft + 999) ~/ 1000;
@@ -419,7 +442,7 @@ class TimerController extends ChangeNotifier {
     }
 
     if (_remainingSeconds <= 0) {
-      _finishSession();
+      _finishSession(scheduledEnd: endsAt, detectedAt: detectedAt);
       return;
     }
 
@@ -428,11 +451,37 @@ class TimerController extends ChangeNotifier {
   }
 
   void handleAppResumed() {
+    final resumedAt = _now();
+    final endsAt = _endsAt;
+    _completionOccurredWhileAway =
+        !_appIsResumed &&
+        _isRunning &&
+        endsAt != null &&
+        !resumedAt.isBefore(endsAt);
+    _appIsResumed = true;
+    _lastResumedAt = resumedAt;
     syncWithClock();
+    _completionOccurredWhileAway = false;
+
     final pending = _pendingCompletionSummary;
-    if (pending != null && pending.adPending) {
-      unawaited(_deliverPendingSummary(pending));
+    if (pending == null || _pendingSummaryDeliveryInProgress) {
+      return;
     }
+    final updated = _withAwayDuration(pending, resumedAt);
+    final hasDeliveryWork =
+        updated.notificationPending ||
+        updated.adPending ||
+        updated.taskCompletionPending;
+    if (!identical(updated, pending) || hasDeliveryWork) {
+      _pendingSummaryDeliveryInProgress = true;
+      _notifyListeners();
+      unawaited(_deliverPendingSummary(updated));
+    }
+  }
+
+  void handleAppPaused() {
+    _appIsResumed = false;
+    persistSession();
   }
 
   void persistSession() {
@@ -479,7 +528,10 @@ class TimerController extends ChangeNotifier {
     _persistProgress(immediately: true);
   }
 
-  void _finishSession() {
+  void _finishSession({
+    required DateTime scheduledEnd,
+    required DateTime detectedAt,
+  }) {
     final mode = _mode;
     final completedTaskId = mode == TimerMode.focus ? _linkedTaskId : null;
     final completedTaskTitle = _linkedTaskTitle;
@@ -487,16 +539,23 @@ class TimerController extends ChangeNotifier {
     final gemDelta = mode == TimerMode.focus
         ? _rewardedBlocks
         : -_chargedMinutes;
+    final completedWhileAppWasAway =
+        !_appIsResumed || _completionOccurredWhileAway;
+    final awaySecondsAfterCompletion = completedWhileAppWasAway && _appIsResumed
+        ? _nonNegativeSeconds(detectedAt.difference(scheduledEnd))
+        : null;
     final summary = CompletionSummary(
       sessionId: _sessionId,
       mode: mode,
       completedSeconds: completedSeconds,
       gemDelta: gemDelta,
-      completedAt: _now(),
+      completedAt: scheduledEnd,
       taskId: completedTaskId,
       taskTitle: completedTaskTitle,
       adPending: mode == TimerMode.focus,
       taskCompletionPending: completedTaskId != null,
+      completedWhileAppWasAway: completedWhileAppWasAway,
+      awaySecondsAfterCompletion: awaySecondsAfterCompletion,
     );
 
     _ticker?.cancel();
@@ -525,48 +584,60 @@ class TimerController extends ChangeNotifier {
   }
 
   Future<void> _completeAndPresentSummary(CompletionSummary summary) async {
+    var current = _withAwayDuration(summary, _lastResumedAt);
     final sessionRepository = _sessionRepository;
     if (sessionRepository is TransactionalTimerSessionRepository) {
       await _enqueueSessionWrite(
-        () => sessionRepository.finalizeSession(summary, _progress),
+        () => sessionRepository.finalizeSession(current, _progress),
       );
     } else {
       await _flushProgress();
       await _enqueueSessionWrite(() async {
         await sessionRepository?.clearActiveSession();
-        await sessionRepository?.savePendingSummary(summary);
+        await sessionRepository?.savePendingSummary(current);
       });
     }
-    var notificationPending = summary.notificationPending;
+    final taskCompleted = current.taskId == null
+        ? true
+        : await _completeLinkedTask(current.taskId!, current.completedAt);
+
+    var notificationPending = current.notificationPending;
     try {
       await _notificationService.showTimerCompleted(
-        title: _summaryTitle(summary),
-        body: _summaryBody(summary),
+        title: _summaryTitle(current),
+        body: _summaryBody(current),
       );
       notificationPending = false;
     } catch (_) {
       // Keep the summary pending so the next app session can retry it.
     }
 
-    final taskCompleted = summary.taskId == null
-        ? true
-        : await _completeLinkedTask(summary.taskId!, summary.completedAt);
-
-    final adResult = summary.mode != TimerMode.focus
+    current = _withAwayDuration(current, _lastResumedAt);
+    final adResult = current.mode != TimerMode.focus
         ? FocusCompletionAdResult.unsupported
         : await _tryShowCompletionAd();
-    final delivered = summary.copyWith(
+    final delivered = _withAwayDuration(current, _lastResumedAt).copyWith(
       notificationPending: notificationPending,
       adPending: adResult == FocusCompletionAdResult.retry,
-      taskCompletionPending: summary.taskId != null && !taskCompleted,
+      taskCompletionPending: current.taskId != null && !taskCompleted,
     );
     await _storePendingSummary(delivered);
     _notifyListeners();
-    onCompletionSummary?.call(delivered);
+    _publishCompletionSummaryIfReady();
   }
 
   Future<void> _deliverPendingSummary(CompletionSummary summary) async {
-    var current = summary;
+    var current = _withAwayDuration(summary, _lastResumedAt);
+    if (current.taskCompletionPending && current.taskId != null) {
+      final taskCompleted = await _completeLinkedTask(
+        current.taskId!,
+        current.completedAt,
+      );
+      if (taskCompleted) {
+        current = current.copyWith(taskCompletionPending: false);
+      }
+    }
+
     if (current.notificationPending) {
       try {
         await _notificationService.showTimerCompleted(
@@ -579,27 +650,46 @@ class TimerController extends ChangeNotifier {
       }
     }
 
-    if (current.taskCompletionPending && current.taskId != null) {
-      final taskCompleted = await _completeLinkedTask(
-        current.taskId!,
-        current.completedAt,
-      );
-      if (taskCompleted) {
-        current = current.copyWith(taskCompletionPending: false);
-      }
-    }
-
     if (current.adPending && current.mode == TimerMode.focus) {
       final adResult = await _tryShowCompletionAd();
-      current = current.copyWith(
-        adPending: adResult == FocusCompletionAdResult.retry,
-      );
+      current = _withAwayDuration(
+        current,
+        _lastResumedAt,
+      ).copyWith(adPending: adResult == FocusCompletionAdResult.retry);
     }
 
     await _storePendingSummary(current);
     _pendingSummaryDeliveryInProgress = false;
     _notifyListeners();
-    onCompletionSummary?.call(current);
+    _publishCompletionSummaryIfReady();
+  }
+
+  CompletionSummary _withAwayDuration(
+    CompletionSummary summary,
+    DateTime? returnedAt,
+  ) {
+    if (!summary.completedWhileAppWasAway ||
+        summary.awaySecondsAfterCompletion != null ||
+        returnedAt == null ||
+        returnedAt.isBefore(summary.completedAt)) {
+      return summary;
+    }
+    return summary.copyWith(
+      awaySecondsAfterCompletion: _nonNegativeSeconds(
+        returnedAt.difference(summary.completedAt),
+      ),
+    );
+  }
+
+  int _nonNegativeSeconds(Duration duration) {
+    return duration.inSeconds < 0 ? 0 : duration.inSeconds;
+  }
+
+  void _publishCompletionSummaryIfReady() {
+    final summary = pendingCompletionSummary;
+    if (summary != null) {
+      onCompletionSummary?.call(summary);
+    }
   }
 
   String _summaryTitle(CompletionSummary summary) {

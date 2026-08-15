@@ -16,5 +16,6 @@ abstract final class AppColors {
   static const Color text = Color(0xFF3F2C63);
   static const Color muted = Color(0xFF8B7AA9);
   static const Color danger = Color(0xFFB14C82);
+  static const Color destructive = Color(0xFFC62828);
   static const Color border = Color(0x387A4FD1);
 }

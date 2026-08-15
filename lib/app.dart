@@ -31,6 +31,7 @@ import 'features/timer/data/services/admob_focus_completion_ad_service.dart';
 import 'features/timer/data/services/local_timer_notification_service.dart';
 import 'features/timer/domain/services/focus_completion_ad_service.dart';
 import 'features/timer/domain/services/timer_notification_service.dart';
+import 'features/timer/domain/repositories/timer_session_repository.dart';
 import 'features/timer/domain/usecases/clear_progress.dart';
 import 'features/timer/domain/usecases/load_progress.dart';
 import 'features/timer/domain/usecases/save_progress.dart';
@@ -43,6 +44,7 @@ class AtomicTimerBootstrap extends StatefulWidget {
     this.focusCompletionAdService,
     this.localDataSource,
     this.taskLocalDataSource,
+    this.sessionRepository,
     super.key,
   });
 
@@ -50,6 +52,7 @@ class AtomicTimerBootstrap extends StatefulWidget {
   final FocusCompletionAdService? focusCompletionAdService;
   final TimerLocalDataSource? localDataSource;
   final TaskLocalDataSource? taskLocalDataSource;
+  final TimerSessionRepository? sessionRepository;
 
   @override
   State<AtomicTimerBootstrap> createState() => _AtomicTimerBootstrapState();
@@ -73,9 +76,9 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     final localDataSource =
         widget.localDataSource ?? DriftTimerLocalDataSource(database!);
     final repository = TimerRepositoryImpl(localDataSource);
-    final sessionRepository = database == null
-        ? null
-        : DriftTimerSessionRepository(database);
+    final sessionRepository =
+        widget.sessionRepository ??
+        (database == null ? null : DriftTimerSessionRepository(database));
     final notificationService =
         widget.notificationService ?? LocalTimerNotificationService();
     final focusCompletionAdService =
@@ -143,8 +146,8 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
 
     _lifecycleListener = AppLifecycleListener(
       onResume: _controller.handleAppResumed,
-      onPause: _controller.persistSession,
-      onDetach: _controller.persistSession,
+      onPause: _controller.handleAppPaused,
+      onDetach: _controller.handleAppPaused,
     );
   }
 

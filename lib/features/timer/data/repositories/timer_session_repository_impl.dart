@@ -78,6 +78,8 @@ class DriftTimerSessionRepository
       notificationPending: row.notificationPending,
       adPending: row.adPending,
       taskCompletionPending: row.taskCompletionPending,
+      completedWhileAppWasAway: row.completedWhileAppWasAway,
+      awaySecondsAfterCompletion: row.awaySecondsAfterCompletion,
     );
   }
 
@@ -96,6 +98,8 @@ class DriftTimerSessionRepository
         notificationPending: Value(summary.notificationPending),
         adPending: Value(summary.adPending),
         taskCompletionPending: Value(summary.taskCompletionPending),
+        completedWhileAppWasAway: Value(summary.completedWhileAppWasAway),
+        awaySecondsAfterCompletion: Value(summary.awaySecondsAfterCompletion),
       ),
     );
   }
@@ -127,6 +131,8 @@ class DriftTimerSessionRepository
         notificationPending: Value(summary.notificationPending),
         adPending: Value(summary.adPending),
         taskCompletionPending: Value(summary.taskCompletionPending),
+        completedWhileAppWasAway: Value(summary.completedWhileAppWasAway),
+        awaySecondsAfterCompletion: Value(summary.awaySecondsAfterCompletion),
       ),
     );
   }

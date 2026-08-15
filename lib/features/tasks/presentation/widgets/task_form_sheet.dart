@@ -6,6 +6,7 @@ import '../../domain/entities/atomic_task.dart';
 import '../../domain/entities/recurrence_rule.dart';
 import '../controllers/task_controller.dart';
 import '../task_date_formatter.dart';
+import '../task_due_date_shortcuts.dart';
 
 enum TaskEditScope { occurrence, series }
 
@@ -14,12 +15,14 @@ class TaskFormSheet extends StatefulWidget {
     required this.controller,
     this.task,
     this.editScope = TaskEditScope.occurrence,
+    this.now,
     super.key,
   });
 
   final TaskController controller;
   final AtomicTask? task;
   final TaskEditScope editScope;
+  final DateTime Function()? now;
 
   static Future<void> show(
     BuildContext context, {
@@ -52,6 +55,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   late final TextEditingController _titleController;
   late final TextEditingController _intervalController;
   DateTime? _dueDate;
+  late final DateTime _dueDateShortcutBase;
   late bool _recurrenceEnabled;
   late RecurrenceFrequency _frequency;
   late DateTime _startDate;
@@ -63,18 +67,20 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
       widget.task?.isRecurring == true &&
       widget.editScope == TaskEditScope.series;
   bool get _canConfigureRecurrence => !_isEditing || _isSeriesEdit;
+  DateTime _now() => widget.now?.call() ?? DateTime.now();
 
   @override
   void initState() {
     super.initState();
     final task = widget.task;
     final rule = task?.recurrenceRule;
-    final now = DateTime.now();
+    final now = _now();
     _titleController = TextEditingController(text: task?.title ?? '');
     _intervalController = TextEditingController(
       text: (rule?.interval ?? 1).toString(),
     );
     _dueDate = task?.dueDate;
+    _dueDateShortcutBase = now;
     _recurrenceEnabled = rule != null;
     _frequency = rule?.frequency ?? RecurrenceFrequency.daily;
     _startDate = rule?.startDate ?? DateTime(now.year, now.month, now.day);
@@ -139,11 +145,23 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
               emptyLabel: 'Sin fecha límite',
               selectKey: const Key('selectTaskDueDateButton'),
               clearKey: const Key('clearTaskDueDateButton'),
+              clearIcon: Icons.close_rounded,
+              clearIconColor: AppColors.destructive,
+              clearTooltip: 'Quitar fecha límite',
               onSelect: _isSaving ? null : _selectDueDate,
               onClear: _dueDate == null || _isSaving
                   ? null
                   : () => setState(() => _dueDate = null),
             ),
+            if (!_isEditing) ...[
+              const SizedBox(height: 10),
+              _DueDateShortcutOptions(
+                baseDate: _dueDateShortcutBase,
+                value: _dueDate,
+                enabled: !_isSaving,
+                onSelected: (value) => setState(() => _dueDate = value),
+              ),
+            ],
             if (_canConfigureRecurrence || _recurrenceEnabled) ...[
               const SizedBox(height: 14),
               _buildRecurrenceSection(context),
@@ -323,7 +341,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
 
   Future<void> _selectDueDate() async {
     final selected = await _selectDate(
-      initialDate: _dueDate ?? DateTime.now(),
+      initialDate: _dueDate ?? _now(),
       helpText: 'Selecciona la fecha límite',
     );
     if (selected != null && mounted) {
@@ -362,7 +380,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     required String helpText,
     DateTime? firstDate,
   }) async {
-    final now = DateTime.now();
+    final now = _now();
     final minimum = firstDate ?? DateTime(2000);
     final safeInitial = initialDate.isBefore(minimum) ? minimum : initialDate;
     final selected = await showDatePicker(
@@ -458,6 +476,9 @@ class _DateField extends StatelessWidget {
     required this.onSelect,
     this.clearKey,
     this.onClear,
+    this.clearIcon = Icons.event_busy_rounded,
+    this.clearIconColor,
+    this.clearTooltip = 'Quitar fecha',
   });
 
   final String label;
@@ -467,6 +488,9 @@ class _DateField extends StatelessWidget {
   final VoidCallback? onSelect;
   final Key? clearKey;
   final VoidCallback? onClear;
+  final IconData clearIcon;
+  final Color? clearIconColor;
+  final String clearTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -499,9 +523,9 @@ class _DateField extends StatelessWidget {
           if (value != null && clearKey != null)
             IconButton(
               key: clearKey,
-              tooltip: 'Quitar fecha',
+              tooltip: clearTooltip,
               onPressed: onClear,
-              icon: const Icon(Icons.event_busy_rounded),
+              icon: Icon(clearIcon, color: clearIconColor),
             ),
           IconButton(
             key: selectKey,
@@ -513,4 +537,66 @@ class _DateField extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DueDateShortcutOptions extends StatelessWidget {
+  const _DueDateShortcutOptions({
+    required this.baseDate,
+    required this.value,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final DateTime baseDate;
+  final DateTime? value;
+  final bool enabled;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      key: const Key('dueDateShortcutOptions'),
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final shortcut in TaskDueDateShortcut.values)
+          _shortcutChip(shortcut),
+      ],
+    );
+  }
+
+  Widget _shortcutChip(TaskDueDateShortcut shortcut) {
+    final date = TaskDueDateShortcuts.calculate(shortcut, baseDate);
+    final selected = TaskDueDateShortcuts.isSameDay(value, date);
+    return SizedBox(
+      height: 48,
+      child: ChoiceChip(
+        key: Key(_shortcutKey(shortcut)),
+        label: Text(_shortcutLabel(shortcut)),
+        selected: selected,
+        onSelected: enabled ? (_) => onSelected(date) : null,
+        selectedColor: AppColors.primarySoft,
+        side: BorderSide(
+          color: selected ? AppColors.primary : AppColors.border,
+        ),
+        labelStyle: TextStyle(
+          color: selected ? AppColors.primaryDark : AppColors.text,
+          fontWeight: FontWeight.w800,
+        ),
+        materialTapTargetSize: MaterialTapTargetSize.padded,
+      ),
+    );
+  }
+
+  String _shortcutKey(TaskDueDateShortcut shortcut) => switch (shortcut) {
+    TaskDueDateShortcut.tomorrow => 'dueDateTomorrowOption',
+    TaskDueDateShortcut.oneWeek => 'dueDateOneWeekOption',
+    TaskDueDateShortcut.oneMonth => 'dueDateOneMonthOption',
+  };
+
+  String _shortcutLabel(TaskDueDateShortcut shortcut) => switch (shortcut) {
+    TaskDueDateShortcut.tomorrow => 'Mañana',
+    TaskDueDateShortcut.oneWeek => 'Una semana',
+    TaskDueDateShortcut.oneMonth => 'Un mes',
+  };
 }

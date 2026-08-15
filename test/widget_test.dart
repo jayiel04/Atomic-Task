@@ -8,8 +8,12 @@ import 'package:atomic_task/features/tasks/data/datasources/task_local_data_sour
 import 'package:atomic_task/features/tasks/data/models/task_model.dart';
 import 'package:atomic_task/features/timer/data/datasources/timer_local_data_source.dart';
 import 'package:atomic_task/features/timer/data/models/progress_model.dart';
+import 'package:atomic_task/features/timer/domain/entities/timer_mode.dart';
+import 'package:atomic_task/features/timer/domain/entities/timer_session.dart';
+import 'package:atomic_task/features/timer/domain/repositories/timer_session_repository.dart';
 import 'package:atomic_task/features/timer/domain/services/focus_completion_ad_service.dart';
 import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
+import 'package:atomic_task/features/timer/presentation/widgets/focus_completion_summary_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -145,6 +149,9 @@ void main() {
       final gems = tester.getRect(find.byKey(const Key('gemsStat')));
 
       expect(menu.right, lessThanOrEqualTo(title.left));
+      expect(title.right, lessThanOrEqualTo(profile.left));
+      expect(profile.top, lessThan(title.bottom));
+      expect(profile.bottom, greaterThan(title.top));
       expect(profile.left, lessThan(name.left));
       expect(profile.right, greaterThan(name.right));
       expect(profile.bottom, lessThanOrEqualTo(focusTime.top));
@@ -153,8 +160,7 @@ void main() {
       expect(gems.height, 48);
       expect(focusTime.width, greaterThanOrEqualTo(48));
       expect(gems.width, greaterThanOrEqualTo(48));
-      expect(profile.width, lessThanOrEqualTo(148));
-      expect(title.right, lessThanOrEqualTo(profile.left));
+      expect(profile.width, lessThanOrEqualTo(148.1));
       expect(find.byIcon(Icons.person_rounded), findsOneWidget);
       expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
       expect(find.byIcon(Icons.diamond_rounded), findsOneWidget);
@@ -209,9 +215,11 @@ void main() {
     final summary = tester.getRect(
       find.byKey(const Key('compactHomeHeaderSummary')),
     );
-    expect(profile.width, lessThanOrEqualTo(148));
+    expect(profile.width, lessThanOrEqualTo(148.1));
     expect(title.width, greaterThan(0));
+    expect(title.right, lessThanOrEqualTo(profile.left));
     expect(title.right, lessThanOrEqualTo(firstRow.right));
+    expect(firstRow.contains(profile.center), isTrue);
     expect(firstRow.bottom, lessThanOrEqualTo(summary.top));
     expect(find.text('Sebastian'), findsOneWidget);
 
@@ -361,6 +369,150 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('shows and consumes a persisted focus completion panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final sessions = _MemoryTimerSessionRepository(
+      pendingSummary: CompletionSummary(
+        sessionId: 'focus-summary-1',
+        mode: TimerMode.focus,
+        completedSeconds: 1500,
+        gemDelta: 8,
+        completedAt: DateTime(2026, 8, 15, 10, 25),
+        taskId: 4,
+        taskTitle: 'Preparar propuesta',
+        inAppPending: true,
+        notificationPending: false,
+        adPending: false,
+        taskCompletionPending: false,
+        completedWhileAppWasAway: true,
+        awaySecondsAfterCompletion: 444,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+        child: AtomicTimerBootstrap(
+          notificationService: _NoopNotificationService(),
+          focusCompletionAdService: _NoopFocusCompletionAdService(),
+          localDataSource: _MemoryTimerLocalDataSource(
+            progress: const ProgressModel(
+              gems: 8,
+              totalFocusSeconds: 1500,
+              profileName: 'Javier',
+            ),
+          ),
+          taskLocalDataSource: _EmptyTaskLocalDataSource(),
+          sessionRepository: sessions,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('focusCompletionSummarySheet')),
+      findsOneWidget,
+    );
+    expect(find.text('Resumen de la sesión'), findsOneWidget);
+    expect(find.text('Gemas generadas'), findsOneWidget);
+    expect(find.text('+8'), findsOneWidget);
+    expect(find.text('25 min'), findsOneWidget);
+    expect(find.text('Tarea finalizada'), findsOneWidget);
+    expect(find.text('Preparar propuesta'), findsOneWidget);
+    expect(find.text('Tiempo fuera'), findsOneWidget);
+    expect(find.text('7 min 24 s'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('closeFocusCompletionSummaryButton')),
+    );
+    await tester.tap(
+      find.byKey(const Key('closeFocusCompletionSummaryButton')),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 20));
+
+    expect(find.byKey(const Key('focusCompletionSummarySheet')), findsNothing);
+    expect(sessions.pendingSummary, isNull);
+  });
+
+  testWidgets('keeps the floating summary for completed rest sessions', (
+    tester,
+  ) async {
+    final sessions = _MemoryTimerSessionRepository(
+      pendingSummary: CompletionSummary(
+        sessionId: 'rest-summary-1',
+        mode: TimerMode.rest,
+        completedSeconds: 300,
+        gemDelta: -5,
+        completedAt: DateTime(2026, 8, 15, 10, 30),
+        inAppPending: true,
+        notificationPending: false,
+      ),
+    );
+
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 3,
+            totalFocusSeconds: 1500,
+            profileName: 'Javier',
+          ),
+        ),
+        taskLocalDataSource: _EmptyTaskLocalDataSource(),
+        sessionRepository: sessions,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Descanso completado'), findsOneWidget);
+    expect(find.textContaining('5 min de descanso · −5 gemas'), findsOneWidget);
+    expect(find.byKey(const Key('focusCompletionSummarySheet')), findsNothing);
+    expect(sessions.pendingSummary, isNull);
+  });
+
+  testWidgets('completion panel omits optional rows and fits landscape', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(568, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+          child: Scaffold(
+            body: FocusCompletionSummarySheet(
+              gemsGenerated: 0,
+              completedSeconds: 60,
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('+0'), findsOneWidget);
+    expect(find.text('1 min'), findsOneWidget);
+    expect(find.byKey(const Key('completionSummaryTask')), findsNothing);
+    expect(find.byKey(const Key('completionSummaryAwayTime')), findsNothing);
+    await tester.ensureVisible(
+      find.byKey(const Key('closeFocusCompletionSummaryButton')),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('uses a centered floating footer with semantic selection', (
     tester,
   ) async {
@@ -461,8 +613,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       final widget = tester.widget<Text>(find.byKey(const Key('homeTitle')));
+      final titleRect = tester.getRect(find.byKey(const Key('homeTitle')));
+      final profileRect = tester.getRect(find.byKey(const Key('profileCard')));
       expect(widget.data, title);
       expect(widget.overflow, isNot(TextOverflow.ellipsis));
+      expect(titleRect.right, lessThanOrEqualTo(profileRect.left));
       expect(find.byKey(const Key('homeTitle')), findsOneWidget);
       expect(
         find.byKey(const Key('compactHomeHeaderFirstRow')),
@@ -475,6 +630,52 @@ void main() {
     await tester.tap(find.byKey(const Key('profileButton')));
     expect(menuCalls, 1);
     expect(profileCalls, 1);
+  });
+
+  testWidgets('keeps profile beside the title across the header breakpoint', (
+    tester,
+  ) async {
+    for (final width in [519.0, 520.0]) {
+      tester.view.physicalSize = Size(width, 640);
+      tester.view.devicePixelRatio = 1;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+            child: Scaffold(
+              body: HomeAppBar(
+                title: 'Concentración',
+                profileName: 'Nombre de dieciocho',
+                totalFocusSeconds: 3600,
+                gems: 999,
+                onMenuPressed: () {},
+                onProfilePressed: () {},
+                onFocusTimePressed: () {},
+                onGemsPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final title = tester.getRect(find.byKey(const Key('homeTitle')));
+      final profile = tester.getRect(find.byKey(const Key('profileCard')));
+      final metrics = tester.getRect(find.byKey(const Key('focusTimeStat')));
+      expect(title.right, lessThanOrEqualTo(profile.left));
+      expect(profile.top, lessThan(title.bottom));
+      expect(profile.bottom, greaterThan(title.top));
+      expect(profile.bottom, lessThanOrEqualTo(metrics.top));
+      expect(
+        find.byKey(Key(width < 520 ? 'compactHomeHeader' : 'wideHomeHeader')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
   });
 
   testWidgets('switches between tasks and focus in one home shell', (
@@ -1020,6 +1221,39 @@ class _NoopFocusCompletionAdService implements FocusCompletionAdService {
 
   @override
   Future<void> dispose() async {}
+}
+
+class _MemoryTimerSessionRepository implements TimerSessionRepository {
+  _MemoryTimerSessionRepository({this.pendingSummary});
+
+  ActiveTimerSession? activeSession;
+  CompletionSummary? pendingSummary;
+
+  @override
+  Future<ActiveTimerSession?> loadActiveSession() async => activeSession;
+
+  @override
+  Future<void> saveActiveSession(ActiveTimerSession session) async {
+    activeSession = session;
+  }
+
+  @override
+  Future<void> clearActiveSession() async {
+    activeSession = null;
+  }
+
+  @override
+  Future<CompletionSummary?> loadPendingSummary() async => pendingSummary;
+
+  @override
+  Future<void> savePendingSummary(CompletionSummary summary) async {
+    pendingSummary = summary;
+  }
+
+  @override
+  Future<void> clearPendingSummary() async {
+    pendingSummary = null;
+  }
 }
 
 class _MemoryTimerLocalDataSource implements TimerLocalDataSource {

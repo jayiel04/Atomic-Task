@@ -1,6 +1,6 @@
 # Atomic Task: contexto y hoja de ruta
 
-Última actualización: 14 de agosto de 2026 (recurrencias y Home responsiva implementadas).
+Última actualización: 15 de agosto de 2026 (PLAN.md implementado y Drift v7).
 
 Este documento resume el estado real del proyecto y separa lo implementado de la evolución futura. La especificación visual está en [agents.md](agents.md) y la arquitectura objetivo en [arquitecture.md](arquitecture.md).
 
@@ -8,13 +8,14 @@ Este documento resume el estado real del proyecto y separa lo implementado de la
 
 - [x] Home única con `HomeShellPage`, AppBar compartido y navegación inferior.
 - [x] Vistas embebibles `TasksView` y `FocusView` conservadas en un `IndexedStack`.
-- [x] Encabezado compacto delimitado, con perfil y cápsulas interactivas de tiempo y gemas.
+- [x] Encabezado responsivo con el perfil junto al título completo y las cápsulas de tiempo y gemas debajo.
 - [x] Drawer lateral izquierdo con Tareas, Concentración, Ajustes, Estadísticas y restablecimiento.
 - [x] Footer flotante centrado con cápsula de selección y header responsivo de dos filas.
 - [x] Tareas recurrentes diarias, semanales y mensuales con edición por ocurrencia o serie.
-- [x] Resúmenes de concentración/descanso, notificación del sistema, aviso flotante y flujo de anuncio.
-- [x] Persistencia Drift versión 5 para recurrencias, sesión activa y resumen pendiente.
-- [x] Pruebas de Home, geometría, migraciones v1–v4, CRUD, recurrencias, temporizador y responsividad.
+- [x] Accesos rápidos `Mañana`, `Una semana` y `Un mes` al crear una tarea, más equis roja para quitar la fecha límite.
+- [x] Panel de cada concentración después de la publicidad con gemas, duración, tarea y tiempo fuera cuando aplican; los descansos conservan el aviso flotante.
+- [x] Persistencia Drift versión 7 para recurrencias, sesión activa y resumen pendiente recuperable.
+- [x] Pruebas de Home, geometría, fechas, migraciones v1–v6, CRUD, recurrencias, temporizador, publicidad y responsividad.
 - [x] `flutter analyze`, `flutter test` y `git diff --check` sin errores.
 
 ## 1. Propósito del producto
@@ -101,11 +102,14 @@ La navegación se implementa con una sola Home y vistas internas, sin apilar rut
 - Guardado diferido del progreso y guardado inmediato en acciones críticas.
 - Notificación de sesión activa y de sesión completada.
 - Anuncio intersticial de prueba al terminar concentración en Android/iOS.
+- Panel de resumen posterior al anuncio, persistente y consumible una sola vez.
+- Medición del tiempo entre una finalización en segundo plano y la primera reanudación, sin contar el tiempo del anuncio.
 
 #### Tareas
 
 - Crear, editar, completar, reabrir y eliminar.
 - Fecha límite opcional y detección de vencimiento por día local.
+- Al crear, accesos rápidos de fecha límite para mañana, una semana y un mes; al quitarla, equis roja accesible.
 - Secciones de pendientes y completadas.
 - Resumen de cantidades, estado vacío y error descartable.
 - Formulario adaptable al teclado.
@@ -121,16 +125,16 @@ La navegación se implementa con una sola Home y vistas internas, sin apilar rut
 
 ### 2.5 Persistencia actual
 
-La base Drift usa esquema versión 5:
+La base Drift usa esquema versión 7:
 
 - `timer_progress`: registro único con nombre, gemas y segundos acumulados;
 - `tasks`: título, estado, fecha límite, minutos de concentración y marcas de tiempo;
 - `task_recurrence_rules`: frecuencia, intervalo, fechas de inicio/fin y estado activo;
 - `tasks` relaciona opcionalmente cada ocurrencia con su regla y fecha única;
 - `active_timer_sessions`: instantánea única de una sesión preparada, pausada o en ejecución;
-- `pending_timer_summaries`: resumen único con pendientes de aviso, notificación, anuncio y tarea.
+- `pending_timer_summaries`: resumen único con pendientes de aviso, notificación, anuncio y tarea, más finalización fuera de la aplicación y segundos hasta reanudar.
 
-Las migraciones desde las versiones 1, 2, 3 y 4 conservan el progreso y las tareas.
+Las migraciones desde las versiones 1, 2, 3, 4, 5 y 6 conservan el progreso, las tareas y los resúmenes anteriores; la v7 añade solo columnas con valores compatibles.
 
 ### 2.6 Cobertura existente
 
@@ -173,7 +177,7 @@ El resumen del AppBar respeta esta jerarquía:
 [cápsula dorada: tiempo] [cápsula morada: gemas]
 ```
 
-Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y fuera. En anchos compactos, menú y título ocupan la primera fila y el resumen la segunda. No se muestra la palabra “Hola”.
+Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y fuera. En anchos compactos y amplios, menú, título completo y perfil comparten la primera fila, y las métricas ocupan la segunda. Si falta espacio, solo el nombre del perfil usa elipsis. No se muestra la palabra “Hola”.
 
 ## 4. Decisiones ya acordadas
 
@@ -182,7 +186,7 @@ Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y 
 - [x] Orden de destinos: Tareas y Concentración.
 - [x] La barra inferior permanece visible en ambas vistas.
 - [x] El AppBar es compartido.
-- [x] El nombre se alinea en el bloque derecho y está sobre las estadísticas.
+- [x] El nombre se alinea junto al título en la primera fila y está sobre las estadísticas.
 - [x] Avatar y nombre aparecen dentro de la tarjeta; las estadísticas quedan debajo y fuera.
 - [x] Tiempo de concentración y gemas conservan sus respectivos íconos.
 - [x] Tiempo y gemas usan cápsulas interactivas con paneles inferiores de detalle.
@@ -292,7 +296,7 @@ La entrega visual se considera completa cuando:
 
 - Cambiar de biblioteca de estado.
 - Añadir una biblioteca de inyección de dependencias o router sin necesidad demostrada.
-- Renombrar o eliminar tablas existentes; la única migración incluida es Drift v4 con tablas nuevas para sesiones.
+- Renombrar o eliminar tablas existentes; las migraciones incluidas son aditivas y conservan las rutas históricas.
 - Rediseñar las reglas de gemas.
 - Sustituir las notificaciones o AdMob.
 - Reescribir toda la arquitectura en una sola entrega.
@@ -315,6 +319,7 @@ El archivo generado `app_database.g.dart` nunca debe editarse manualmente.
 
 ## Verificación de esta entrega
 
-- Generación Drift v5 ejecutada con `build_runner`.
-- Migraciones desde las versiones 1, 2, 3 y 4 cubiertas por pruebas.
-- La refactorización arquitectónica amplia de la Fase 7 permanece pendiente; esta entrega añadió los contratos y casos de uso necesarios para recurrencias sin reescribir el temporizador.
+- Generación Drift v7 ejecutada con `build_runner`.
+- Migraciones desde las versiones 1, 2, 3, 4, 5 y 6 cubiertas por pruebas.
+- `PLAN.md` está implementado: encabezado, accesos rápidos, equis roja y panel posterior al anuncio.
+- La refactorización arquitectónica amplia de la Fase 7 permanece pendiente; la entrega conserva los controladores y contratos existentes.

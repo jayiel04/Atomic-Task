@@ -1,3 +1,4 @@
+import 'package:atomic_task/core/theme/app_colors.dart';
 import 'package:atomic_task/core/theme/app_theme.dart';
 import 'package:atomic_task/features/tasks/domain/entities/atomic_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/assign_task_focus.dart';
@@ -8,6 +9,8 @@ import 'package:atomic_task/features/tasks/domain/usecases/update_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/watch_tasks.dart';
 import 'package:atomic_task/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:atomic_task/features/tasks/presentation/pages/task_page.dart';
+import 'package:atomic_task/features/tasks/presentation/task_date_formatter.dart';
+import 'package:atomic_task/features/tasks/presentation/widgets/task_form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -143,6 +146,138 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Vencida'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('uses responsive due-date shortcuts and a red clear icon', (
+    tester,
+  ) async {
+    final repository = MemoryTaskRepository();
+    addTearDown(repository.dispose);
+    final now = DateTime(2026, 1, 31, 10);
+    final controller = _buildController(repository, now: () => now)
+      ..initialize();
+    addTearDown(controller.dispose);
+    repository.emit();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TaskFormSheet(controller: controller, now: () => now),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final shortcuts = <Key, DateTime>{
+      const Key('dueDateTomorrowOption'): DateTime(2026, 2, 1),
+      const Key('dueDateOneWeekOption'): DateTime(2026, 2, 7),
+      const Key('dueDateOneMonthOption'): DateTime(2026, 2, 28),
+    };
+    expect(find.byKey(const Key('dueDateShortcutOptions')), findsOneWidget);
+    expect(find.text('Mañana'), findsOneWidget);
+    expect(find.text('Una semana'), findsOneWidget);
+    expect(find.text('Un mes'), findsOneWidget);
+
+    for (final entry in shortcuts.entries) {
+      await tester.tap(find.byKey(entry.key));
+      await tester.pump();
+      expect(tester.widget<ChoiceChip>(find.byKey(entry.key)).selected, isTrue);
+      expect(find.text(TaskDateFormatter.format(entry.value)), findsOneWidget);
+      for (final otherKey in shortcuts.keys.where((key) => key != entry.key)) {
+        expect(
+          tester.widget<ChoiceChip>(find.byKey(otherKey)).selected,
+          isFalse,
+        );
+      }
+    }
+
+    final clearFinder = find.byKey(const Key('clearTaskDueDateButton'));
+    final clearIcon = tester.widget<Icon>(
+      find.descendant(of: clearFinder, matching: find.byType(Icon)).first,
+    );
+    expect(clearIcon.icon, Icons.close_rounded);
+    expect(clearIcon.color, AppColors.destructive);
+    expect(tester.getSize(clearFinder).height, greaterThanOrEqualTo(48));
+    expect(
+      tester.widget<IconButton>(clearFinder).tooltip,
+      'Quitar fecha límite',
+    );
+
+    await tester.tap(clearFinder);
+    await tester.pump();
+    expect(find.text('Sin fecha límite'), findsOneWidget);
+    for (final key in shortcuts.keys) {
+      expect(tester.widget<ChoiceChip>(find.byKey(key)).selected, isFalse);
+    }
+
+    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('selectRecurrenceEndDateButton')),
+    );
+    await tester.tap(find.byKey(const Key('selectRecurrenceEndDateButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aceptar'));
+    await tester.pumpAndSettle();
+    final recurrenceClear = find.byKey(
+      const Key('clearRecurrenceEndDateButton'),
+    );
+    expect(
+      tester
+          .widget<Icon>(
+            find
+                .descendant(of: recurrenceClear, matching: find.byType(Icon))
+                .first,
+          )
+          .icon,
+      Icons.event_busy_rounded,
+    );
+    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('dueDateOneMonthOption')));
+    await tester.enterText(
+      find.byKey(const Key('taskTitleField')),
+      'Cerrar el mes',
+    );
+    await tester.ensureVisible(find.byKey(const Key('saveTaskButton')));
+    await tester.tap(find.byKey(const Key('saveTaskButton')));
+    await tester.pumpAndSettle();
+
+    expect(repository.tasks.single.dueDate, DateTime(2026, 2, 28));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('does not show due-date shortcuts while editing', (tester) async {
+    final task = AtomicTask(
+      id: 9,
+      title: 'Tarea existente',
+      isCompleted: false,
+      dueDate: DateTime(2026, 2, 1),
+      createdAt: DateTime(2026, 1, 20),
+      updatedAt: DateTime(2026, 1, 20),
+    );
+    final repository = MemoryTaskRepository(initialTasks: [task]);
+    addTearDown(repository.dispose);
+    final controller = _buildController(repository)..initialize();
+    addTearDown(controller.dispose);
+    repository.emit();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TaskFormSheet(controller: controller, task: task),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('dueDateShortcutOptions')), findsNothing);
+    expect(find.byKey(const Key('dueDateTomorrowOption')), findsNothing);
+    expect(find.byKey(const Key('dueDateOneWeekOption')), findsNothing);
+    expect(find.byKey(const Key('dueDateOneMonthOption')), findsNothing);
   });
 }
 

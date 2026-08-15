@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:atomic_task/features/timer/domain/entities/timer_mode.dart';
 import 'package:atomic_task/features/timer/domain/entities/timer_session.dart';
 import 'package:atomic_task/features/timer/domain/entities/user_progress.dart';
@@ -167,7 +169,257 @@ void main() {
     expect(controller.remainingSeconds, 0);
     expect(notifications.completedTimerCalls, 1);
     expect(completionAds.showCalls, 1);
-    expect(controller.pendingCompletionSummary?.adPending, isTrue);
+    expect(controller.pendingCompletionSummary, isNull);
+  });
+
+  test('publishes the focus summary only after the ad is dismissed', () async {
+    final repository = _MemoryTimerRepository();
+    final sessions = _MemoryTimerSessionRepository();
+    final completionAds = _ControlledFocusCompletionAdService();
+    var now = DateTime(2026, 8, 15, 10);
+    var publishedSummaries = 0;
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: completionAds,
+      sessionRepository: sessions,
+      onCompletionSummary: (_) => publishedSummaries += 1,
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    now = now.add(const Duration(minutes: 1));
+    controller.syncWithClock();
+    await _waitUntil(() => completionAds.showCalls == 1);
+
+    expect(controller.pendingCompletionSummary, isNull);
+    expect(publishedSummaries, 0);
+
+    completionAds.complete(FocusCompletionAdResult.shown);
+    await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+    final summary = controller.pendingCompletionSummary!;
+    expect(summary.completedSeconds, 60);
+    expect(summary.gemDelta, 0);
+    expect(summary.adPending, isFalse);
+    expect(publishedSummaries, 1);
+  });
+
+  test(
+    'orders linked task, notification, ad and summary publication',
+    () async {
+      final repository = _MemoryTimerRepository();
+      final events = <String>[];
+      final completionAds = _ControlledFocusCompletionAdService(
+        onShow: () => events.add('ad'),
+      );
+      var now = DateTime(2026, 8, 15, 10);
+      final controller = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: _FakeTimerNotificationService(
+          onCompletion: () => events.add('notification'),
+        ),
+        focusCompletionAdService: completionAds,
+        onLinkedTaskFocusCompletedAtAsync: (taskId, completedAt) async {
+          events.add('task');
+          return true;
+        },
+        onCompletionSummary: (_) => events.add('summary'),
+        now: () => now,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.initialize();
+      controller.prepareFocusForTask(
+        taskId: 42,
+        taskTitle: 'Preparar propuesta',
+        minutes: 1,
+      );
+      controller.startOrPause();
+      now = now.add(const Duration(minutes: 1));
+      controller.syncWithClock();
+      await _waitUntil(() => completionAds.showCalls == 1);
+
+      expect(events, ['task', 'notification', 'ad']);
+      completionAds.complete(FocusCompletionAdResult.shown);
+      await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+      expect(events, ['task', 'notification', 'ad', 'summary']);
+      expect(
+        controller.pendingCompletionSummary?.taskTitle,
+        'Preparar propuesta',
+      );
+      expect(
+        controller.pendingCompletionSummary?.taskCompletionPending,
+        isFalse,
+      );
+    },
+  );
+
+  test('publishes the summary when ads are unsupported', () async {
+    final repository = _MemoryTimerRepository();
+    final completionAds = _ControlledFocusCompletionAdService();
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: completionAds,
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    now = now.add(const Duration(minutes: 1));
+    controller.syncWithClock();
+    await _waitUntil(() => completionAds.showCalls == 1);
+
+    completionAds.complete(FocusCompletionAdResult.unsupported);
+    await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+    expect(controller.pendingCompletionSummary?.adPending, isFalse);
+  });
+
+  test('records time outside after the scheduled focus completion', () async {
+    final repository = _MemoryTimerRepository();
+    final sessions = _MemoryTimerSessionRepository();
+    final completionAds = _FakeFocusCompletionAdService();
+    var publishedSummaries = 0;
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: completionAds,
+      sessionRepository: sessions,
+      onCompletionSummary: (_) => publishedSummaries += 1,
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    controller.handleAppPaused();
+    now = DateTime(2026, 8, 15, 10, 8);
+    controller.handleAppResumed();
+    await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+    final summary = controller.pendingCompletionSummary!;
+    expect(summary.completedAt, DateTime(2026, 8, 15, 10, 1));
+    expect(summary.completedWhileAppWasAway, isTrue);
+    expect(summary.awaySecondsAfterCompletion, 7 * 60);
+
+    now = DateTime(2026, 8, 15, 10, 20);
+    controller.handleAppPaused();
+    controller.handleAppResumed();
+    expect(
+      controller.pendingCompletionSummary?.awaySecondsAfterCompletion,
+      7 * 60,
+    );
+    expect(completionAds.showCalls, 1);
+    expect(publishedSummaries, 1);
+  });
+
+  test('normalizes a return at the exact scheduled end to zero', () async {
+    final repository = _MemoryTimerRepository();
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    controller.handleAppPaused();
+    now = DateTime(2026, 8, 15, 10, 1);
+    controller.handleAppResumed();
+    await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+    expect(
+      controller.pendingCompletionSummary?.completedWhileAppWasAway,
+      isTrue,
+    );
+    expect(controller.pendingCompletionSummary?.awaySecondsAfterCompletion, 0);
+  });
+
+  test('does not include ad display time in the time outside', () async {
+    final repository = _MemoryTimerRepository();
+    final completionAds = _ControlledFocusCompletionAdService();
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: completionAds,
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    controller.handleAppPaused();
+    now = DateTime(2026, 8, 15, 10, 8);
+    controller.handleAppResumed();
+    await _waitUntil(() => completionAds.showCalls == 1);
+
+    now = DateTime(2026, 8, 15, 10, 12);
+    completionAds.complete(FocusCompletionAdResult.shown);
+    await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+    expect(
+      controller.pendingCompletionSummary?.awaySecondsAfterCompletion,
+      7 * 60,
+    );
+  });
+
+  test('omits time outside for a foreground completion', () async {
+    final repository = _MemoryTimerRepository();
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      now: () => now,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    controller.setMinutes(1);
+    controller.startOrPause();
+    now = now.add(const Duration(minutes: 1));
+    controller.syncWithClock();
+    await _waitUntil(() => controller.pendingCompletionSummary != null);
+
+    expect(
+      controller.pendingCompletionSummary?.completedWhileAppWasAway,
+      isFalse,
+    );
+    expect(
+      controller.pendingCompletionSummary?.awaySecondsAfterCompletion,
+      isNull,
+    );
   });
 
   test(
@@ -267,6 +519,48 @@ void main() {
       expect(await sessions.loadActiveSession(), isNull);
     },
   );
+
+  test('records time outside when an expired session is restored', () async {
+    final repository = _MemoryTimerRepository();
+    final sessions = _MemoryTimerSessionRepository();
+    var now = DateTime(2026, 8, 15, 10);
+    final firstController = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      sessionRepository: sessions,
+      now: () => now,
+    );
+
+    await firstController.initialize();
+    firstController.setMinutes(1);
+    firstController.startOrPause();
+    firstController.handleAppPaused();
+    await firstController.flushPersistence();
+    firstController.dispose();
+
+    now = DateTime(2026, 8, 15, 10, 8);
+    final secondController = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      sessionRepository: sessions,
+      now: () => now,
+    );
+    addTearDown(secondController.dispose);
+
+    await secondController.initialize();
+    await _waitUntil(() => secondController.pendingCompletionSummary != null);
+
+    final summary = secondController.pendingCompletionSummary!;
+    expect(summary.completedAt, DateTime(2026, 8, 15, 10, 1));
+    expect(summary.completedWhileAppWasAway, isTrue);
+    expect(summary.awaySecondsAfterCompletion, 7 * 60);
+  });
 
   test(
     'retries pending completion work after the controller is recreated',
@@ -400,6 +694,50 @@ class _FakeFocusCompletionAdService implements FocusCompletionAdService {
   Future<void> dispose() async {}
 }
 
+class _ControlledFocusCompletionAdService implements FocusCompletionAdService {
+  _ControlledFocusCompletionAdService({this.onShow});
+
+  final _completion = Completer<FocusCompletionAdResult>();
+  final void Function()? onShow;
+  int showCalls = 0;
+
+  void complete(FocusCompletionAdResult result) {
+    if (!_completion.isCompleted) {
+      _completion.complete(result);
+    }
+  }
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> showAfterFocusCompletion() async {
+    await showAfterFocusCompletionResult();
+  }
+
+  @override
+  Future<FocusCompletionAdResult> showAfterFocusCompletionResult() {
+    showCalls += 1;
+    onShow?.call();
+    return _completion.future;
+  }
+
+  @override
+  Future<void> dispose() async {
+    complete(FocusCompletionAdResult.retry);
+  }
+}
+
+Future<void> _waitUntil(bool Function() condition) async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    if (condition()) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+  fail('Timed out while waiting for asynchronous timer work.');
+}
+
 class _MemoryTimerRepository implements TimerRepository {
   _MemoryTimerRepository({this.progress = UserProgress.empty});
 
@@ -453,9 +791,13 @@ class _MemoryTimerSessionRepository implements TimerSessionRepository {
 }
 
 class _FakeTimerNotificationService implements TimerNotificationService {
-  _FakeTimerNotificationService({this.failOnCompletion = false});
+  _FakeTimerNotificationService({
+    this.failOnCompletion = false,
+    this.onCompletion,
+  });
 
   final bool failOnCompletion;
+  final void Function()? onCompletion;
   int runningTimerCalls = 0;
   int cancelCalls = 0;
   int completedTimerCalls = 0;
@@ -495,6 +837,7 @@ class _FakeTimerNotificationService implements TimerNotificationService {
     if (failOnCompletion) {
       throw StateError('simulated notification failure');
     }
+    onCompletion?.call();
     completedTimerCalls += 1;
     lastCompletedTitle = title;
     lastCompletedBody = body;

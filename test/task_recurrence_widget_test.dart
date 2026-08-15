@@ -150,6 +150,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('createTaskButton')));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('repeatTaskSwitch')));
     await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
     await tester.pumpAndSettle();
 

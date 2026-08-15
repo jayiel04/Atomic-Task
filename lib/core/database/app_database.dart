@@ -132,6 +132,11 @@ class PendingTimerSummaries extends Table {
   BoolColumn get taskCompletionPending =>
       boolean().withDefault(const Constant(false))();
 
+  BoolColumn get completedWhileAppWasAway =>
+      boolean().withDefault(const Constant(false))();
+
+  IntColumn get awaySecondsAfterCompletion => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {sessionId};
 }
@@ -159,7 +164,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -191,6 +196,16 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'UPDATE tasks SET completed_at = updated_at '
           'WHERE is_completed = 1 AND completed_at IS NULL',
+        );
+      }
+      if (from >= 4 && from < 7) {
+        await migrator.addColumn(
+          pendingTimerSummaries,
+          pendingTimerSummaries.completedWhileAppWasAway,
+        );
+        await migrator.addColumn(
+          pendingTimerSummaries,
+          pendingTimerSummaries.awaySecondsAfterCompletion,
         );
       }
     },
