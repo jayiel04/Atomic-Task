@@ -2,6 +2,7 @@ import 'package:atomic_task/core/database/app_database.dart';
 import 'package:atomic_task/core/theme/app_theme.dart';
 import 'package:atomic_task/features/tasks/data/datasources/task_local_data_source.dart';
 import 'package:atomic_task/features/tasks/data/repositories/task_repository_impl.dart';
+import 'package:atomic_task/features/tasks/domain/entities/recurrence_rule.dart';
 import 'package:atomic_task/features/tasks/domain/services/recurrence_calculator.dart';
 import 'package:atomic_task/features/tasks/domain/services/recurrence_generation_policy.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/assign_task_focus.dart';
@@ -61,8 +62,8 @@ void main() {
     await tester.tap(find.byKey(const Key('saveTaskButton')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Sin fecha'));
-    await tester.pumpAndSettle();
+    expect(find.text('Sin fecha'), findsNothing);
+    expect(find.text('Hoy'), findsOneWidget);
     expect(find.textContaining('Cada 2 días · Activa'), findsOneWidget);
     expect(find.textContaining('Próxima:'), findsOneWidget);
 
@@ -104,6 +105,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('confirmDeleteTaskButton')));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Tareas futuras'));
+    await tester.pumpAndSettle();
     expect(find.text('Objetivos personales'), findsOneWidget);
     expect(find.byKey(const Key('deleteTask-2')), findsOneWidget);
 
@@ -114,6 +117,49 @@ void main() {
     await tester.tap(find.byKey(const Key('confirmDeleteTaskButton')));
     await tester.pumpAndSettle();
     expect(find.text('No tienes tareas pendientes'), findsOneWidget);
+  });
+
+  testWidgets('places the next daily occurrence in Tomorrow', (tester) async {
+    final now = DateTime.now();
+    final database = AppDatabase(executor: NativeDatabase.memory());
+    addTearDown(database.close);
+    final controller = _buildController(database, now: () => now);
+    addTearDown(controller.dispose);
+    controller.initialize();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: TaskPage(
+          controller: controller,
+          onStartFocus: (_, _) async => true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await controller.createRecurring(
+      title: 'Revisión diaria',
+      dueDate: null,
+      frequency: RecurrenceFrequency.daily,
+      interval: 1,
+      startDate: now,
+      endDate: null,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Revisión diaria'), findsOneWidget);
+    expect(find.text('Sin fecha'), findsNothing);
+    await tester.tap(find.byKey(const Key('taskToggle-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('completeTaskNowOption')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mañana'), findsOneWidget);
+    await tester.tap(find.text('Mañana'));
+    await tester.pumpAndSettle();
+    expect(find.text('Revisión diaria'), findsOneWidget);
+    expect(find.byKey(const Key('taskToggle-2')), findsOneWidget);
   });
 
   testWidgets('recurrence form fits compact text and a visible keyboard', (
@@ -169,7 +215,10 @@ void main() {
   });
 }
 
-TaskController _buildController(AppDatabase database) {
+TaskController _buildController(
+  AppDatabase database, {
+  DateTime Function()? now,
+}) {
   final dataSource = DriftTaskLocalDataSource(database);
   final repository = TaskRepositoryImpl(dataSource);
   const calculator = RecurrenceCalculator();
@@ -202,6 +251,6 @@ TaskController _buildController(AppDatabase database) {
       repository,
       policy,
     ),
-    now: () => DateTime(2026, 8, 14, 9),
+    now: now ?? () => DateTime(2026, 8, 14, 9),
   );
 }

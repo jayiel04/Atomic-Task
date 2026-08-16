@@ -1,5 +1,6 @@
 import 'package:atomic_task/core/theme/app_theme.dart';
 import 'package:atomic_task/features/tasks/domain/entities/atomic_task.dart';
+import 'package:atomic_task/features/tasks/domain/entities/recurrence_rule.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/assign_task_focus.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/create_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/delete_task.dart';
@@ -32,12 +33,16 @@ void main() {
         ),
         _task(2, 'Tarea sin fecha'),
         _task(3, 'Tarea de hoy', dueDate: today),
-        _task(
+        _recurringTask(
           4,
-          'Tarea de mañana',
-          dueDate: today.add(const Duration(days: 1)),
+          'Recurrencia de mañana',
+          occurrenceDate: today.add(const Duration(days: 1)),
         ),
-        _task(5, 'Tarea futura', dueDate: today.add(const Duration(days: 2))),
+        _recurringTask(
+          5,
+          'Recurrencia futura',
+          occurrenceDate: today.add(const Duration(days: 2)),
+        ),
       ],
     );
     addTearDown(repository.dispose);
@@ -49,7 +54,13 @@ void main() {
     await tester.pumpWidget(_TestApp(controller: controller));
     await tester.pumpAndSettle();
 
-    final labels = ['Atrasadas', 'Sin fecha', 'Hoy', 'Mañana', 'Futuras'];
+    final labels = [
+      'Atrasadas',
+      'Sin fecha',
+      'Hoy',
+      'Mañana',
+      'Tareas futuras',
+    ];
     for (final label in labels) {
       expect(find.text(label), findsOneWidget);
     }
@@ -72,6 +83,18 @@ void main() {
     expect(find.text('Tarea atrasada'), findsOneWidget);
     expect(find.text('Tarea sin fecha'), findsOneWidget);
     expect(find.text('Tarea de hoy'), findsOneWidget);
+
+    await tester.tap(find.text('Mañana'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recurrencia de mañana'), findsOneWidget);
+    await tester.tap(find.text('Mañana'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Tareas futuras'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tareas futuras'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recurrencia futura'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -96,7 +119,7 @@ void main() {
       expect(find.text('Atrasadas'), findsNothing);
       expect(find.text('Sin fecha'), findsNothing);
       expect(find.text('Mañana'), findsNothing);
-      expect(find.text('Futuras'), findsNothing);
+      expect(find.text('Tareas futuras'), findsNothing);
 
       await tester.tap(find.byKey(const Key('taskToggle-1')));
       await tester.pumpAndSettle();
@@ -132,6 +155,31 @@ AtomicTask _task(int id, String title, {DateTime? dueDate}) {
     title: title,
     isCompleted: false,
     dueDate: dueDate,
+    createdAt: createdAt,
+    updatedAt: createdAt,
+  );
+}
+
+AtomicTask _recurringTask(
+  int id,
+  String title, {
+  required DateTime occurrenceDate,
+}) {
+  final createdAt = DateTime(2026, 8, 1);
+  return AtomicTask(
+    id: id,
+    title: title,
+    isCompleted: false,
+    occurrenceDate: occurrenceDate,
+    recurrenceRule: RecurrenceRule(
+      id: id,
+      frequency: RecurrenceFrequency.daily,
+      interval: 1,
+      startDate: occurrenceDate,
+      isActive: true,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+    ),
     createdAt: createdAt,
     updatedAt: createdAt,
   );

@@ -7,12 +7,12 @@ import '../../../../core/utils/time_formatter.dart';
 import '../../../tasks/domain/entities/atomic_task.dart';
 import '../../../tasks/presentation/controllers/task_controller.dart';
 import '../../../tasks/presentation/pages/task_page.dart';
-import '../../../timer/domain/entities/user_progress.dart';
 import '../../../timer/domain/entities/timer_mode.dart';
 import '../../../timer/domain/entities/timer_session.dart';
 import '../../../timer/presentation/controllers/timer_controller.dart';
 import '../../../timer/presentation/pages/timer_page.dart';
 import '../../../timer/presentation/widgets/focus_completion_summary_sheet.dart';
+import '../../../timer/presentation/widgets/required_profile_name_dialog.dart';
 import '../home_destination.dart';
 import '../widgets/home_app_bar.dart';
 import '../widgets/home_bottom_navigation.dart';
@@ -119,79 +119,10 @@ class _HomeShellPageState extends State<HomeShellPage> {
   }
 
   Future<void> _showNameDialog() async {
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: AlertDialog(
-            title: const Text('¡Bienvenido!'),
-            content: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '¿Cómo te llamas? Usaremos tu nombre para personalizar '
-                    'tu experiencia.',
-                  ),
-                  const SizedBox(height: 18),
-                  TextFormField(
-                    key: const Key('firstLaunchNameField'),
-                    controller: nameController,
-                    autofocus: true,
-                    maxLength: UserProgress.maxProfileNameLength,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(
-                      labelText: 'Tu nombre',
-                      hintText: 'Escribe tu nombre',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Ingresa tu nombre para continuar';
-                      }
-                      return null;
-                    },
-                    onFieldSubmitted: (_) =>
-                        _saveName(dialogContext, formKey, nameController.text),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              FilledButton(
-                key: const Key('saveFirstLaunchName'),
-                onPressed: () =>
-                    _saveName(dialogContext, formKey, nameController.text),
-                child: const Text('Continuar'),
-              ),
-            ],
-          ),
-        );
-      },
+    await showRequiredProfileNameDialog(
+      context,
+      onSubmitted: _timerController.updateProfileName,
     );
-
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    nameController.dispose();
-  }
-
-  void _saveName(
-    BuildContext dialogContext,
-    GlobalKey<FormState> formKey,
-    String name,
-  ) {
-    if (formKey.currentState?.validate() != true) {
-      return;
-    }
-
-    _timerController.updateProfileName(name);
-    Navigator.of(dialogContext).pop();
   }
 
   Future<void> _showCompletionSummary(CompletionSummary summary) async {
@@ -354,6 +285,9 @@ class _HomeShellPageState extends State<HomeShellPage> {
   @override
   Widget build(BuildContext context) {
     final progress = _timerController.progress;
+    final showsPrimaryNavigation =
+        _selectedDestination == HomeDestination.tasks ||
+        _selectedDestination == HomeDestination.focus;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -371,11 +305,12 @@ class _HomeShellPageState extends State<HomeShellPage> {
           ),
         ),
         child: SafeArea(
-          bottom: false,
+          bottom: !showsPrimaryNavigation,
           child: Column(
             children: [
               HomeAppBar(
                 title: _selectedDestination.title,
+                showUserSummary: showsPrimaryNavigation,
                 profileName: progress.profileName,
                 totalFocusSeconds: progress.totalFocusSeconds,
                 gems: progress.gems,
@@ -417,10 +352,12 @@ class _HomeShellPageState extends State<HomeShellPage> {
           ),
         ),
       ),
-      bottomNavigationBar: HomeBottomNavigation(
-        selectedDestination: _selectedDestination,
-        onSelected: _selectDestination,
-      ),
+      bottomNavigationBar: showsPrimaryNavigation
+          ? HomeBottomNavigation(
+              selectedDestination: _selectedDestination,
+              onSelected: _selectDestination,
+            )
+          : null,
     );
   }
 }

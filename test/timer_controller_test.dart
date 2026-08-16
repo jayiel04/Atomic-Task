@@ -42,6 +42,73 @@ void main() {
   });
 
   test(
+    'keeps loaded progress when restoring the timer session fails',
+    () async {
+      final repository = _MemoryTimerRepository(
+        progress: const UserProgress(
+          gems: 7,
+          totalFocusSeconds: 540,
+          profileName: 'Javier',
+        ),
+      );
+      final controller = TimerController(
+        loadProgress: LoadProgress(repository),
+        saveProgress: SaveProgress(repository),
+        clearProgress: ClearProgress(repository),
+        notificationService: _FakeTimerNotificationService(),
+        focusCompletionAdService: _FakeFocusCompletionAdService(),
+        sessionRepository: _FailingTimerSessionRepository(),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.initialize();
+
+      expect(controller.isInitialized, isTrue);
+      expect(controller.progress.gems, 7);
+      expect(controller.progress.totalFocusSeconds, 540);
+      expect(controller.progress.profileName, 'Javier');
+      expect(controller.statusIsError, isTrue);
+      expect(controller.statusMessage, contains('sesión anterior'));
+    },
+  );
+
+  test('does not restore a session after the controller is disposed', () async {
+    final repository = _MemoryTimerRepository();
+    final sessions = _DelayedActiveSessionRepository();
+    final controller = TimerController(
+      loadProgress: LoadProgress(repository),
+      saveProgress: SaveProgress(repository),
+      clearProgress: ClearProgress(repository),
+      notificationService: _FakeTimerNotificationService(),
+      focusCompletionAdService: _FakeFocusCompletionAdService(),
+      sessionRepository: sessions,
+    );
+
+    final initialization = controller.initialize();
+    await _waitUntil(() => sessions.loadCalls == 1);
+    controller.dispose();
+    sessions.complete(
+      ActiveTimerSession(
+        sessionId: 'pending-restoration',
+        mode: TimerMode.focus,
+        state: TimerSessionState.running,
+        selectedSeconds: 60,
+        remainingSeconds: 60,
+        elapsedSeconds: 0,
+        rewardedBlocks: 0,
+        chargedMinutes: 0,
+        lastCheckpointAt: DateTime(2026, 8, 15, 10),
+        endsAt: DateTime(2026, 8, 15, 10, 1),
+      ),
+    );
+
+    await initialization;
+
+    expect(controller.isInitialized, isFalse);
+    expect(controller.isRunning, isFalse);
+  });
+
+  test(
     'keeps notifications and remaining time in sync with the clock',
     () async {
       final repository = _MemoryTimerRepository();
@@ -787,6 +854,28 @@ class _MemoryTimerSessionRepository implements TimerSessionRepository {
   @override
   Future<void> clearPendingSummary() async {
     pendingSummary = null;
+  }
+}
+
+class _FailingTimerSessionRepository extends _MemoryTimerSessionRepository {
+  @override
+  Future<ActiveTimerSession?> loadActiveSession() {
+    throw StateError('simulated session restoration failure');
+  }
+}
+
+class _DelayedActiveSessionRepository extends _MemoryTimerSessionRepository {
+  final _activeSessionCompletion = Completer<ActiveTimerSession?>();
+  int loadCalls = 0;
+
+  void complete(ActiveTimerSession session) {
+    _activeSessionCompletion.complete(session);
+  }
+
+  @override
+  Future<ActiveTimerSession?> loadActiveSession() {
+    loadCalls += 1;
+    return _activeSessionCompletion.future;
   }
 }
 

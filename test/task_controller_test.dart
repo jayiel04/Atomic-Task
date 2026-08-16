@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:atomic_task/features/tasks/domain/entities/atomic_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/assign_task_focus.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/create_task.dart';
@@ -101,6 +103,31 @@ void main() {
     expect(repository.hasListener, isFalse);
   });
 
+  test(
+    'does not notify after a pending mutation outlives the controller',
+    () async {
+      final repository = _DelayedCreateTaskRepository();
+      addTearDown(repository.dispose);
+      final controller = _buildController(repository);
+
+      controller.initialize();
+      repository.emit();
+      await pumpEventQueue();
+
+      var notifications = 0;
+      controller.addListener(() => notifications += 1);
+      final creation = controller.create(title: 'Tarea pendiente');
+      expect(controller.isMutating, isTrue);
+      expect(notifications, 1);
+
+      controller.dispose();
+      repository.completeCreate();
+
+      await expectLater(creation, completion(isTrue));
+      expect(notifications, 1);
+    },
+  );
+
   test('identifies overdue tasks using the local calendar day', () {
     final task = AtomicTask(
       id: 1,
@@ -169,6 +196,21 @@ void main() {
       expect(controller.completedTodayCount, 0);
     },
   );
+}
+
+class _DelayedCreateTaskRepository extends MemoryTaskRepository {
+  final _createCompletion = Completer<int>();
+
+  void completeCreate() => _createCompletion.complete(1);
+
+  @override
+  Future<int> createTask({
+    required String title,
+    required DateTime? dueDate,
+    required DateTime createdAt,
+  }) {
+    return _createCompletion.future;
+  }
 }
 
 TaskController _buildController(

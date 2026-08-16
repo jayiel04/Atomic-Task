@@ -1,6 +1,288 @@
 # Estado
 
-Implementado por completo el 15 de agosto de 2026. La validación final queda registrada en `todo.md`.
+Los planes para limitar el footer, clasificar las tareas recurrentes por fecha y confirmar el reinicio del temporizador fueron implementados por completo el 15 de agosto de 2026. No se añadieron dependencias, migraciones ni cambios de arquitectura fuera del alcance. La validación específica cubre 10 pruebas de agrupación/recurrencia, 31 pruebas de widgets y 19 pruebas del controlador del temporizador. La validación final terminó con `flutter analyze` sin observaciones, 108 pruebas aprobadas y `git diff --check` limpio; el detalle también queda registrado en `todo.md`.
+
+# Plan implementado: footer y resumen del usuario solo en Tareas y Concentración
+
+## Objetivo
+
+Mostrar el footer, el nombre del usuario, las gemas y el tiempo acumulado de concentración únicamente cuando el destino activo sea `Tareas` o `Concentración`.
+
+En `Ajustes` y `Estadísticas` se conservarán el botón de menú y el título contextual del encabezado para que la navegación siga siendo clara y accesible, pero no se construirán la tarjeta de perfil ni las cápsulas de progreso. La vista `Estadísticas` mantendrá sus propias tarjetas de datos: el alcance solo oculta el resumen compartido del encabezado.
+
+## Resultado esperado por destino
+
+| Destino | Menú y título | Nombre, gemas y tiempo | Footer |
+| --- | --- | --- | --- |
+| Tareas | Visible | Visible | Visible, con Tareas seleccionada |
+| Concentración | Visible | Visible | Visible, con Concentración seleccionada |
+| Ajustes | Visible | Oculto | Oculto |
+| Estadísticas | Visible | Oculto | Oculto |
+
+Al entrar en `Ajustes` o `Estadísticas`, los controles ocultos también deberán desaparecer del árbol semántico y de interacción; no bastará con volverlos transparentes o colocarlos fuera de pantalla.
+
+## Decisiones de implementación
+
+- Calcular una sola condición derivada en `HomeShellPage` a partir de `_selectedDestination`, enumerando explícitamente `HomeDestination.tasks` y `HomeDestination.focus` para no depender del orden del enum.
+- Reutilizar esa condición para controlar el resumen del encabezado, el `bottomNavigationBar` y el Safe Area inferior, evitando estados booleanos duplicados que puedan desincronizarse de la navegación.
+- Mantener un único `Scaffold` y el `IndexedStack` actual, de modo que cambiar de vista no reinicie formularios, listas ni el temporizador.
+- Añadir a `HomeAppBar` una propiedad explícita, por ejemplo `showUserSummary`, que controle conjuntamente la tarjeta de perfil y la fila de métricas.
+- Cuando `showUserSummary` sea `false`, construir únicamente la fila de menú y título, aprovechar el ancho liberado para el título y eliminar la altura y separación reservadas para las métricas.
+- Asignar `null` a `Scaffold.bottomNavigationBar` en `Ajustes` y `Estadísticas`; `HomeBottomNavigation` no necesita conocer destinos que no representa ni cambiar su API.
+- Activar la protección inferior del `SafeArea` del cuerpo cuando el footer esté ausente. En `Tareas` y `Concentración`, el footer seguirá siendo quien gestione el inset inferior.
+- Conservar el drawer como ruta para volver desde `Ajustes` o `Estadísticas` a `Tareas` o `Concentración`.
+- No modificar controladores, persistencia, reglas de tareas/temporizador, esquema Drift, dependencias ni los contenidos internos de las cuatro vistas.
+
+## Pasos de implementación
+
+1. Registrar la línea base con `git status`, `flutter analyze` y las pruebas actuales, diferenciando cualquier cambio o fallo preexistente.
+2. Introducir en `HomeShellPage` la condición derivada que identifique los dos destinos principales.
+3. Pasar esa condición a `HomeAppBar`, renderizar condicionalmente el footer y ajustar el `SafeArea` inferior según exista o no la barra.
+4. Adaptar `HomeAppBar` para omitir por completo `profileButton`, `profileName`, `focusTimeStat`, `gemsStat` y la segunda fila cuando el resumen no deba mostrarse.
+5. Ajustar restricciones, altura, paddings y claves del encabezado secundario para que `Ajustes` y `Estadísticas` no conserven un hueco vacío y sus títulos funcionen en tamaños compactos y amplios.
+6. Actualizar las pruebas existentes que actualmente esperan el footer y el resumen en los cuatro destinos; al no existir el footer en destinos secundarios, el retorno se probará mediante el drawer.
+7. Añadir cobertura específica de visibilidad, semántica, navegación y Safe Area para cada destino.
+8. Al implementar, actualizar `agents.md` y `todo.md` para sustituir las reglas actuales que describen el header compartido y el footer como visibles en las cuatro vistas.
+9. Formatear únicamente los archivos Dart modificados, ejecutar análisis y pruebas, y revisar el diff final para descartar cambios ajenos al alcance.
+
+## Pruebas que deben añadirse o ajustarse
+
+- En `Tareas`, encontrar exactamente un `homeBottomNavigation`, `profileButton`, `profileName`, `focusTimeStat` y `gemsStat`.
+- En `Concentración`, encontrar los mismos elementos y comprobar que `focusTab` expone semántica seleccionada.
+- En `Ajustes`, no encontrar el footer ni los cuatro elementos del resumen, pero sí `homeMenuButton`, el título `Ajustes` y `settingsView`.
+- En `Estadísticas`, no encontrar el footer ni el resumen del encabezado, pero sí `homeMenuButton`, el título `Estadísticas`, `statisticsView` y sus tarjetas estadísticas internas.
+- Verificar la secuencia `Tareas → Ajustes → Estadísticas → Concentración → Tareas` usando el perfil o el drawer según corresponda, sin depender de pestañas ocultas.
+- Confirmar que al regresar a un destino principal reaparecen los valores actuales del nombre, tiempo y gemas y que sus callbacks continúan abriendo Ajustes o los paneles de detalle.
+- Confirmar que una sesión restaurable abre `Concentración` con footer y resumen visibles.
+- Repetir la matriz responsiva existente, incluidos 320 × 568, 568 × 320, el breakpoint de 520 px y escala de texto 1.3, sin overflow ni espacio vertical reservado para el resumen oculto.
+- Verificar que `Ajustes` y `Estadísticas` respetan el inset inferior del sistema cuando no existe `HomeBottomNavigation`.
+- Confirmar que el footer y los controles del resumen ausentes tampoco son enfocables, pulsables ni anunciados por accesibilidad.
+
+## Criterios de aceptación
+
+1. El footer aparece exclusivamente en `Tareas` y `Concentración`.
+2. El nombre del usuario, las gemas y el tiempo de concentración del encabezado aparecen exclusivamente en esas dos vistas.
+3. `Ajustes` y `Estadísticas` conservan menú, título, contenido, acceso mediante drawer y Safe Area correcto, sin huecos del resumen oculto.
+4. Las tarjetas propias de `Estadísticas` siguen mostrando sus datos sin duplicarlos en el encabezado.
+5. La navegación no recrea las vistas ni altera el estado del temporizador, las tareas o el progreso.
+6. Se conservan las claves, acciones y semántica de los elementos cuando están visibles.
+7. No se introducen dependencias, migraciones ni cambios de negocio.
+8. `dart format --output=none --set-exit-if-changed` sobre los Dart modificados, `flutter analyze` y `flutter test` finalizan sin errores nuevos.
+
+## Archivos previstos
+
+- `lib/features/home/presentation/pages/home_shell_page.dart`
+- `lib/features/home/presentation/widgets/home_app_bar.dart`
+- `test/widget_test.dart`
+- `agents.md`
+- `todo.md`
+
+No se prevén cambios en `home_bottom_navigation.dart`, controladores, modelos, persistencia, archivos generados ni dependencias.
+
+---
+
+# Plan implementado: tareas recurrentes en su sección de fecha correspondiente
+
+## Objetivo
+
+Evitar que una tarea recurrente pendiente aparezca en `Sin fecha` cuando ya tiene una fecha de ocurrencia. Cada ocurrencia deberá mostrarse en `Atrasadas`, `Hoy`, `Mañana` o `Tareas futuras` según el día que le corresponda.
+
+Este cambio organiza la ocurrencia pendiente que ya genera el sistema; no materializa toda la serie por adelantado ni altera la regla que mantiene una sola próxima ocurrencia pendiente. Tampoco añade un bloqueo nuevo para completar, editar, eliminar o asociar concentración antes de la fecha: el alcance solicitado es la clasificación visual por fecha.
+
+## Regla de clasificación
+
+Definir una única fecha efectiva para agrupar cada tarea pendiente:
+
+```text
+fecha efectiva = fecha límite
+                  o, si no existe y la tarea es recurrente,
+                  fecha de la ocurrencia
+```
+
+Aplicar después la comparación por día del calendario local, ignorando horas:
+
+| Fecha efectiva | Sección |
+| --- | --- |
+| Anterior a hoy | Atrasadas |
+| Hoy | Hoy |
+| Mañana | Mañana |
+| Posterior a mañana | Tareas futuras |
+| Ausente en una tarea no recurrente | Sin fecha |
+
+Reglas adicionales:
+
+- Una tarea recurrente con `dueDate` utilizará esa fecha límite, igual que ahora.
+- Una tarea recurrente sin `dueDate` utilizará `occurrenceDate`, que ya se persiste para cada ocurrencia.
+- Una tarea normal sin `dueDate` seguirá en `Sin fecha`.
+- Las tareas completadas continuarán excluidas de las secciones pendientes.
+- Al completar o eliminar una ocurrencia recurrente, la siguiente se reclasificará automáticamente usando su nueva `occurrenceDate`.
+- Una serie pausada conservará su ocurrencia pendiente en la sección que corresponda; pausar seguirá afectando la generación posterior, no la clasificación de la ocurrencia existente.
+- Si por datos anómalos una tarea marcada como recurrente no tiene ni `dueDate` ni `occurrenceDate`, se mantendrá el fallback seguro a `Sin fecha` en lugar de ocultarla o provocar un error.
+- Cambiar la etiqueta visible de la sección `Futuras` a `Tareas futuras`, conservando el valor interno `TaskDateGroup.future` para evitar cambios innecesarios de API.
+
+## Decisiones de implementación
+
+- Mantener la lógica en `task_date_group.dart`, que ya es la única responsable de agrupar las tareas pendientes por fecha.
+- Extraer dentro de ese archivo una función pequeña y determinista que resuelva la fecha efectiva, evitando duplicar condiciones en `TasksView`, `TaskCard` o el controlador.
+- No convertir `occurrenceDate` en `dueDate` ni reescribir datos persistidos; ambas fechas conservan su significado actual.
+- No cambiar `AtomicTask.isOverdueAt` ni el texto de fecha límite de `TaskCard`: el indicador de vencimiento seguirá dependiendo de una fecha límite real, mientras la fecha de ocurrencia solo decidirá la sección cuando la fecha límite sea nula.
+- Conservar el orden actual de los grupos y el comportamiento colapsable; únicamente cambiarán la pertenencia de las recurrencias y la etiqueta del último grupo.
+- No modificar el controlador, los casos de uso de recurrencia, Drift ni la generación idempotente de ocurrencias.
+
+## Pasos de implementación
+
+1. Registrar la línea base de las pruebas de agrupación y recurrencia, diferenciando los cambios preexistentes del repositorio.
+2. Añadir en `task_date_group.dart` la resolución de fecha efectiva con prioridad para `dueDate` y fallback a `occurrenceDate` solo en tareas recurrentes.
+3. Reutilizar la normalización local existente para enviar esa fecha a `Atrasadas`, `Hoy`, `Mañana` o `Tareas futuras`.
+4. Actualizar la etiqueta de `TaskDateGroup.future` a `Tareas futuras` sin renombrar el enum ni las claves de estado de las secciones.
+5. Ampliar las pruebas unitarias de agrupación con ocurrencias recurrentes sin fecha límite en cada frontera temporal.
+6. Ajustar las pruebas de widget que actualmente abren `Sin fecha` para encontrar una recurrencia recién creada y verificar su nueva sección.
+7. Añadir una prueba de integración que complete una ocurrencia y confirme que la siguiente aparece en `Mañana` o `Tareas futuras`, según su intervalo.
+8. Al implementar, actualizar `agents.md` y `todo.md` para documentar la fecha efectiva y el nuevo nombre visible de la sección.
+9. Formatear solo los Dart modificados, ejecutar las pruebas relacionadas, `flutter analyze`, la suite completa y revisar el diff final.
+
+## Pruebas que deben añadirse o ajustarse
+
+- Una recurrencia sin `dueDate` cuya `occurrenceDate` sea hoy aparece en `Hoy` y no en `Sin fecha`.
+- Una recurrencia sin `dueDate` cuya ocurrencia sea mañana aparece en `Mañana`.
+- Una recurrencia sin `dueDate` cuya ocurrencia sea posterior a mañana aparece en `Tareas futuras`.
+- Una ocurrencia atrasada aparece en `Atrasadas`.
+- Una recurrencia que sí tiene `dueDate` se agrupa por esa fecha aunque su `occurrenceDate` sea distinta.
+- Una tarea normal sin fecha permanece en `Sin fecha`.
+- Una tarea completada no aparece en ningún grupo pendiente.
+- Las comparaciones respetan el día local cerca de medianoche y no dependen de la hora guardada.
+- Completar una recurrencia diaria mueve la siguiente ocurrencia a `Mañana`; completar una recurrencia con un intervalo mayor la mueve a `Tareas futuras`.
+- Pausar una serie no mueve su ocurrencia pendiente a `Sin fecha`.
+- La prueba existente de creación y administración de recurrencias deja de buscar la tarea en `Sin fecha` y valida la sección derivada de su fecha de inicio.
+- Las secciones vacías siguen sin renderizarse, las no vacías conservan su orden y el estado colapsado continúa siendo independiente.
+
+## Criterios de aceptación
+
+1. Ninguna tarea recurrente válida con `occurrenceDate` aparece en `Sin fecha` por carecer de `dueDate`.
+2. Una ocurrencia para mañana aparece en `Mañana` y una posterior aparece en `Tareas futuras`.
+3. Las fechas límite explícitas conservan prioridad y las tareas normales sin fecha no cambian de sección.
+4. La siguiente ocurrencia creada al completar o eliminar se ubica automáticamente según su fecha.
+5. No cambian la persistencia, el esquema Drift, la frecuencia, los intervalos, la pausa, la reactivación ni la idempotencia de las series.
+6. El cambio no duplica ocurrencias ni modifica las acciones disponibles en las tarjetas.
+7. `dart format --output=none --set-exit-if-changed` sobre los Dart modificados, `flutter analyze` y `flutter test` finalizan sin errores nuevos.
+
+## Archivos previstos
+
+- `lib/features/tasks/presentation/task_date_group.dart`
+- `test/task_date_group_test.dart`
+- `test/task_grouping_widget_test.dart`
+- `test/task_recurrence_widget_test.dart`
+- `agents.md`
+- `todo.md`
+
+No se prevén cambios en `AtomicTask`, `TaskController`, casos de uso, repositorios, base de datos, archivos generados ni dependencias.
+
+---
+
+# Plan implementado: reinicio destructivo y confirmado del temporizador
+
+## Objetivo
+
+Habilitar `Reiniciar temporizador` únicamente cuando exista una sesión en ejecución o pausada. Mientras esté habilitado, el botón tendrá fondo rojo y contenido blanco para comunicar que cancela la sesión actual. Cada pulsación deberá abrir una confirmación antes de ejecutar el reinicio.
+
+## Estados del botón
+
+| Estado del temporizador | Botón | Apariencia | Al pulsar |
+| --- | --- | --- | --- |
+| Inicial, sin iniciar | Deshabilitado | Neutra, sin fondo rojo | Sin acción |
+| Sesión preparada, pero no iniciada | Deshabilitado | Neutra, sin fondo rojo | Sin acción |
+| En ejecución | Habilitado | Fondo rojo y contenido blanco | Abre confirmación |
+| Pausado después de iniciar | Habilitado | Fondo rojo y contenido blanco | Abre confirmación |
+| Completado o cancelado | Deshabilitado | Neutra, sin fondo rojo | Sin acción |
+
+La misma regla se aplicará a las dos variantes actuales: el botón compacto con ícono usado dentro de Home y el botón ancho con texto usado por `TimerPage`.
+
+## Confirmación requerida
+
+Al pulsar el botón habilitado, mostrar un único `AlertDialog` con una advertencia clara:
+
+```text
+Cancelar temporizador
+
+¿Estás seguro de que quieres cancelar el temporizador actual?
+Se perderá el progreso de esta sesión.
+
+[No, conservar] [Sí, cancelar]
+```
+
+Reglas del diálogo:
+
+- `No, conservar`, el botón atrás y tocar fuera del diálogo cerrarán la confirmación sin modificar el temporizador.
+- `Sí, cancelar` será la única acción que invoque `TimerController.resetTimer()`.
+- La acción destructiva usará el rojo `AppColors.destructive`; la acción de conservación será visualmente secundaria.
+- Abrir el diálogo no pausará automáticamente una sesión en ejecución. Si el usuario conserva la sesión, el reloj continuará con el tiempo real transcurrido.
+- Antes de ejecutar el reinicio, volver a comprobar que la vista siga montada y que la sesión continúe siendo reiniciable. Si terminó mientras el diálogo estaba abierto, no se borrarán el estado completado ni su resumen.
+- No cancelar notificaciones, limpiar la tarea vinculada ni borrar la sesión persistida hasta recibir una confirmación afirmativa.
+- Añadir claves estables sugeridas: `cancelTimerConfirmationDialog`, `keepTimerButton` y `confirmCancelTimerButton`.
+
+## Decisiones de implementación
+
+- Reutilizar `TimerController.controlsLocked` como fuente de verdad del estado habilitado, porque ya representa una sesión ejecutándose o una sesión iniciada que quedó pausada.
+- No duplicar ese estado con un booleano local dentro de `FocusView`.
+- Envolver la acción de reinicio en `_ControllerSelector` para que habilitación, colores y semántica se actualicen al iniciar, pausar, continuar, completar o reiniciar, sin reconstruir toda la vista.
+- Centralizar en `FocusView` un único método asíncrono de confirmación compartido por las variantes compacta y ancha.
+- Mantener `resetTimer()` libre de dependencias de Flutter y de diálogos; la confirmación pertenece a presentación y las llamadas internas o pruebas del controlador conservarán una API directa.
+- Reutilizar `AppColors.destructive` para el fondo habilitado y `Colors.white` para ícono o texto. No añadir otro color hardcodeado ni una dependencia nueva.
+- Mantener el alto y área táctil actuales, incluido el mínimo de 48 × 48 del botón compacto.
+- Asignar la clave `resetTimerButton` a ambas variantes para que compartan cobertura y semántica.
+
+## Pasos de implementación
+
+1. Registrar la línea base de análisis y pruebas del temporizador, diferenciando los cambios preexistentes del repositorio.
+2. Hacer que `_buildResetAction` observe `controlsLocked` mediante el selector existente y reciba el estado habilitado en cada reconstrucción.
+3. Configurar `onPressed` como `null` cuando no exista una sesión ejecutándose o pausada.
+4. Aplicar a las variantes compacta y ancha el fondo `AppColors.destructive`, contenido blanco y borde coherente solamente en estado habilitado; conservar un estilo neutro y legible al estar deshabilitadas.
+5. Implementar el diálogo de confirmación compartido y sustituir la llamada directa a `controller.resetTimer` por ese flujo.
+6. Revalidar el estado después de cerrar el diálogo y llamar a `resetTimer()` únicamente tras `Sí, cancelar`.
+7. Añadir pruebas de widget para estados, colores, confirmación, cancelación, finalización durante el diálogo y ambas variantes responsivas.
+8. Confirmar mediante las pruebas existentes del controlador que el reinicio aceptado sigue cancelando notificaciones, eliminando la sesión activa y limpiando la tarea vinculada sin crear un resumen.
+9. Al implementar, actualizar `agents.md` y `todo.md` con la nueva regla visual y de confirmación.
+10. Formatear únicamente los Dart modificados, ejecutar las pruebas relacionadas, `flutter analyze`, la suite completa y revisar el diff final.
+
+## Pruebas que deben añadirse o ajustarse
+
+- En estado inicial, `resetTimerButton` existe pero tiene `onPressed == null`, no usa fondo rojo y no abre un diálogo.
+- Una sesión preparada para una tarea, todavía sin iniciar, mantiene el botón deshabilitado.
+- Al iniciar Concentración o Descanso, el botón se habilita inmediatamente y su fondo resuelve a `AppColors.destructive` con ícono o texto blanco.
+- Al pausar después de que haya transcurrido tiempo, el botón permanece habilitado y rojo.
+- Al continuar, conserva el mismo estado habilitado y destructivo.
+- Al completar una sesión, vuelve al estado deshabilitado y no permite eliminar el resumen de finalización.
+- Pulsar el botón mientras corre o está pausado muestra exactamente un diálogo y no reinicia todavía el controlador.
+- Elegir `No, conservar`, usar atrás o tocar fuera mantiene segundos restantes, modo, tarea vinculada, notificación y estado de ejecución/pausa.
+- Elegir `Sí, cancelar` cierra el diálogo, reinicia el reloj al tiempo seleccionado, limpia la sesión activa y deja el botón deshabilitado y sin fondo rojo.
+- Si el temporizador finaliza mientras la confirmación está abierta, confirmar después no ejecuta un reinicio tardío.
+- La variante compacta y la variante ancha comparten textos, comportamiento, color destructivo, claves y resultado.
+- El diálogo y los botones no producen overflow a 320 × 568, en landscape ni con escala de texto 1.3.
+- La semántica comunica que el botón está deshabilitado cuando corresponde y que la confirmación contiene una acción destructiva distinta de la acción para conservar.
+
+## Criterios de aceptación
+
+1. `Reiniciar temporizador` solo está habilitado durante una sesión en ejecución o pausada.
+2. Todo botón de reinicio habilitado tiene fondo rojo `AppColors.destructive` y contenido blanco con contraste suficiente.
+3. Ningún reinicio iniciado desde la interfaz ocurre sin confirmar `Sí, cancelar`.
+4. Rechazar o cerrar el diálogo conserva íntegramente la sesión.
+5. Confirmar reutiliza el flujo actual de `resetTimer()` y mantiene la limpieza de notificación, persistencia y tarea vinculada.
+6. Una sesión que termina durante la confirmación no pierde su resultado ni su resumen.
+7. El comportamiento es idéntico en Concentración, Descanso, Home, `TimerPage` y todos los perfiles responsivos.
+8. No se modifican recompensas, consumo de gemas, finalización, anuncios, esquema Drift ni dependencias.
+9. `dart format --output=none --set-exit-if-changed` sobre los Dart modificados, `flutter analyze` y `flutter test` finalizan sin errores nuevos.
+
+## Archivos previstos
+
+- `lib/features/timer/presentation/pages/timer_page.dart`
+- `test/widget_test.dart` o un nuevo `test/timer_reset_action_test.dart` enfocado en este flujo
+- `test/timer_controller_test.dart`, solo para completar expectativas del reinicio existente si fueran necesarias
+- `agents.md`
+- `todo.md`
+
+No se prevén cambios en `TimerController`, servicios, repositorios, base de datos, archivos generados ni dependencias.
+
+---
 
 # Plan: nombre de perfil junto al título de la vista
 

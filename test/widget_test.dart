@@ -8,11 +8,17 @@ import 'package:atomic_task/features/tasks/data/datasources/task_local_data_sour
 import 'package:atomic_task/features/tasks/data/models/task_model.dart';
 import 'package:atomic_task/features/timer/data/datasources/timer_local_data_source.dart';
 import 'package:atomic_task/features/timer/data/models/progress_model.dart';
+import 'package:atomic_task/features/timer/data/repositories/timer_repository_impl.dart';
 import 'package:atomic_task/features/timer/domain/entities/timer_mode.dart';
 import 'package:atomic_task/features/timer/domain/entities/timer_session.dart';
 import 'package:atomic_task/features/timer/domain/repositories/timer_session_repository.dart';
 import 'package:atomic_task/features/timer/domain/services/focus_completion_ad_service.dart';
 import 'package:atomic_task/features/timer/domain/services/timer_notification_service.dart';
+import 'package:atomic_task/features/timer/domain/usecases/clear_progress.dart';
+import 'package:atomic_task/features/timer/domain/usecases/load_progress.dart';
+import 'package:atomic_task/features/timer/domain/usecases/save_progress.dart';
+import 'package:atomic_task/features/timer/presentation/controllers/timer_controller.dart';
+import 'package:atomic_task/features/timer/presentation/pages/timer_page.dart';
 import 'package:atomic_task/features/timer/presentation/widgets/focus_completion_summary_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -572,8 +578,13 @@ void main() {
 
     await tester.tap(find.byKey(const Key('profileButton')));
     await tester.pumpAndSettle();
-    expect(taskSemantics().properties.selected, isFalse);
-    expect(focusSemantics().properties.selected, isFalse);
+    expect(find.byKey(const Key('settingsView')), findsOneWidget);
+    expect(find.byKey(const Key('homeBottomNavigation')), findsNothing);
+    expect(find.byKey(const Key('profileButton')), findsNothing);
+    expect(find.byKey(const Key('focusTimeStat')), findsNothing);
+    expect(find.byKey(const Key('gemsStat')), findsNothing);
+    expect(find.byKey(const Key('homeMenuButton')), findsOneWidget);
+    expect(find.byKey(const Key('homeTitle')), findsOneWidget);
   });
 
   testWidgets('shows every compact header title without ellipsis', (
@@ -599,6 +610,7 @@ void main() {
             child: Scaffold(
               body: HomeAppBar(
                 title: title,
+                showUserSummary: true,
                 profileName: 'Nombre muy extenso',
                 totalFocusSeconds: 3600,
                 gems: 999,
@@ -646,6 +658,7 @@ void main() {
             child: Scaffold(
               body: HomeAppBar(
                 title: 'Concentración',
+                showUserSummary: true,
                 profileName: 'Nombre de dieciocho',
                 totalFocusSeconds: 3600,
                 gems: 999,
@@ -711,6 +724,183 @@ void main() {
     expect(find.byKey(const Key('focusTab')), findsOneWidget);
   });
 
+  testWidgets('compact reset is red and always confirms cancellation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AtomicTimerBootstrap(
+        notificationService: _NoopNotificationService(),
+        focusCompletionAdService: _NoopFocusCompletionAdService(),
+        localDataSource: _MemoryTimerLocalDataSource(
+          progress: const ProgressModel(
+            gems: 0,
+            totalFocusSeconds: 0,
+            profileName: 'Javier',
+          ),
+        ),
+        taskLocalDataSource: _EmptyTaskLocalDataSource(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final controller = tester
+        .widget<HomeShellPage>(find.byType(HomeShellPage))
+        .timerController;
+
+    await tester.tap(find.byKey(const Key('focusTab')));
+    await tester.pumpAndSettle();
+
+    IconButton resetButton() =>
+        tester.widget<IconButton>(find.byKey(const Key('resetTimerButton')));
+
+    expect(resetButton().onPressed, isNull);
+    expect(
+      resetButton().style?.backgroundColor?.resolve({WidgetState.disabled}),
+      isNot(AppColors.destructive),
+    );
+
+    await tester.tap(find.text('INICIAR'));
+    await tester.pump();
+    expect(controller.isRunning, isTrue);
+    expect(resetButton().onPressed, isNotNull);
+    expect(
+      resetButton().style?.backgroundColor?.resolve({}),
+      AppColors.destructive,
+    );
+    expect(resetButton().style?.foregroundColor?.resolve({}), Colors.white);
+
+    await tester.tap(find.byKey(const Key('resetTimerButton')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('cancelTimerConfirmationDialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Cancelar temporizador'), findsOneWidget);
+    expect(find.byKey(const Key('keepTimerButton')), findsOneWidget);
+    expect(find.byKey(const Key('confirmCancelTimerButton')), findsOneWidget);
+    expect(
+      find.text(
+        '¿Estás seguro de que quieres cancelar el temporizador actual? '
+        'Se perderá el progreso de esta sesión.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('cancelTimerConfirmationDialog')),
+      findsNothing,
+    );
+    expect(controller.isRunning, isTrue);
+
+    await tester.tap(find.byKey(const Key('resetTimerButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmCancelTimerButton')));
+    await tester.pumpAndSettle();
+
+    expect(controller.controlsLocked, isFalse);
+    expect(resetButton().onPressed, isNull);
+    expect(find.text('INICIAR'), findsOneWidget);
+  });
+
+  testWidgets('wide reset shares the enabled style and confirmation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(820, 1180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = await _buildInitializedTimerController(now: () => now);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FocusView(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    OutlinedButton resetButton() => tester.widget<OutlinedButton>(
+      find.byKey(const Key('resetTimerButton')),
+    );
+
+    expect(resetButton().onPressed, isNull);
+    await tester.tap(find.text('INICIAR'));
+    await tester.pump();
+    expect(resetButton().onPressed, isNotNull);
+    expect(
+      resetButton().style?.backgroundColor?.resolve({}),
+      AppColors.destructive,
+    );
+    expect(resetButton().style?.foregroundColor?.resolve({}), Colors.white);
+
+    now = now.add(const Duration(seconds: 1));
+    controller.syncWithClock();
+    controller.pause();
+    await tester.pump();
+    expect(controller.isRunning, isFalse);
+    expect(controller.controlsLocked, isTrue);
+    expect(find.text('CONTINUAR'), findsOneWidget);
+    expect(
+      resetButton().style?.backgroundColor?.resolve({}),
+      AppColors.destructive,
+    );
+
+    await tester.tap(find.byKey(const Key('resetTimerButton')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('cancelTimerConfirmationDialog')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('keepTimerButton')));
+    await tester.pumpAndSettle();
+    expect(controller.isRunning, isFalse);
+    expect(controller.controlsLocked, isTrue);
+    expect(find.text('Reiniciar temporizador'), findsOneWidget);
+    controller.resetTimer();
+  });
+
+  testWidgets('does not reset a session completed behind the dialog', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 8, 15, 10);
+    final controller = await _buildInitializedTimerController(now: () => now);
+    addTearDown(controller.dispose);
+    controller.setMinutes(1);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FocusView(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('INICIAR'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('resetTimerButton')));
+    await tester.pumpAndSettle();
+
+    now = now.add(const Duration(minutes: 1));
+    controller.syncWithClock();
+    await tester.pumpAndSettle();
+    expect(controller.sessionCompleted, isTrue);
+    expect(controller.controlsLocked, isFalse);
+    expect(controller.remainingSeconds, 0);
+
+    await tester.tap(find.byKey(const Key('confirmCancelTimerButton')));
+    await tester.pumpAndSettle();
+
+    expect(controller.sessionCompleted, isTrue);
+    expect(controller.remainingSeconds, 0);
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('resetTimerButton')))
+          .onPressed,
+      isNull,
+    );
+  });
+
   testWidgets('prepares the timer from a task focus association', (
     tester,
   ) async {
@@ -752,6 +942,12 @@ void main() {
     expect(find.text('TAREA ACTUAL'), findsOneWidget);
     expect(find.byKey(const Key('linkedTaskAssetIcon')), findsOneWidget);
     expect(find.text('Escribir informe'), findsWidgets);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('resetTimerButton')))
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets('opens the sidebar and selects all home views', (tester) async {
@@ -800,7 +996,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('settingsView')), findsOneWidget);
     expect(find.text('Ajustes'), findsOneWidget);
-    expect(find.byKey(const Key('homeBottomNavigation')), findsOneWidget);
+    expect(find.byKey(const Key('homeBottomNavigation')), findsNothing);
+    expect(find.byKey(const Key('profileButton')), findsNothing);
+    expect(find.byKey(const Key('focusTimeStat')), findsNothing);
+    expect(find.byKey(const Key('gemsStat')), findsNothing);
 
     await tester.tap(find.byKey(const Key('homeMenuButton')));
     await tester.pumpAndSettle();
@@ -808,10 +1007,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('statisticsView')), findsOneWidget);
     expect(find.text('Estadísticas'), findsOneWidget);
+    expect(find.byKey(const Key('homeBottomNavigation')), findsNothing);
+    expect(find.byKey(const Key('profileButton')), findsNothing);
+    expect(find.byKey(const Key('focusTimeStat')), findsNothing);
+    expect(find.byKey(const Key('gemsStat')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('tasksTab')));
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sidebarTasksDestination')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('taskList')), findsOneWidget);
+    expect(find.byKey(const Key('homeBottomNavigation')), findsOneWidget);
+    expect(find.byKey(const Key('profileButton')), findsOneWidget);
+    expect(find.byKey(const Key('focusTimeStat')), findsOneWidget);
+    expect(find.byKey(const Key('gemsStat')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('homeMenuButton')));
     await tester.pumpAndSettle();
@@ -985,7 +1194,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    await tester.tap(find.byKey(const Key('tasksTab')));
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sidebarTasksDestination')));
     await tester.pumpAndSettle();
     expect(find.text('Informe terminado'), findsOneWidget);
     expect(find.text('1 pendiente · 0 completadas hoy'), findsOneWidget);
@@ -1068,6 +1279,30 @@ void main() {
     expect(find.byKey(const Key('firstLaunchNameField')), findsOneWidget);
     expect(find.byKey(const Key('homeSidebar')), findsNothing);
   });
+}
+
+Future<TimerController> _buildInitializedTimerController({
+  DateTime Function()? now,
+}) async {
+  final repository = TimerRepositoryImpl(
+    _MemoryTimerLocalDataSource(
+      progress: const ProgressModel(
+        gems: 0,
+        totalFocusSeconds: 0,
+        profileName: 'Javier',
+      ),
+    ),
+  );
+  final controller = TimerController(
+    loadProgress: LoadProgress(repository),
+    saveProgress: SaveProgress(repository),
+    clearProgress: ClearProgress(repository),
+    notificationService: _NoopNotificationService(),
+    focusCompletionAdService: _NoopFocusCompletionAdService(),
+    now: now,
+  );
+  await controller.initialize();
+  return controller;
 }
 
 class _SeededTaskLocalDataSource implements TaskLocalDataSource {

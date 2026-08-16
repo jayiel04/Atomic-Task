@@ -6,6 +6,7 @@ import '../../../../core/utils/time_formatter.dart';
 class HomeAppBar extends StatelessWidget {
   const HomeAppBar({
     required this.title,
+    required this.showUserSummary,
     required this.profileName,
     required this.totalFocusSeconds,
     required this.gems,
@@ -17,6 +18,7 @@ class HomeAppBar extends StatelessWidget {
   });
 
   final String title;
+  final bool showUserSummary;
   final String profileName;
   final int totalFocusSeconds;
   final int gems;
@@ -30,19 +32,9 @@ class HomeAppBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 520;
-        final profile = _ProfileCard(
-          profileName: profileName,
-          onPressed: onProfilePressed,
-        );
-        final metrics = _ProgressMetrics(
-          totalFocusSeconds: totalFocusSeconds,
-          gems: gems,
-          onFocusTimePressed: onFocusTimePressed,
-          onGemsPressed: onGemsPressed,
-        );
         return Container(
           key: Key(isCompact ? 'compactHomeHeader' : 'wideHomeHeader'),
-          constraints: const BoxConstraints(minHeight: 104),
+          constraints: BoxConstraints(minHeight: showUserSummary ? 104 : 56),
           padding: isCompact
               ? const EdgeInsets.fromLTRB(8, 4, 10, 5)
               : const EdgeInsets.fromLTRB(12, 6, 10, 6),
@@ -59,26 +51,41 @@ class HomeAppBar extends StatelessWidget {
                   _MenuButton(onPressed: onMenuPressed),
                   const SizedBox(width: 8),
                   Expanded(flex: 3, child: _HeaderTitle(title: title)),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    flex: 2,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 148),
-                      child: profile,
+                  if (showUserSummary) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      flex: 2,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 148),
+                        child: _ProfileCard(
+                          profileName: profileName,
+                          onPressed: onProfilePressed,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 4),
-              Align(
-                key: Key(
-                  isCompact
-                      ? 'compactHomeHeaderSummary'
-                      : 'wideHomeHeaderSummary',
+              if (showUserSummary) ...[
+                const SizedBox(height: 4),
+                Align(
+                  key: Key(
+                    isCompact
+                        ? 'compactHomeHeaderSummary'
+                        : 'wideHomeHeaderSummary',
+                  ),
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(
+                    width: 176,
+                    child: _ProgressMetrics(
+                      totalFocusSeconds: totalFocusSeconds,
+                      gems: gems,
+                      onFocusTimePressed: onFocusTimePressed,
+                      onGemsPressed: onGemsPressed,
+                    ),
+                  ),
                 ),
-                alignment: Alignment.centerRight,
-                child: SizedBox(width: 176, child: metrics),
-              ),
+              ],
             ],
           ),
         );

@@ -8,15 +8,17 @@ Este documento resume el estado real del proyecto y separa lo implementado de la
 
 - [x] Home única con `HomeShellPage`, AppBar compartido y navegación inferior.
 - [x] Vistas embebibles `TasksView` y `FocusView` conservadas en un `IndexedStack`.
-- [x] Encabezado responsivo con el perfil junto al título completo y las cápsulas de tiempo y gemas debajo.
+- [x] Encabezado responsivo: resumen de perfil, tiempo y gemas solo en Tareas y Concentración; menú y título en las cuatro vistas.
 - [x] Drawer lateral izquierdo con Tareas, Concentración, Ajustes, Estadísticas y restablecimiento.
-- [x] Footer flotante centrado con cápsula de selección y header responsivo de dos filas.
+- [x] Footer flotante centrado solo en Tareas y Concentración; Ajustes y Estadísticas usan el drawer y protegen el inset inferior.
 - [x] Tareas recurrentes diarias, semanales y mensuales con edición por ocurrencia o serie.
+- [x] Ocurrencias recurrentes agrupadas por fecha efectiva en Atrasadas, Hoy, Mañana o Tareas futuras, sin caer en Sin fecha.
+- [x] Reinicio deshabilitado sin sesión, rojo durante ejecución/pausa y protegido por confirmación en las variantes compacta y ancha.
 - [x] Accesos rápidos `Mañana`, `Una semana` y `Un mes` al crear una tarea, más equis roja para quitar la fecha límite.
 - [x] Panel de cada concentración después de la publicidad con gemas, duración, tarea y tiempo fuera cuando aplican; los descansos conservan el aviso flotante.
 - [x] Persistencia Drift versión 7 para recurrencias, sesión activa y resumen pendiente recuperable.
 - [x] Pruebas de Home, geometría, fechas, migraciones v1–v6, CRUD, recurrencias, temporizador, publicidad y responsividad.
-- [x] `flutter analyze`, `flutter test` y `git diff --check` sin errores.
+- [x] `flutter analyze` sin observaciones, 108 pruebas aprobadas y `git diff --check` limpio.
 
 ## 1. Propósito del producto
 
@@ -98,6 +100,7 @@ La navegación se implementa con una sola Home y vistas internas, sin apilar rut
 - Descanso: cuesta una gema por cada minuto completo.
 - Un descanso no inicia si no existe saldo suficiente.
 - Estados iniciar, pausar, continuar, completar y reiniciar.
+- Reiniciar desde la interfaz solo está disponible durante ejecución o pausa y requiere confirmar `Sí, cancelar`.
 - Sincronización mediante la hora final al volver la aplicación a primer plano.
 - Guardado diferido del progreso y guardado inmediato en acciones críticas.
 - Notificación de sesión activa y de sesión completada.
@@ -122,6 +125,7 @@ La navegación se implementa con una sola Home y vistas internas, sin apilar rut
 - Completar una ocurrencia crea la siguiente de forma transaccional e idempotente.
 - Editar o eliminar una tarea recurrente permite elegir entre ocurrencia y serie.
 - La recuperación salta fechas omitidas y crea únicamente la próxima ocurrencia pendiente.
+- La agrupación usa `dueDate` con prioridad y `occurrenceDate` para recurrencias sin fecha límite; las tareas normales sin fecha permanecen en `Sin fecha`.
 
 ### 2.5 Persistencia actual
 
@@ -149,7 +153,9 @@ Hay pruebas de:
 - diseños compactos, regulares, tablet y landscape;
 - tareas con Safe Area, texto ampliado y teclado visible.
 - cálculo, persistencia, reconciliación e integración con Concentración de recurrencias;
-- footer flotante, semántica de selección y títulos completos en el header compacto.
+- footer/resumen condicionados por destino, semántica de selección y títulos completos en el header compacto;
+- fecha efectiva de recurrencias y regeneración de la próxima ocurrencia en `Mañana` o `Tareas futuras`;
+- estados, color destructivo y confirmación del reinicio compacto y ancho.
 
 ## 3. Home compartida implementada
 
@@ -165,7 +171,7 @@ HomeShellPage
 │   ├── FocusView
 │   ├── SettingsView
 │   └── StatisticsView
-└── HomeBottomNavigation persistente
+└── HomeBottomNavigation en Tareas y Concentración
     ├── Tareas
     └── Concentración
 ```
@@ -177,7 +183,7 @@ El resumen del AppBar respeta esta jerarquía:
 [cápsula dorada: tiempo] [cápsula morada: gemas]
 ```
 
-Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y fuera. En anchos compactos y amplios, menú, título completo y perfil comparten la primera fila, y las métricas ocupan la segunda. Si falta espacio, solo el nombre del perfil usa elipsis. No se muestra la palabra “Hola”.
+Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y fuera. Este resumen y el footer se construyen solo en Tareas y Concentración. Ajustes y Estadísticas conservan menú y título, sin controles ocultos ni espacio reservado. Si falta espacio, solo el nombre del perfil usa elipsis. No se muestra la palabra “Hola”.
 
 ## 4. Decisiones ya acordadas
 
@@ -185,6 +191,7 @@ Avatar y nombre permanecen dentro de la tarjeta; tiempo y gemas quedan debajo y 
 - [x] La navegación primaria se realiza con dos íconos en la parte inferior.
 - [x] Orden de destinos: Tareas y Concentración.
 - [x] La barra inferior permanece visible en ambas vistas.
+- [x] La barra inferior y el resumen no se construyen en Ajustes ni Estadísticas.
 - [x] El AppBar es compartido.
 - [x] El nombre se alinea junto al título en la primera fila y está sobre las estadísticas.
 - [x] Avatar y nombre aparecen dentro de la tarjeta; las estadísticas quedan debajo y fuera.
@@ -278,7 +285,7 @@ Estas decisiones están cerradas en la implementación actual.
 La entrega visual se considera completa cuando:
 
 1. Hay un solo `Scaffold` para la Home.
-2. AppBar y navegación inferior permanecen visibles al cambiar de vista.
+2. El AppBar permanece visible; el resumen y la navegación inferior aparecen solo en Tareas y Concentración.
 3. La navegación inferior contiene exactamente Tareas y Concentración, en ese orden.
 4. El destino activo se distingue con color/indicador morado y semántica seleccionada.
 5. El resumen del AppBar contiene avatar y nombre dentro de la tarjeta, con cápsulas de tiempo y gemas debajo y fuera.
@@ -321,5 +328,7 @@ El archivo generado `app_database.g.dart` nunca debe editarse manualmente.
 
 - Generación Drift v7 ejecutada con `build_runner`.
 - Migraciones desde las versiones 1, 2, 3, 4, 5 y 6 cubiertas por pruebas.
-- `PLAN.md` está implementado: encabezado, accesos rápidos, equis roja y panel posterior al anuncio.
+- `PLAN.md` está implementado: footer/resumen por destino, recurrencias por fecha efectiva, reinicio destructivo confirmado, encabezado, accesos rápidos, equis roja y panel posterior al anuncio.
+- Los 13 archivos Dart modificados quedaron formateados; las pruebas específicas aprobaron 10 casos de agrupación/recurrencia, 31 de widgets y 19 del controlador del temporizador.
+- Validación final: `flutter analyze` sin observaciones, `flutter test` con 108 pruebas aprobadas y `git diff --check` sin errores.
 - La refactorización arquitectónica amplia de la Fase 7 permanece pendiente; la entrega conserva los controladores y contratos existentes.

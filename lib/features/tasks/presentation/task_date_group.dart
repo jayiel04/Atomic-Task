@@ -8,7 +8,7 @@ extension TaskDateGroupLabel on TaskDateGroup {
     TaskDateGroup.noDate => 'Sin fecha',
     TaskDateGroup.today => 'Hoy',
     TaskDateGroup.tomorrow => 'Mañana',
-    TaskDateGroup.future => 'Futuras',
+    TaskDateGroup.future => 'Tareas futuras',
   };
 }
 
@@ -27,23 +27,23 @@ Map<TaskDateGroup, List<AtomicTask>> groupPendingTasksByDate(
     if (task.isCompleted) {
       continue;
     }
-    final dueDate = task.dueDate;
-    if (dueDate == null) {
+    final effectiveDate = _effectiveDate(task);
+    if (effectiveDate == null) {
       groups[TaskDateGroup.noDate]!.add(task);
       continue;
     }
 
-    final localDueDate = dueDate.toLocal();
-    final dueDay = DateTime(
-      localDueDate.year,
-      localDueDate.month,
-      localDueDate.day,
+    final localEffectiveDate = effectiveDate.toLocal();
+    final effectiveDay = DateTime(
+      localEffectiveDate.year,
+      localEffectiveDate.month,
+      localEffectiveDate.day,
     );
-    final group = dueDay.isBefore(today)
+    final group = effectiveDay.isBefore(today)
         ? TaskDateGroup.overdue
-        : dueDay == today
+        : effectiveDay == today
         ? TaskDateGroup.today
-        : dueDay == tomorrow
+        : effectiveDay == tomorrow
         ? TaskDateGroup.tomorrow
         : TaskDateGroup.future;
     groups[group]!.add(task);
@@ -53,4 +53,8 @@ Map<TaskDateGroup, List<AtomicTask>> groupPendingTasksByDate(
     for (final entry in groups.entries)
       entry.key: List<AtomicTask>.unmodifiable(entry.value),
   });
+}
+
+DateTime? _effectiveDate(AtomicTask task) {
+  return task.dueDate ?? (task.isRecurring ? task.occurrenceDate : null);
 }

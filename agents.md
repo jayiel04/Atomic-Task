@@ -11,13 +11,15 @@ Trabajar de forma incremental. Primero conservar comportamiento; después reduci
 ## Estado implementado del plan
 
 - `HomeShellPage` es la Home real de `AtomicTimerBootstrap`; `TaskPage` y `TimerPage` se conservan únicamente como wrappers compatibles con pruebas y rutas heredadas.
-- La Home usa un único `Scaffold`, `IndexedStack`, `HomeAppBar` y `HomeBottomNavigation`.
+- La Home usa un único `Scaffold`, `IndexedStack` y `HomeAppBar`; `HomeBottomNavigation` se construye solo en Tareas y Concentración.
 - El inicio normal es Tareas; una sesión persistida preparada, pausada o activa abre Concentración.
 - La persistencia Drift está en versión 7 con sesiones, resúmenes recuperables, tiempo fuera y reglas de recurrencia.
 - Las concentraciones muestran un panel de resumen después de cerrar la publicidad; los descansos conservan el SnackBar flotante.
 - El menú de Home abre un drawer izquierdo con logo, destinos y `Restablecer progreso`; el perfil abre Ajustes.
-- El footer es una píldora flotante centrada y el header usa dos filas por debajo del breakpoint compacto.
+- El footer y el resumen de usuario del header aparecen solo en Tareas y Concentración; Ajustes y Estadísticas conservan menú y título con Safe Area inferior propio.
 - Las tareas recurrentes diarias, semanales y mensuales usan reglas separadas y ocurrencias idempotentes.
+- Las ocurrencias recurrentes pendientes se agrupan por `dueDate` o, si no existe, por `occurrenceDate`; el último grupo visible se llama `Tareas futuras`.
+- Reiniciar el temporizador solo se habilita durante ejecución o pausa, usa fondo rojo y exige confirmación explícita.
 - Drift está en versión 7 con `task_recurrence_rules`, columnas opcionales de serie/ocurrencia y metadatos de tiempo fuera en los resúmenes pendientes.
 - El cierre del bootstrap espera la cola de persistencia antes de cerrar Drift.
 - La Fase 7 de extracción arquitectónica sigue fuera de esta entrega para respetar el alcance del plan.
@@ -34,17 +36,19 @@ HomeShellPage
 │   ├── FocusView
 │   ├── SettingsView
 │   └── StatisticsView
-└── HomeBottomNavigation
+└── HomeBottomNavigation (solo en destinos principales)
     ├── Tareas
     └── Concentración
 ```
 
 ### 2.1 AppBar compartido
 
-El AppBar aparece en las cuatro vistas y mantiene la misma jerarquía en ambos tamaños:
+El AppBar aparece en las cuatro vistas. En Tareas y Concentración mantiene la jerarquía completa en ambos tamaños:
 
 - primera fila: menú, título contextual completo y tarjeta de perfil;
 - segunda fila: cápsulas de tiempo y gemas alineadas bajo el perfil.
+
+En Ajustes y Estadísticas solo se construyen el menú y el título contextual. La tarjeta de perfil y las cápsulas no quedan ocultas visualmente: se omiten también del árbol de interacción y semántica.
 
 La geometría del resumen derecho es obligatoria:
 
@@ -78,7 +82,7 @@ Reglas:
 - usar los íconos equivalentes a `person_rounded`, `schedule_rounded` y `diamond_rounded`;
 - no mostrar “Hola” ni otro saludo;
 - el nombre admite hasta 18 caracteres y debe usar `Flexible`, ajuste o elipsis para no desbordar;
-- el perfil y las estadísticas usan la misma fuente de estado en las cuatro vistas;
+- el perfil y las estadísticas usan la misma fuente de estado en Tareas y Concentración;
 - tocar la tarjeta de perfil abre directamente Ajustes; el menú abre el drawer izquierdo con restablecimiento.
 
 ### 2.2 Barra inferior
@@ -94,7 +98,7 @@ La barra inferior:
 - respeta el Safe Area inferior;
 - cambia el contenido de Home sin `Navigator.push` ni `Navigator.pop`.
 - usa una superficie flotante centrada con cápsula morada para el destino activo;
-- no selecciona ningún destino en Ajustes o Estadísticas.
+- no se construye en Ajustes ni Estadísticas; el drawer es la ruta de regreso y el cuerpo activa su Safe Area inferior.
 
 Claves sugeridas para pruebas:
 
@@ -127,6 +131,7 @@ Debe conservar:
 - recurrencias diarias, semanales y mensuales con intervalo configurable;
 - edición y eliminación diferenciadas entre ocurrencia y serie;
 - pausa, reactivación y generación de la siguiente ocurrencia sin duplicados.
+- las pendientes normales sin fecha aparecen en `Sin fecha`; las recurrentes usan primero `dueDate` y después `occurrenceDate` para ubicarse en `Atrasadas`, `Hoy`, `Mañana` o `Tareas futuras`.
 
 `TasksView` será contenido embebible. No debe crear otro `Scaffold`, AppBar, navegación inferior, fondo o Safe Area exterior.
 
@@ -147,6 +152,7 @@ Debe conservar:
 - reglas de gemas y validación de descanso;
 - sincronización con el reloj y ciclo de vida;
 - persistencia, notificaciones y anuncio de finalización.
+- el reinicio permanece deshabilitado antes de iniciar y después de completar; durante ejecución o pausa usa `AppColors.destructive`, contenido blanco y el diálogo `Cancelar temporizador` antes de invocar `resetTimer()`.
 
 `FocusView` será contenido embebible. No debe crear otro `Scaffold`, AppBar, barra inferior ni Safe Area exterior.
 
@@ -268,7 +274,7 @@ dart run build_runner build --delete-conflicting-outputs
 - El adaptador de anuncios informa `shown`, `retry` o `unsupported`; solo `retry` conserva un anuncio pendiente.
 - `shown` se informa después de cerrar el intersticial, no al invocar `show`; `TimerController` es el único coordinador de reintentos de anuncio y publicación del resumen.
 - Un resumen de concentración no se expone a Home mientras la tarea o el anuncio sigan pendientes. Se consume únicamente después de cerrar el panel.
-- Reiniciar elimina la sesión activa sin crear resumen; restablecer progreso elimina también resúmenes y pendientes.
+- La interfaz solo permite reiniciar una sesión activa o pausada después de confirmar; el reinicio aceptado elimina la sesión activa sin crear resumen. Restablecer progreso elimina también resúmenes y pendientes.
 
 ## 8. Responsividad y accesibilidad
 
@@ -311,7 +317,7 @@ Cada cambio debe conservar o añadir pruebas en el nivel más pequeño posible:
 Pruebas mínimas de la nueva Home:
 
 1. cambiar de pestaña no crea una ruta;
-2. AppBar y barra inferior son únicos y persistentes;
+2. AppBar es único; la barra inferior aparece únicamente en Tareas y Concentración;
 3. avatar y nombre quedan dentro de la tarjeta de perfil;
 4. tiempo y gemas quedan debajo y fuera de esa tarjeta;
 5. los tres valores se actualizan desde una sola fuente;

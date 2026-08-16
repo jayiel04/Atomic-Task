@@ -138,28 +138,67 @@ class TimerController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    if (_isDisposed) {
+      return;
+    }
+
     unawaited(_runAdOperation(_focusCompletionAdService.initialize));
-    await _notificationService.initialize();
+    String? initializationError;
+
+    try {
+      await _notificationService.initialize();
+    } catch (_) {
+      initializationError = 'No fue posible inicializar las notificaciones.';
+    }
+    if (_isDisposed) {
+      return;
+    }
 
     try {
       final loadedProgress = await _loadProgress();
+      if (_isDisposed) {
+        return;
+      }
       _progress = loadedProgress.copyWith(
         profileName: UserProgress.normalizeProfileName(
           loadedProgress.profileName,
         ),
       );
-      await _restoreActiveSession();
-      await _restorePendingSummary();
     } catch (_) {
       _progress = UserProgress.empty;
-      _setStatus('No fue posible cargar el progreso guardado.', isError: true);
-    } finally {
-      _isInitialized = true;
-      if (!_hasRestoredSession) {
-        _updateEstimate();
-      }
-      _notifyListeners();
+      initializationError ??= 'No fue posible cargar el progreso guardado.';
     }
+    if (_isDisposed) {
+      return;
+    }
+
+    try {
+      await _restoreActiveSession();
+    } catch (_) {
+      initializationError ??= 'No fue posible recuperar la sesión anterior.';
+    }
+    if (_isDisposed) {
+      return;
+    }
+
+    try {
+      await _restorePendingSummary();
+    } catch (_) {
+      initializationError ??=
+          'No fue posible recuperar el resumen de la última sesión.';
+    }
+    if (_isDisposed) {
+      return;
+    }
+
+    _isInitialized = true;
+    if (!_hasRestoredSession) {
+      _updateEstimate();
+    }
+    if (initializationError != null) {
+      _setStatus(initializationError, isError: true);
+    }
+    _notifyListeners();
 
     if (_hasRestoredRunningSession) {
       final resumedAt = _now();
@@ -186,7 +225,7 @@ class TimerController extends ChangeNotifier {
     }
 
     final session = await repository.loadActiveSession();
-    if (session == null) {
+    if (_isDisposed || session == null) {
       return;
     }
 
@@ -237,6 +276,9 @@ class TimerController extends ChangeNotifier {
       return;
     }
     final restored = await repository.loadPendingSummary();
+    if (_isDisposed) {
+      return;
+    }
     _pendingCompletionSummary = restored == null
         ? null
         : _withAwayDuration(restored, _now());

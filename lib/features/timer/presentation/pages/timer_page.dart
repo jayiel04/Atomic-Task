@@ -1,15 +1,16 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/user_progress.dart';
 import '../controllers/timer_controller.dart';
 import '../layout/timer_layout_spec.dart';
 import '../widgets/header_section.dart';
 import '../widgets/mode_selector.dart';
 import '../widgets/primary_action_button.dart';
 import '../widgets/progress_drawer.dart';
+import '../widgets/required_profile_name_dialog.dart';
 import '../widgets/timer_dial.dart';
 
 class TimerPage extends StatefulWidget {
@@ -64,79 +65,10 @@ class _TimerPageState extends State<TimerPage> {
   }
 
   Future<void> _showNameDialog() async {
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: AlertDialog(
-            title: const Text('¡Bienvenido!'),
-            content: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '¿Cómo te llamas? Usaremos tu nombre para personalizar '
-                    'tu experiencia.',
-                  ),
-                  const SizedBox(height: 18),
-                  TextFormField(
-                    key: const Key('firstLaunchNameField'),
-                    controller: nameController,
-                    autofocus: true,
-                    maxLength: UserProgress.maxProfileNameLength,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(
-                      labelText: 'Tu nombre',
-                      hintText: 'Escribe tu nombre',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Ingresa tu nombre para continuar';
-                      }
-                      return null;
-                    },
-                    onFieldSubmitted: (_) =>
-                        _saveName(dialogContext, formKey, nameController.text),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              FilledButton(
-                key: const Key('saveFirstLaunchName'),
-                onPressed: () =>
-                    _saveName(dialogContext, formKey, nameController.text),
-                child: const Text('Continuar'),
-              ),
-            ],
-          ),
-        );
-      },
+    await showRequiredProfileNameDialog(
+      context,
+      onSubmitted: widget.controller.updateProfileName,
     );
-
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    nameController.dispose();
-  }
-
-  void _saveName(
-    BuildContext dialogContext,
-    GlobalKey<FormState> formKey,
-    String name,
-  ) {
-    if (formKey.currentState?.validate() != true) {
-      return;
-    }
-
-    widget.controller.updateProfileName(name);
-    Navigator.of(dialogContext).pop();
   }
 
   @override
@@ -411,46 +343,104 @@ class FocusView extends StatelessWidget {
   }
 
   Widget _buildResetAction(TimerLayoutSpec spec) {
-    if (compactReset) {
-      final resetSize = math.max(48.0, spec.resetButtonHeight);
-      return SizedBox(
-        width: resetSize,
-        height: resetSize,
-        child: IconButton(
-          key: const Key('resetTimerButton'),
-          tooltip: 'Reiniciar temporizador',
-          onPressed: controller.resetTimer,
-          style: IconButton.styleFrom(
-            foregroundColor: AppColors.muted,
-            side: const BorderSide(color: AppColors.border),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+    return _ControllerSelector<bool>(
+      controller: controller,
+      select: (controller) => controller.controlsLocked,
+      builder: (context, canReset) {
+        final onPressed = canReset
+            ? () => unawaited(_confirmTimerReset(context))
+            : null;
+        final backgroundColor = canReset
+            ? AppColors.destructive
+            : AppColors.surfaceVariant;
+        final foregroundColor = canReset ? Colors.white : AppColors.muted;
+        final borderColor = canReset ? AppColors.destructive : AppColors.border;
+
+        if (compactReset) {
+          final resetSize = math.max(48.0, spec.resetButtonHeight);
+          return SizedBox(
+            width: resetSize,
+            height: resetSize,
+            child: IconButton(
+              key: const Key('resetTimerButton'),
+              tooltip: 'Reiniciar temporizador',
+              onPressed: onPressed,
+              style: IconButton.styleFrom(
+                backgroundColor: backgroundColor,
+                disabledBackgroundColor: AppColors.surfaceVariant,
+                foregroundColor: foregroundColor,
+                disabledForegroundColor: AppColors.muted,
+                side: BorderSide(color: borderColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: const Icon(Icons.restart_alt_rounded),
+            ),
+          );
+        }
+
+        return SizedBox(
+          width: double.infinity,
+          height: spec.resetButtonHeight,
+          child: OutlinedButton(
+            key: const Key('resetTimerButton'),
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: backgroundColor,
+              disabledBackgroundColor: AppColors.surfaceVariant,
+              foregroundColor: foregroundColor,
+              disabledForegroundColor: AppColors.muted,
+              side: BorderSide(color: borderColor),
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              'Reiniciar temporizador',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
-          icon: const Icon(Icons.restart_alt_rounded),
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      height: spec.resetButtonHeight,
-      child: OutlinedButton(
-        onPressed: controller.resetTimer,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.muted,
-          side: const BorderSide(color: AppColors.border),
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: const Text(
-          'Reiniciar temporizador',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> _confirmTimerReset(BuildContext context) async {
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          key: const Key('cancelTimerConfirmationDialog'),
+          title: const Text('Cancelar temporizador'),
+          content: const Text(
+            '¿Estás seguro de que quieres cancelar el temporizador actual? '
+            'Se perderá el progreso de esta sesión.',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('keepTimerButton'),
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('No, conservar'),
+            ),
+            FilledButton(
+              key: const Key('confirmCancelTimerButton'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.destructive,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sí, cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (accepted == true && context.mounted && controller.controlsLocked) {
+      controller.resetTimer();
+    }
   }
 }
 

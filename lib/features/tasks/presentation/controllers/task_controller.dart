@@ -58,6 +58,7 @@ class TaskController extends ChangeNotifier {
   List<AtomicTask> _tasks = const [];
   bool _isLoading = true;
   bool _isMutating = false;
+  bool _isDisposed = false;
   String? _errorMessage;
 
   List<AtomicTask> get tasks => _tasks;
@@ -86,29 +87,38 @@ class TaskController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   void initialize() {
-    if (_subscription != null) {
+    if (_isDisposed || _subscription != null) {
       return;
     }
 
     _subscription = _watchTasks().listen(
       (tasks) {
+        if (_isDisposed) {
+          return;
+        }
         _tasks = tasks;
         _isLoading = false;
         _errorMessage = null;
-        notifyListeners();
+        _notifyListeners();
       },
       onError: (_) {
+        if (_isDisposed) {
+          return;
+        }
         _isLoading = false;
         _errorMessage = 'No fue posible cargar las tareas.';
-        notifyListeners();
+        _notifyListeners();
       },
     );
     final reconcile = reconcileTaskRecurrencesUseCase;
     if (reconcile != null) {
       unawaited(
         reconcile(_now()).catchError((Object _) {
+          if (_isDisposed) {
+            return;
+          }
           _errorMessage = 'No fue posible recuperar las tareas recurrentes.';
-          notifyListeners();
+          _notifyListeners();
         }),
       );
     }
@@ -304,7 +314,7 @@ class TaskController extends ChangeNotifier {
       return;
     }
     _errorMessage = null;
-    notifyListeners();
+    _notifyListeners();
   }
 
   static int _compareCompletedTasks(AtomicTask left, AtomicTask right) {
@@ -329,7 +339,7 @@ class TaskController extends ChangeNotifier {
   }) async {
     _isMutating = true;
     _errorMessage = null;
-    notifyListeners();
+    _notifyListeners();
 
     try {
       await operation();
@@ -342,13 +352,21 @@ class TaskController extends ChangeNotifier {
       return false;
     } finally {
       _isMutating = false;
+      _notifyListeners();
+    }
+  }
+
+  void _notifyListeners() {
+    if (!_isDisposed) {
       notifyListeners();
     }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     unawaited(_subscription?.cancel());
+    _subscription = null;
     super.dispose();
   }
 }
