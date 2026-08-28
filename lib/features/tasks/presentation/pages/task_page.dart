@@ -26,16 +26,6 @@ class TaskPage extends StatelessWidget {
         backgroundColor: AppColors.surface.withValues(alpha: 0.94),
         foregroundColor: AppColors.text,
         elevation: 0,
-        actions: [
-          IconButton(
-            key: const Key('createTaskButton'),
-            tooltip: 'Nueva tarea',
-            onPressed: () =>
-                TaskFormSheet.show(context, controller: controller),
-            icon: const Icon(Icons.add_task_rounded),
-          ),
-          const SizedBox(width: 6),
-        ],
       ),
       body: DecoratedBox(
         decoration: const BoxDecoration(
@@ -49,6 +39,8 @@ class TaskPage extends StatelessWidget {
           child: TasksView(controller: controller, onStartFocus: onStartFocus),
         ),
       ),
+      floatingActionButton: TaskCreateFab(controller: controller),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
@@ -58,14 +50,12 @@ class TasksView extends StatelessWidget {
     required this.controller,
     required this.onStartFocus,
     this.onFocusPrepared,
-    this.showCreateAction = false,
     super.key,
   });
 
   final TaskController controller;
   final Future<bool> Function(AtomicTask task, int minutes) onStartFocus;
   final VoidCallback? onFocusPrepared;
-  final bool showCreateAction;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +78,7 @@ class TasksView extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 760),
         child: ListView(
           key: const Key('taskList'),
-          padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 112),
           children: [
             _SummaryCard(
               pendingCount: pending.length,
@@ -104,16 +94,8 @@ class TasksView extends StatelessWidget {
             const SizedBox(height: 24),
             if (pending.isEmpty) ...[
               const _EmptyTasks(),
-              if (showCreateAction) ...[
-                const SizedBox(height: 16),
-                _CreateTaskButton(controller: controller),
-              ],
             ] else ...[
-              _PendingTasksHeader(
-                count: pending.length,
-                controller: controller,
-                showCreateAction: showCreateAction,
-              ),
+              _PendingTasksHeader(count: pending.length),
               const SizedBox(height: 12),
               for (final group in TaskDateGroup.values)
                 if (pendingGroups[group]!.isNotEmpty) ...[
@@ -140,15 +122,9 @@ class TasksView extends StatelessWidget {
 }
 
 class _PendingTasksHeader extends StatelessWidget {
-  const _PendingTasksHeader({
-    required this.count,
-    required this.controller,
-    required this.showCreateAction,
-  });
+  const _PendingTasksHeader({required this.count});
 
   final int count;
-  final TaskController controller;
-  final bool showCreateAction;
 
   @override
   Widget build(BuildContext context) {
@@ -164,14 +140,6 @@ class _PendingTasksHeader extends StatelessWidget {
             ),
           ),
         ),
-        if (showCreateAction)
-          IconButton(
-            key: const Key('createTaskButton'),
-            tooltip: 'Nueva tarea',
-            onPressed: () =>
-                TaskFormSheet.show(context, controller: controller),
-            icon: const Icon(Icons.add_task_rounded),
-          ),
       ],
     );
   }
@@ -282,21 +250,18 @@ class _EmptyTasks extends StatelessWidget {
   }
 }
 
-class _CreateTaskButton extends StatelessWidget {
-  const _CreateTaskButton({required this.controller});
+class TaskCreateFab extends StatelessWidget {
+  const TaskCreateFab({required this.controller, super.key});
 
   final TaskController controller;
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.center,
-      child: OutlinedButton.icon(
-        key: const Key('createTaskButton'),
-        onPressed: () => TaskFormSheet.show(context, controller: controller),
-        icon: const Icon(Icons.add_task_rounded),
-        label: const Text('Nueva tarea'),
-      ),
+    return FloatingActionButton(
+      key: const Key('createTaskButton'),
+      tooltip: 'Nueva tarea',
+      onPressed: () => TaskFormSheet.show(context, controller: controller),
+      child: const Icon(Icons.add_rounded),
     );
   }
 }

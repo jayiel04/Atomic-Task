@@ -28,6 +28,8 @@ class TaskRecurrenceRules extends Table {
 
   DateTimeColumn get endDate => dateTime().nullable()();
 
+  IntColumn get reminderTimeMinutes => integer().nullable()();
+
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
   DateTimeColumn get createdAt => dateTime()();
@@ -44,6 +46,10 @@ class Tasks extends Table {
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get dueDate => dateTime().nullable()();
+
+  DateTimeColumn get reminderAt => dateTime().nullable()();
+
+  TextColumn get reminderMode => text().nullable()();
 
   IntColumn get focusMinutes => integer().nullable()();
 
@@ -164,7 +170,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -207,6 +213,36 @@ class AppDatabase extends _$AppDatabase {
           pendingTimerSummaries,
           pendingTimerSummaries.awaySecondsAfterCompletion,
         );
+      }
+      if (from >= 5 && from < 8) {
+        final recurrenceTable = await customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name = 'task_recurrence_rules'",
+        ).getSingleOrNull();
+        if (recurrenceTable != null) {
+          await migrator.addColumn(
+            taskRecurrenceRules,
+            taskRecurrenceRules.reminderTimeMinutes,
+          );
+        }
+      }
+      if (from >= 2 && from < 8) {
+        final tasksTable = await customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name = 'tasks'",
+        ).getSingleOrNull();
+        if (tasksTable != null) {
+          await migrator.addColumn(tasks, tasks.reminderAt);
+        }
+      }
+      if (from >= 2 && from < 9) {
+        final tasksTable = await customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name = 'tasks'",
+        ).getSingleOrNull();
+        if (tasksTable != null) {
+          await migrator.addColumn(tasks, tasks.reminderMode);
+        }
       }
     },
   );
@@ -316,6 +352,25 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<int> updateTaskWithReminder({
+    required int id,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    String? reminderMode,
+    required DateTime updatedAt,
+  }) {
+    return (update(tasks)..where((task) => task.id.equals(id))).write(
+      TasksCompanion(
+        title: Value(title),
+        dueDate: Value(dueDate),
+        reminderAt: Value(reminderAt),
+        reminderMode: Value(reminderAt == null ? null : reminderMode),
+        updatedAt: Value(updatedAt),
+      ),
+    );
+  }
+
   Future<int> setTaskCompleted({
     required int id,
     required bool isCompleted,
@@ -353,13 +408,23 @@ class AppDatabase extends _$AppDatabase {
     required DateTime? dueDate,
     required DateTime occurrenceDate,
     required DateTime createdAt,
+    DateTime? reminderAt,
+    String? reminderMode,
   }) {
     return transaction(() async {
       final ruleId = await into(taskRecurrenceRules).insert(rule);
+      reminderAt ??= _reminderAtFor(
+        occurrenceDate,
+        rule.reminderTimeMinutes.present
+            ? rule.reminderTimeMinutes.value
+            : null,
+      );
       return into(tasks).insert(
         TasksCompanion.insert(
           title: title,
           dueDate: Value(dueDate),
+          reminderAt: Value(reminderAt),
+          reminderMode: Value(reminderAt == null ? null : reminderMode),
           recurrenceRuleId: Value(ruleId),
           occurrenceDate: Value(occurrenceDate),
           createdAt: createdAt,
@@ -378,6 +443,9 @@ class AppDatabase extends _$AppDatabase {
     required int interval,
     required DateTime startDate,
     required DateTime? endDate,
+    required int? reminderTimeMinutes,
+    String? reminderMode,
+    DateTime? reminderAt,
     required DateTime updatedAt,
   }) {
     return transaction(() async {
@@ -389,6 +457,7 @@ class AppDatabase extends _$AppDatabase {
           interval: Value(interval),
           startDate: Value(startDate),
           endDate: Value(endDate),
+          reminderTimeMinutes: Value(reminderTimeMinutes),
           updatedAt: Value(updatedAt),
         ),
       );
@@ -411,6 +480,45 @@ class AppDatabase extends _$AppDatabase {
           updatedAt: Value(updatedAt),
         ),
       );
+
+      final selectedTask = await (select(
+        tasks,
+      )..where((task) => task.id.equals(taskId))).getSingleOrNull();
+      final futureBoundary = selectedTask?.occurrenceDate;
+      final pendingOccurrences =
+          await (select(tasks)..where(
+                (task) =>
+                    task.recurrenceRuleId.equals(ruleId) &
+                    task.isCompleted.equals(false),
+              ))
+              .get();
+      for (final occurrence in pendingOccurrences) {
+        if (!_isFutureOccurrence(
+          occurrence,
+          selectedTaskId: taskId,
+          futureBoundary: futureBoundary,
+        )) {
+          continue;
+        }
+        // Con recordatorios puntuales (solo la primera vez) la ocurrencia
+        // seleccionada conserva su fecha explícita y las demás quedan sin
+        // recordatorio.
+        final occurrenceReminderAt =
+            occurrence.id == taskId && reminderAt != null
+            ? reminderAt
+            : _reminderAtFor(occurrence.occurrenceDate, reminderTimeMinutes);
+        await (update(
+          tasks,
+        )..where((task) => task.id.equals(occurrence.id))).write(
+          TasksCompanion(
+            reminderAt: Value(occurrenceReminderAt),
+            reminderMode: Value(
+              occurrenceReminderAt == null ? null : reminderMode,
+            ),
+            updatedAt: Value(updatedAt),
+          ),
+        );
+      }
     });
   }
 
@@ -539,6 +647,10 @@ class AppDatabase extends _$AppDatabase {
         title: template.title,
         dueDate: Value(template.dueDate),
         focusMinutes: Value(template.focusMinutes),
+        reminderAt: Value(
+          _reminderAtFor(occurrenceDate, await _reminderMinutesFor(template)),
+        ),
+        reminderMode: Value(template.reminderMode),
         recurrenceRuleId: Value(template.recurrenceRuleId),
         occurrenceDate: Value(occurrenceDate),
         createdAt: createdAt,
@@ -546,5 +658,44 @@ class AppDatabase extends _$AppDatabase {
       ),
       mode: InsertMode.insertOrIgnore,
     );
+  }
+
+  Future<int?> _reminderMinutesFor(TaskRow task) async {
+    final ruleId = task.recurrenceRuleId;
+    if (ruleId == null) {
+      return null;
+    }
+    final rule = await (select(
+      taskRecurrenceRules,
+    )..where((row) => row.id.equals(ruleId))).getSingleOrNull();
+    return rule?.reminderTimeMinutes;
+  }
+
+  DateTime? _reminderAtFor(DateTime? occurrenceDate, int? reminderTimeMinutes) {
+    if (occurrenceDate == null || reminderTimeMinutes == null) {
+      return null;
+    }
+    final hour = reminderTimeMinutes ~/ 60;
+    final minute = reminderTimeMinutes % 60;
+    return DateTime(
+      occurrenceDate.year,
+      occurrenceDate.month,
+      occurrenceDate.day,
+      hour,
+      minute,
+    );
+  }
+
+  bool _isFutureOccurrence(
+    TaskRow occurrence, {
+    required int selectedTaskId,
+    required DateTime? futureBoundary,
+  }) {
+    if (occurrence.id == selectedTaskId) {
+      return true;
+    }
+    final occurrenceDate = occurrence.occurrenceDate;
+    return futureBoundary == null ||
+        (occurrenceDate != null && !occurrenceDate.isBefore(futureBoundary));
   }
 }

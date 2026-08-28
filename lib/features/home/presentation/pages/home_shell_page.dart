@@ -333,7 +333,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
                       onStartFocus: _prepareFocusForTask,
                       onFocusPrepared: () =>
                           _selectDestination(HomeDestination.focus),
-                      showCreateAction: true,
                     ),
                     FocusView(controller: _timerController, compactReset: true),
                     SettingsView(
@@ -358,6 +357,10 @@ class _HomeShellPageState extends State<HomeShellPage> {
               onSelected: _selectDestination,
             )
           : null,
+      floatingActionButton: _selectedDestination == HomeDestination.tasks
+          ? TaskCreateFab(controller: _taskController)
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

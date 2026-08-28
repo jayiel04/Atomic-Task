@@ -38,6 +38,7 @@ void main() {
       find.byKey(const Key('taskTitleField')),
       'Preparar presentación',
     );
+    await tester.ensureVisible(find.byKey(const Key('saveTaskButton')));
     await tester.tap(find.byKey(const Key('saveTaskButton')));
     await tester.pumpAndSettle();
 
@@ -148,7 +149,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('uses responsive due-date shortcuts and a red clear icon', (
+  testWidgets('shows due-date shortcuts after enabling the option and a red clear icon', (
     tester,
   ) async {
     final repository = MemoryTaskRepository();
@@ -169,15 +170,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('dueDateShortcutOptions')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('dueDateOptionSwitch')));
+    await tester.pumpAndSettle();
+
     final shortcuts = <Key, DateTime>{
+      const Key('dueDateTodayOption'): DateTime(2026, 1, 31),
       const Key('dueDateTomorrowOption'): DateTime(2026, 2, 1),
-      const Key('dueDateOneWeekOption'): DateTime(2026, 2, 7),
-      const Key('dueDateOneMonthOption'): DateTime(2026, 2, 28),
     };
     expect(find.byKey(const Key('dueDateShortcutOptions')), findsOneWidget);
+    expect(find.text('Hoy'), findsOneWidget);
     expect(find.text('Mañana'), findsOneWidget);
-    expect(find.text('Una semana'), findsOneWidget);
-    expect(find.text('Un mes'), findsOneWidget);
 
     for (final entry in shortcuts.entries) {
       await tester.tap(find.byKey(entry.key));
@@ -236,7 +240,9 @@ void main() {
     await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('dueDateOneMonthOption')));
+    await tester.tap(find.byKey(const Key('dueDateOptionSwitch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('dueDateTomorrowOption')));
     await tester.enterText(
       find.byKey(const Key('taskTitleField')),
       'Cerrar el mes',
@@ -245,7 +251,7 @@ void main() {
     await tester.tap(find.byKey(const Key('saveTaskButton')));
     await tester.pumpAndSettle();
 
-    expect(repository.tasks.single.dueDate, DateTime(2026, 2, 28));
+    expect(repository.tasks.single.dueDate, DateTime(2026, 2, 1));
     expect(tester.takeException(), isNull);
   });
 

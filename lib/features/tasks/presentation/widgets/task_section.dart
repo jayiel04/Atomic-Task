@@ -62,7 +62,7 @@ class TaskSection extends StatelessWidget {
                 tooltip: 'Nueva tarea',
                 onPressed: () =>
                     TaskFormSheet.show(context, controller: controller),
-                icon: const Icon(Icons.add_task_rounded),
+                icon: const Icon(Icons.note_add_rounded),
               ),
           ],
         ),

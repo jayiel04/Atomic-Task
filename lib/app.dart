@@ -6,6 +6,7 @@ import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
 import 'features/tasks/data/datasources/task_local_data_source.dart';
 import 'features/tasks/data/repositories/task_repository_impl.dart';
+import 'features/tasks/domain/services/task_reminder_service.dart';
 import 'features/tasks/domain/usecases/assign_task_focus.dart';
 import 'features/tasks/domain/services/recurrence_calculator.dart';
 import 'features/tasks/domain/services/recurrence_generation_policy.dart';
@@ -45,6 +46,7 @@ class AtomicTimerBootstrap extends StatefulWidget {
     this.localDataSource,
     this.taskLocalDataSource,
     this.sessionRepository,
+    this.taskReminderService,
     super.key,
   });
 
@@ -53,6 +55,7 @@ class AtomicTimerBootstrap extends StatefulWidget {
   final TimerLocalDataSource? localDataSource;
   final TaskLocalDataSource? taskLocalDataSource;
   final TimerSessionRepository? sessionRepository;
+  final TaskReminderService? taskReminderService;
 
   @override
   State<AtomicTimerBootstrap> createState() => _AtomicTimerBootstrapState();
@@ -87,6 +90,7 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     final taskLocalDataSource =
         widget.taskLocalDataSource ?? DriftTaskLocalDataSource(database!);
     final taskRepository = TaskRepositoryImpl(taskLocalDataSource);
+    final taskReminderService = widget.taskReminderService;
     final supportsRecurrence =
         taskLocalDataSource is TaskRecurrenceLocalDataSource;
     const recurrenceCalculator = RecurrenceCalculator();
@@ -132,6 +136,7 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
       reconcileTaskRecurrencesUseCase: supportsRecurrence
           ? ReconcileTaskRecurrences(taskRepository, recurrencePolicy)
           : null,
+      reminderService: taskReminderService,
     )..initialize();
 
     _controller = TimerController(

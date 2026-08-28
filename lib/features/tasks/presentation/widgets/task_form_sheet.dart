@@ -56,10 +56,19 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   late final TextEditingController _intervalController;
   DateTime? _dueDate;
   late final DateTime _dueDateShortcutBase;
+  bool _dueDateEnabled = false;
+  bool _dueAlarmEnabled = false;
+  TimeOfDay? _dueAlarmTime;
+  TaskReminderMode _dueAlarmMode = TaskReminderMode.alarm;
   late bool _recurrenceEnabled;
   late RecurrenceFrequency _frequency;
   late DateTime _startDate;
   DateTime? _endDate;
+  bool _recurrenceAlarmEnabled = false;
+  TimeOfDay? _recurrenceAlarmTime;
+  TaskReminderMode _recurrenceAlarmMode = TaskReminderMode.alarm;
+  bool _recurrenceAlarmAlways = true;
+  String? _reminderError;
   bool _isSaving = false;
 
   bool get _isEditing => widget.task != null;
@@ -75,6 +84,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     final task = widget.task;
     final rule = task?.recurrenceRule;
     final now = _now();
+    final reminder = task?.reminderAt?.toLocal();
     _titleController = TextEditingController(text: task?.title ?? '');
     _intervalController = TextEditingController(
       text: (rule?.interval ?? 1).toString(),
@@ -85,6 +95,23 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     _frequency = rule?.frequency ?? RecurrenceFrequency.daily;
     _startDate = rule?.startDate ?? DateTime(now.year, now.month, now.day);
     _endDate = rule?.endDate;
+
+    if (_isSeriesEdit) {
+      final minutes = rule?.reminderTimeMinutes;
+      _recurrenceAlarmEnabled = minutes != null || reminder != null;
+      _recurrenceAlarmTime = minutes != null
+          ? TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60)
+          : reminder != null
+          ? TimeOfDay.fromDateTime(reminder)
+          : null;
+      _recurrenceAlarmAlways = minutes != null;
+      _recurrenceAlarmMode = task?.reminderMode ?? TaskReminderMode.alarm;
+    } else {
+      _dueDateEnabled = _dueDate != null || reminder != null;
+      _dueAlarmEnabled = reminder != null;
+      _dueAlarmTime = reminder != null ? TimeOfDay.fromDateTime(reminder) : null;
+      _dueAlarmMode = task?.reminderMode ?? TaskReminderMode.alarm;
+    }
   }
 
   @override
@@ -122,51 +149,27 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
               ],
             ),
             const SizedBox(height: 20),
+            _buildDueDateSection(),
+            const SizedBox(height: 12),
+            if (_canConfigureRecurrence || _recurrenceEnabled) ...[
+              _buildRecurrenceSection(context),
+              const SizedBox(height: 16),
+            ],
             TextFormField(
               key: const Key('taskTitleField'),
               controller: _titleController,
+              enabled: !_isSaving,
               autofocus: true,
               maxLength: 120,
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.done,
-              decoration: _inputDecoration(
-                label: 'Título',
-                hint: '¿Qué quieres completar?',
-              ),
+              decoration: _inputDecoration(hint: 'Escribe una tarea...'),
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'Escribe un título para la tarea'
                   : null,
               onFieldSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 10),
-            _DateField(
-              label: 'Fecha límite',
-              value: _dueDate,
-              emptyLabel: 'Sin fecha límite',
-              selectKey: const Key('selectTaskDueDateButton'),
-              clearKey: const Key('clearTaskDueDateButton'),
-              clearIcon: Icons.close_rounded,
-              clearIconColor: AppColors.destructive,
-              clearTooltip: 'Quitar fecha límite',
-              onSelect: _isSaving ? null : _selectDueDate,
-              onClear: _dueDate == null || _isSaving
-                  ? null
-                  : () => setState(() => _dueDate = null),
-            ),
-            if (!_isEditing) ...[
-              const SizedBox(height: 10),
-              _DueDateShortcutOptions(
-                baseDate: _dueDateShortcutBase,
-                value: _dueDate,
-                enabled: !_isSaving,
-                onSelected: (value) => setState(() => _dueDate = value),
-              ),
-            ],
-            if (_canConfigureRecurrence || _recurrenceEnabled) ...[
-              const SizedBox(height: 14),
-              _buildRecurrenceSection(context),
-            ],
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
             FilledButton.icon(
               key: const Key('saveTaskButton'),
               onPressed: _isSaving ? null : _submit,
@@ -194,119 +197,285 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     return _isSeriesEdit ? 'Editar serie' : 'Editar ocurrencia';
   }
 
-  Widget _buildRecurrenceSection(BuildContext context) {
-    return Material(
-      key: const Key('taskRecurrenceSection'),
-      color: AppColors.surfaceVariant,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SwitchListTile.adaptive(
-              key: const Key('repeatTaskSwitch'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Repetir',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text(
-                _canConfigureRecurrence
-                    ? 'Crear ocurrencias automáticamente'
-                    : 'Esta ocurrencia pertenece a una serie',
-              ),
-              value: _recurrenceEnabled,
-              onChanged: _canConfigureRecurrence && !_isSaving
-                  ? (value) => setState(() => _recurrenceEnabled = value)
-                  : null,
-            ),
-            if (_recurrenceEnabled) ...[
-              const SizedBox(height: 8),
-              DropdownButtonFormField<RecurrenceFrequency>(
-                key: const Key('recurrenceFrequencyField'),
-                initialValue: _frequency,
-                decoration: _inputDecoration(label: 'Frecuencia'),
-                items: RecurrenceFrequency.values
-                    .map(
-                      (frequency) => DropdownMenuItem(
-                        value: frequency,
-                        child: Text(_frequencyLabel(frequency)),
+  String get _dueDateSubtitle {
+    if (!_dueDateEnabled) {
+      return 'Limita cuándo debe completarse';
+    }
+    if (_isSeriesEdit) {
+      return 'Pertenece a una serie recurrente';
+    }
+    final date = _dueDate;
+    return date == null ? 'Sin fecha límite' : TaskDateFormatter.format(date);
+  }
+
+  Widget _buildDueDateSection() {
+    return _OptionCard(
+      cardKey: const Key('taskDueDateSection'),
+      switchKey: const Key('dueDateOptionSwitch'),
+      icon: Icons.event_rounded,
+      title: 'Fecha límite',
+      subtitle: _dueDateSubtitle,
+      value: _dueDateEnabled,
+      onChanged: _isSaving || _isSeriesEdit
+          ? null
+          : (value) => setState(() {
+              _dueDateEnabled = value;
+              if (value) {
+                // Fecha límite y repetir son excluyentes.
+                _recurrenceEnabled = false;
+                _recurrenceAlarmEnabled = false;
+                _recurrenceAlarmTime = null;
+              } else {
+                _dueDate = null;
+                _dueAlarmEnabled = false;
+                _dueAlarmTime = null;
+                _reminderError = null;
+              }
+            }),
+      child: _dueDateEnabled
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!_isEditing) ...[
+                  _DueDateShortcutOptions(
+                    baseDate: _dueDateShortcutBase,
+                    value: _dueDate,
+                    enabled: !_isSaving,
+                    onSelected: (value) => setState(() => _dueDate = value),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        key: const Key('selectTaskDueDateButton'),
+                        onPressed: _isSaving ? null : _selectDueDate,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                        icon: const Icon(Icons.calendar_month_rounded),
+                        label: const Text('Elegir en el calendario'),
                       ),
-                    )
-                    .toList(growable: false),
-                onChanged: _canConfigureRecurrence && !_isSaving
-                    ? (value) {
-                        if (value != null) {
-                          setState(() => _frequency = value);
-                        }
-                      }
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('recurrenceIntervalField'),
-                controller: _intervalController,
-                enabled: _canConfigureRecurrence && !_isSaving,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: _inputDecoration(
-                  label: 'Intervalo',
-                  hint: '1',
-                ).copyWith(suffixText: _intervalSuffix),
-                validator: (value) {
-                  if (!_recurrenceEnabled) {
-                    return null;
-                  }
-                  final interval = int.tryParse(value ?? '');
-                  return interval == null || interval < 1
-                      ? 'Usa un intervalo mayor que cero'
-                      : null;
-                },
-              ),
-              const SizedBox(height: 12),
-              _DateField(
-                label: 'Fecha de inicio',
-                value: _startDate,
-                emptyLabel: '',
-                selectKey: const Key('selectRecurrenceStartDateButton'),
-                onSelect: _canConfigureRecurrence && !_isSaving
-                    ? _selectStartDate
-                    : null,
-              ),
-              const SizedBox(height: 10),
-              _DateField(
-                label: 'Fecha de finalización',
-                value: _endDate,
-                emptyLabel: 'Sin fecha de finalización',
-                selectKey: const Key('selectRecurrenceEndDateButton'),
-                clearKey: const Key('clearRecurrenceEndDateButton'),
-                onSelect: _canConfigureRecurrence && !_isSaving
-                    ? _selectEndDate
-                    : null,
-                onClear:
-                    _endDate == null || !_canConfigureRecurrence || _isSaving
-                    ? null
-                    : () => setState(() => _endDate = null),
-              ),
-              if (_endDate != null && _endDate!.isBefore(_startDate)) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'La fecha final no puede ser anterior a la fecha de inicio.',
-                  style: TextStyle(color: AppColors.danger),
+                    ),
+                    if (_dueDate != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        key: const Key('clearTaskDueDateButton'),
+                        tooltip: 'Quitar fecha límite',
+                        onPressed: _isSaving
+                            ? null
+                            : () => setState(() => _dueDate = null),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.destructive,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _AlarmSubOption(
+                  sectionKey: const Key('dueAlarmSection'),
+                  switchKey: const Key('dueAlarmSwitch'),
+                  addKey: const Key('addTaskReminderButton'),
+                  changeKey: const Key('selectDueAlarmTimeButton'),
+                  clearKey: const Key('clearTaskReminderButton'),
+                  modeKey: const Key('dueAlarmModeSelector'),
+                  alarmEnabled: _dueAlarmEnabled,
+                  timeLabel: _dueAlarmTime == null
+                      ? null
+                      : _formatTime(_dueAlarmTime!),
+                  mode: _dueAlarmMode,
+                  enabled: !_isSaving,
+                  showScope: false,
+                  alwaysRepeat: true,
+                  onSwitch: (value) => setState(() {
+                    _dueAlarmEnabled = value;
+                    if (!value) {
+                      _dueAlarmTime = null;
+                      _reminderError = null;
+                    }
+                  }),
+                  onSetTime: _selectDueAlarmTime,
+                  onChangeTime: _selectDueAlarmTime,
+                  onModeChanged: (mode) =>
+                      setState(() => _dueAlarmMode = mode),
+                  onClear: () => setState(() {
+                    _dueAlarmEnabled = false;
+                    _dueAlarmTime = null;
+                    _reminderError = null;
+                  }),
+                  error: _recurrenceEnabled ? null : _reminderError,
                 ),
               ],
-            ],
-          ],
-        ),
-      ),
+            )
+          : null,
     );
   }
 
-  InputDecoration _inputDecoration({required String label, String? hint}) {
+  Widget _buildRecurrenceSection(BuildContext context) {
+    return _OptionCard(
+      cardKey: const Key('taskRecurrenceSection'),
+      switchKey: const Key('repeatTaskSwitch'),
+      icon: Icons.repeat_rounded,
+      title: 'Repetir',
+      subtitle: _recurrenceSubtitle,
+      value: _recurrenceEnabled,
+      onChanged: _canConfigureRecurrence && !_isSaving
+          ? (value) => setState(() {
+              _recurrenceEnabled = value;
+              if (value) {
+                // Fecha límite y repetir son excluyentes.
+                _dueDateEnabled = false;
+                _dueAlarmEnabled = false;
+                _dueAlarmTime = null;
+                _reminderError = null;
+              } else {
+                _recurrenceAlarmEnabled = false;
+                _recurrenceAlarmTime = null;
+                _reminderError = null;
+              }
+            })
+          : null,
+      child: _recurrenceEnabled ? _buildRecurrenceFields() : null,
+    );
+  }
+
+  String get _recurrenceSubtitle {
+    return _canConfigureRecurrence
+        ? 'Crear ocurrencias automáticamente'
+        : 'Esta ocurrencia pertenece a una serie';
+  }
+
+  Widget _buildRecurrenceFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<RecurrenceFrequency>(
+          key: const Key('recurrenceFrequencyField'),
+          initialValue: _frequency,
+          decoration: _inputDecoration(label: 'Frecuencia'),
+          items: RecurrenceFrequency.values
+              .map(
+                (frequency) => DropdownMenuItem(
+                  value: frequency,
+                  child: Text(_frequencyLabel(frequency)),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: _canConfigureRecurrence && !_isSaving
+              ? (value) {
+                  if (value != null) {
+                    setState(() => _frequency = value);
+                  }
+                }
+              : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          key: const Key('recurrenceIntervalField'),
+          controller: _intervalController,
+          enabled: _canConfigureRecurrence && !_isSaving,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: _inputDecoration(
+            label: 'Intervalo',
+            hint: '1',
+          ).copyWith(suffixText: _intervalSuffix),
+          validator: (value) {
+            if (!_recurrenceEnabled) {
+              return null;
+            }
+            final interval = int.tryParse(value ?? '');
+            return interval == null || interval < 1
+                ? 'Usa un intervalo mayor que cero'
+                : null;
+          },
+        ),
+        const SizedBox(height: 12),
+        _DateField(
+          label: 'Fecha de inicio',
+          value: _startDate,
+          emptyLabel: '',
+          selectKey: const Key('selectRecurrenceStartDateButton'),
+          onSelect: _canConfigureRecurrence && !_isSaving
+              ? _selectStartDate
+              : null,
+        ),
+        const SizedBox(height: 10),
+        _DateField(
+          label: 'Fecha de finalización',
+          value: _endDate,
+          emptyLabel: 'Sin fecha de finalización',
+          selectKey: const Key('selectRecurrenceEndDateButton'),
+          clearKey: const Key('clearRecurrenceEndDateButton'),
+          onSelect: _canConfigureRecurrence && !_isSaving
+              ? _selectEndDate
+              : null,
+          onClear: _endDate == null || !_canConfigureRecurrence || _isSaving
+              ? null
+              : () => setState(() => _endDate = null),
+        ),
+        if (_endDate != null && _endDate!.isBefore(_startDate))
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'La fecha final no puede ser anterior a la fecha de inicio.',
+              style: TextStyle(color: AppColors.danger),
+            ),
+          ),
+        const SizedBox(height: 12),
+        _AlarmSubOption(
+          sectionKey: const Key('repeatAlarmSection'),
+          switchKey: const Key('repeatAlarmSwitch'),
+          addKey: const Key('addRepeatAlarmTimeButton'),
+          changeKey: const Key('selectRepeatAlarmTimeButton'),
+          clearKey: const Key('clearRepeatAlarmButton'),
+          modeKey: const Key('repeatAlarmModeSelector'),
+          scopeKey: const Key('repeatAlarmScopeSelector'),
+          alarmEnabled: _recurrenceAlarmEnabled,
+          timeLabel: _recurrenceAlarmTime == null
+              ? null
+              : _formatTime(_recurrenceAlarmTime!),
+          mode: _recurrenceAlarmMode,
+          enabled: _canConfigureRecurrence && !_isSaving,
+          showScope: true,
+          alwaysRepeat: _recurrenceAlarmAlways,
+          onSwitch: (value) => setState(() {
+            _recurrenceAlarmEnabled = value;
+            if (!value) {
+              _recurrenceAlarmTime = null;
+              _reminderError = null;
+            }
+          }),
+          onSetTime: _selectRecurrenceAlarmTime,
+          onChangeTime: _selectRecurrenceAlarmTime,
+          onModeChanged: (mode) =>
+              setState(() => _recurrenceAlarmMode = mode),
+          onScopeChanged: (always) =>
+              setState(() => _recurrenceAlarmAlways = always),
+          onClear: () => setState(() {
+            _recurrenceAlarmEnabled = false;
+            _recurrenceAlarmTime = null;
+            _reminderError = null;
+          }),
+          error: _reminderError,
+        ),
+      ],
+    );
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return MaterialLocalizations.of(context).formatTimeOfDay(
+      time,
+      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+    );
+  }
+
+  InputDecoration _inputDecoration({String? label, String? hint}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
@@ -339,13 +508,104 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     };
   }
 
+  Future<void> _selectDueAlarmTime() async {
+    final selectedTime = await _selectTime(
+      initialTime:
+          _dueAlarmTime ?? TimeOfDay.fromDateTime(_defaultReminderDateTime),
+      helpText: 'Selecciona la hora de inicio de la tarea',
+    );
+    if (selectedTime == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _dueAlarmTime = selectedTime;
+      _reminderError = _reminderValidationError(_dueReminderAt);
+    });
+  }
+
+  Future<void> _selectRecurrenceAlarmTime() async {
+    final selectedTime = await _selectTime(
+      initialTime: _recurrenceAlarmTime ??
+          TimeOfDay.fromDateTime(_defaultReminderDateTime),
+      helpText: 'Selecciona la hora de inicio de la tarea',
+    );
+    if (selectedTime == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _recurrenceAlarmTime = selectedTime;
+      _reminderError = _reminderValidationError(_recurrenceReminderAt);
+    });
+  }
+
+  Future<TimeOfDay?> _selectTime({
+    required TimeOfDay initialTime,
+    required String helpText,
+  }) {
+    return showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: helpText,
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+    );
+  }
+
+  DateTime get _today {
+    final now = _now().toLocal();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime get _defaultReminderDateTime =>
+      _now().toLocal().add(const Duration(hours: 1));
+
+  DateTime _combineDateAndTime(DateTime date, TimeOfDay time) {
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  DateTime _alarmStartBaseDate(TimeOfDay time) {
+    final now = _now().toLocal();
+    final today = _today;
+    final candidate = _combineDateAndTime(today, time);
+    return candidate.isAfter(now)
+        ? today
+        : today.add(const Duration(days: 1));
+  }
+
+  DateTime? get _dueReminderAt {
+    final time = _dueAlarmTime;
+    if (!_dueDateEnabled || !_dueAlarmEnabled || time == null) {
+      return null;
+    }
+    final base = _dueDate ?? _alarmStartBaseDate(time);
+    return _combineDateAndTime(base, time);
+  }
+
+  DateTime? get _recurrenceReminderAt {
+    final time = _recurrenceAlarmTime;
+    if (!_recurrenceEnabled || !_recurrenceAlarmEnabled || time == null) {
+      return null;
+    }
+    return _combineDateAndTime(_startDate, time);
+  }
+
+  String? _reminderValidationError(DateTime? reminderAt) {
+    if (reminderAt != null && !reminderAt.isAfter(_now().toLocal())) {
+      return 'La alarma debe programarse para una fecha y hora futuras.';
+    }
+    return null;
+  }
+
   Future<void> _selectDueDate() async {
     final selected = await _selectDate(
       initialDate: _dueDate ?? _now(),
       helpText: 'Selecciona la fecha límite',
     );
     if (selected != null && mounted) {
-      setState(() => _dueDate = selected);
+      setState(() {
+        _dueDate = selected;
+        _reminderError = _reminderValidationError(_dueReminderAt);
+      });
     }
   }
 
@@ -360,6 +620,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
         if (_endDate != null && _endDate!.isBefore(selected)) {
           _endDate = null;
         }
+        _reminderError = _reminderValidationError(_recurrenceReminderAt);
       });
     }
   }
@@ -380,7 +641,7 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
     required String helpText,
     DateTime? firstDate,
   }) async {
-    final now = _now();
+    final now = _now().toLocal();
     final minimum = firstDate ?? DateTime(2000);
     final safeInitial = initialDate.isBefore(minimum) ? minimum : initialDate;
     final selected = await showDatePicker(
@@ -407,45 +668,75 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
       return;
     }
 
+    final usesRecurrence = _recurrenceEnabled;
+    final reminderAt = usesRecurrence
+        ? _recurrenceReminderAt
+        : _dueReminderAt;
+    final reminderMode = usesRecurrence
+        ? _recurrenceAlarmMode
+        : _dueAlarmMode;
+    final reminderError = _reminderValidationError(reminderAt);
+    if (reminderError != null) {
+      setState(() => _reminderError = reminderError);
+      return;
+    }
+
     setState(() => _isSaving = true);
     final task = widget.task;
     final interval = int.tryParse(_intervalController.text) ?? 1;
+    final dueDate = _dueDateEnabled ? _dueDate : null;
+    final clearReminder = task?.reminderAt != null && reminderAt == null;
     final bool saved;
     if (task == null) {
-      saved = _recurrenceEnabled
+      saved = usesRecurrence
           ? await widget.controller.createRecurring(
               title: _titleController.text,
-              dueDate: _dueDate,
+              dueDate: dueDate,
               frequency: _frequency,
               interval: interval,
               startDate: _startDate,
               endDate: _endDate,
+              reminderAt: reminderAt,
+              reminderMode: reminderMode,
+              reminderEveryOccurrence: _recurrenceAlarmAlways,
             )
           : await widget.controller.create(
               title: _titleController.text,
-              dueDate: _dueDate,
+              dueDate: dueDate,
+              reminderAt: reminderAt,
+              reminderMode: reminderMode,
             );
     } else if (_isSeriesEdit) {
       saved = await widget.controller.updateSeries(
         task: task,
         title: _titleController.text,
-        dueDate: _dueDate,
+        dueDate: dueDate,
         frequency: _frequency,
         interval: interval,
         startDate: _startDate,
         endDate: _endDate,
+        reminderAt: reminderAt,
+        clearReminder: clearReminder,
+        reminderMode: reminderMode,
+        reminderEveryOccurrence: _recurrenceAlarmAlways,
       );
     } else if (task.isRecurring) {
       saved = await widget.controller.updateOccurrence(
         task: task,
         title: _titleController.text,
-        dueDate: _dueDate,
+        dueDate: dueDate,
+        reminderAt: reminderAt,
+        clearReminder: clearReminder,
+        reminderMode: reminderMode,
       );
     } else {
       saved = await widget.controller.update(
         task: task,
         title: _titleController.text,
-        dueDate: _dueDate,
+        dueDate: dueDate,
+        reminderAt: reminderAt,
+        clearReminder: clearReminder,
+        reminderMode: reminderMode,
       );
     }
 
@@ -467,6 +758,71 @@ class _TaskFormSheetState extends State<TaskFormSheet> {
   }
 }
 
+class _OptionCard extends StatelessWidget {
+  const _OptionCard({
+    required this.switchKey,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    this.cardKey,
+    this.child,
+  });
+
+  final Key? cardKey;
+  final Key switchKey;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      key: cardKey,
+      color: AppColors.surfaceVariant,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(key: switchKey, value: value, onChanged: onChanged),
+              ],
+            ),
+            if (child != null) ...[const SizedBox(height: 12), child!],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DateField extends StatelessWidget {
   const _DateField({
     required this.label,
@@ -476,9 +832,6 @@ class _DateField extends StatelessWidget {
     required this.onSelect,
     this.clearKey,
     this.onClear,
-    this.clearIcon = Icons.event_busy_rounded,
-    this.clearIconColor,
-    this.clearTooltip = 'Quitar fecha',
   });
 
   final String label;
@@ -488,9 +841,6 @@ class _DateField extends StatelessWidget {
   final VoidCallback? onSelect;
   final Key? clearKey;
   final VoidCallback? onClear;
-  final IconData clearIcon;
-  final Color? clearIconColor;
-  final String clearTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -523,9 +873,12 @@ class _DateField extends StatelessWidget {
           if (value != null && clearKey != null)
             IconButton(
               key: clearKey,
-              tooltip: clearTooltip,
+              tooltip: 'Quitar fecha',
               onPressed: onClear,
-              icon: Icon(clearIcon, color: clearIconColor),
+              icon: const Icon(
+                Icons.event_busy_rounded,
+                color: AppColors.destructive,
+              ),
             ),
           IconButton(
             key: selectKey,
@@ -589,14 +942,199 @@ class _DueDateShortcutOptions extends StatelessWidget {
   }
 
   String _shortcutKey(TaskDueDateShortcut shortcut) => switch (shortcut) {
+    TaskDueDateShortcut.today => 'dueDateTodayOption',
     TaskDueDateShortcut.tomorrow => 'dueDateTomorrowOption',
-    TaskDueDateShortcut.oneWeek => 'dueDateOneWeekOption',
-    TaskDueDateShortcut.oneMonth => 'dueDateOneMonthOption',
   };
 
   String _shortcutLabel(TaskDueDateShortcut shortcut) => switch (shortcut) {
+    TaskDueDateShortcut.today => 'Hoy',
     TaskDueDateShortcut.tomorrow => 'Mañana',
-    TaskDueDateShortcut.oneWeek => 'Una semana',
-    TaskDueDateShortcut.oneMonth => 'Un mes',
   };
+}
+
+class _AlarmSubOption extends StatelessWidget {
+  const _AlarmSubOption({
+    required this.sectionKey,
+    required this.switchKey,
+    required this.addKey,
+    required this.changeKey,
+    required this.clearKey,
+    required this.modeKey,
+    required this.alarmEnabled,
+    required this.timeLabel,
+    required this.mode,
+    required this.enabled,
+    required this.showScope,
+    required this.alwaysRepeat,
+    required this.onSwitch,
+    required this.onSetTime,
+    required this.onChangeTime,
+    required this.onModeChanged,
+    required this.onClear,
+    this.scopeKey,
+    this.onScopeChanged,
+    this.error,
+  });
+
+  final Key sectionKey;
+  final Key switchKey;
+  final Key addKey;
+  final Key changeKey;
+  final Key clearKey;
+  final Key modeKey;
+  final Key? scopeKey;
+  final bool alarmEnabled;
+  final String? timeLabel;
+  final TaskReminderMode mode;
+  final bool enabled;
+  final bool showScope;
+  final bool alwaysRepeat;
+  final ValueChanged<bool> onSwitch;
+  final VoidCallback onSetTime;
+  final VoidCallback onChangeTime;
+  final ValueChanged<TaskReminderMode> onModeChanged;
+  final VoidCallback onClear;
+  final ValueChanged<bool>? onScopeChanged;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: sectionKey,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.alarm_rounded, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Alarma',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      !alarmEnabled
+                          ? 'Opcional: elige cómo avisarte'
+                          : timeLabel == null
+                          ? 'Sin hora configurada'
+                          : 'A las $timeLabel',
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                key: switchKey,
+                value: alarmEnabled,
+                onChanged: enabled ? onSwitch : null,
+              ),
+            ],
+          ),
+          if (alarmEnabled) ...[
+            const SizedBox(height: 12),
+            if (timeLabel == null)
+              FilledButton.icon(
+                key: addKey,
+                onPressed: enabled ? onSetTime : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                ),
+                icon: const Icon(Icons.alarm_add_rounded),
+                label: const Text('Fijar hora de inicio'),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: changeKey,
+                      onPressed: enabled ? onChangeTime : null,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      icon: const Icon(Icons.schedule_rounded),
+                      label: const Text('Cambiar hora'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    key: clearKey,
+                    tooltip: 'Quitar alarma',
+                    onPressed: enabled ? onClear : null,
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.destructive,
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 12),
+            SegmentedButton<TaskReminderMode>(
+              key: modeKey,
+              segments: const [
+                ButtonSegment(
+                  value: TaskReminderMode.alarm,
+                  icon: Icon(Icons.alarm_rounded),
+                  label: Text('Alarma'),
+                ),
+                ButtonSegment(
+                  value: TaskReminderMode.notification,
+                  icon: Icon(Icons.notifications_rounded),
+                  label: Text('Notificación'),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: enabled
+                  ? (selection) => onModeChanged(selection.first)
+                  : null,
+            ),
+            if (showScope) ...[
+              const SizedBox(height: 8),
+              SegmentedButton<bool>(
+                key: scopeKey,
+                segments: const [
+                  ButtonSegment(value: true, label: Text('Siempre')),
+                  ButtonSegment(value: false, label: Text('Solo la primera vez')),
+                ],
+                selected: {alwaysRepeat},
+                onSelectionChanged:
+                    enabled && onScopeChanged != null
+                    ? (selection) => onScopeChanged!(selection.first)
+                    : null,
+              ),
+            ],
+          ],
+          if (error != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.destructive.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.destructive.withValues(alpha: 0.32),
+                ),
+              ),
+              child: Text(
+                error!,
+                style: const TextStyle(color: AppColors.destructive),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

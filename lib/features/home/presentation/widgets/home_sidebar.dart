@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../home_destination.dart';
@@ -115,6 +117,15 @@ class HomeSidebar extends StatelessWidget {
                       onPressed: () =>
                           _select(context, HomeDestination.statistics),
                     ),
+                    const SizedBox(height: 6),
+                    _SidebarLink(
+                      key: const Key('sidebarReportIssueButton'),
+                      label: 'Reportar errores o sugerencias',
+                      icon: Icons.bug_report_rounded,
+                      url: Uri.parse(
+                        'https://docs.google.com/forms/d/e/1FAIpQLSdkwL6woIBLYTGpjQ16jQB8cENYjOajiu4kcGsjwCYACuGOSw/viewform',
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -188,6 +199,74 @@ class _SidebarDestination extends StatelessWidget {
           ),
           onTap: onPressed,
         ),
+      ),
+    );
+  }
+}
+
+class _SidebarLink extends StatelessWidget {
+  const _SidebarLink({
+    required this.label,
+    required this.icon,
+    required this.url,
+    super.key,
+  });
+
+  final String label;
+  final IconData icon;
+  final Uri url;
+
+  Future<void> _open(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).pop();
+    try {
+      final launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        _showFallback(messenger);
+      }
+    } catch (_) {
+      _showFallback(messenger);
+    }
+  }
+
+  void _showFallback(ScaffoldMessengerState messenger) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text(
+          'No se pudo abrir el navegador. Abre este enlace:',
+        ),
+        action: SnackBarAction(
+          label: 'Copiar',
+          onPressed: () => Clipboard.setData(ClipboardData(text: '$url')),
+        ),
+        duration: const Duration(seconds: 8),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      link: true,
+      child: ListTile(
+        textColor: AppColors.info,
+        iconColor: AppColors.info,
+        tileColor: AppColors.infoSoft,
+        leading: Icon(icon),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: AppColors.infoBorder),
+        ),
+        onTap: () => _open(context),
       ),
     );
   }

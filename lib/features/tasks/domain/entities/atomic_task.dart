@@ -1,5 +1,8 @@
 import 'recurrence_rule.dart';
 
+/// Cómo se avisa al usuario cuando inicia una tarea con recordatorio.
+enum TaskReminderMode { notification, alarm }
+
 class AtomicTask {
   const AtomicTask({
     required this.id,
@@ -8,6 +11,8 @@ class AtomicTask {
     required this.createdAt,
     required this.updatedAt,
     this.dueDate,
+    this.reminderAt,
+    this.reminderMode = TaskReminderMode.notification,
     this.focusMinutes,
     this.completedAt,
     this.occurrenceDate,
@@ -18,6 +23,8 @@ class AtomicTask {
   final String title;
   final bool isCompleted;
   final DateTime? dueDate;
+  final DateTime? reminderAt;
+  final TaskReminderMode reminderMode;
   final int? focusMinutes;
   final DateTime? completedAt;
   final DateTime? occurrenceDate;

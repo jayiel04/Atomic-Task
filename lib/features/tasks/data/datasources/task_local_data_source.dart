@@ -38,12 +38,33 @@ abstract interface class TaskLocalDataSource {
   Future<void> delete(int id);
 }
 
+abstract interface class TaskAlarmLocalDataSource {
+  Future<int> createWithReminder({
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime createdAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+  });
+
+  Future<void> updateWithReminder({
+    required int id,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime updatedAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+  });
+}
+
 abstract interface class TaskRecurrenceLocalDataSource {
   Future<int> createRecurring({
     required String title,
     required DateTime? dueDate,
     required RecurrenceRule rule,
     required DateTime createdAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   });
 
   Future<void> updateSeries({
@@ -52,6 +73,8 @@ abstract interface class TaskRecurrenceLocalDataSource {
     required DateTime? dueDate,
     required RecurrenceRule rule,
     required DateTime updatedAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   });
 
   Future<void> setRecurrenceActive({
@@ -84,7 +107,10 @@ abstract interface class TaskRecurrenceLocalDataSource {
 }
 
 class DriftTaskLocalDataSource
-    implements TaskLocalDataSource, TaskRecurrenceLocalDataSource {
+    implements
+        TaskLocalDataSource,
+        TaskAlarmLocalDataSource,
+        TaskRecurrenceLocalDataSource {
   const DriftTaskLocalDataSource(this._database);
 
   final AppDatabase _database;
@@ -113,6 +139,26 @@ class DriftTaskLocalDataSource
   }
 
   @override
+  Future<int> createWithReminder({
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime createdAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+  }) {
+    return _database.insertTask(
+      TasksCompanion.insert(
+        title: title,
+        dueDate: Value(dueDate),
+        reminderAt: Value(reminderAt),
+        reminderMode: Value(reminderAt == null ? null : reminderMode.name),
+        createdAt: createdAt,
+        updatedAt: createdAt,
+      ),
+    );
+  }
+
+  @override
   Future<void> update({
     required int id,
     required String title,
@@ -123,6 +169,25 @@ class DriftTaskLocalDataSource
       id: id,
       title: title,
       dueDate: dueDate,
+      updatedAt: updatedAt,
+    );
+  }
+
+  @override
+  Future<void> updateWithReminder({
+    required int id,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime updatedAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+  }) async {
+    await _database.updateTaskWithReminder(
+      id: id,
+      title: title,
+      dueDate: dueDate,
+      reminderAt: reminderAt,
+      reminderMode: reminderMode.name,
       updatedAt: updatedAt,
     );
   }
@@ -164,6 +229,8 @@ class DriftTaskLocalDataSource
     required DateTime? dueDate,
     required RecurrenceRule rule,
     required DateTime createdAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   }) {
     return _database.insertRecurringTask(
       rule: TaskRecurrenceRulesCompanion.insert(
@@ -171,6 +238,7 @@ class DriftTaskLocalDataSource
         interval: rule.interval,
         startDate: rule.startDate,
         endDate: Value(rule.endDate),
+        reminderTimeMinutes: Value(rule.reminderTimeMinutes),
         isActive: Value(rule.isActive),
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
@@ -179,6 +247,8 @@ class DriftTaskLocalDataSource
       dueDate: dueDate,
       occurrenceDate: rule.startDate,
       createdAt: createdAt,
+      reminderAt: reminderAt,
+      reminderMode: reminderMode.name,
     );
   }
 
@@ -189,6 +259,8 @@ class DriftTaskLocalDataSource
     required DateTime? dueDate,
     required RecurrenceRule rule,
     required DateTime updatedAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   }) {
     return _database.updateRecurringSeries(
       ruleId: rule.id,
@@ -199,6 +271,9 @@ class DriftTaskLocalDataSource
       interval: rule.interval,
       startDate: rule.startDate,
       endDate: rule.endDate,
+      reminderTimeMinutes: rule.reminderTimeMinutes,
+      reminderMode: reminderMode.name,
+      reminderAt: reminderAt,
       updatedAt: updatedAt,
     );
   }

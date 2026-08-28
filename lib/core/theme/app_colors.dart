@@ -13,6 +13,10 @@ abstract final class AppColors {
   static const Color focusAccentSoft = Color(0xFFFFF0C2);
   static const Color focusAccentBorder = Color(0x66B7791F);
 
+  static const Color info = Color(0xFF2563EB);
+  static const Color infoSoft = Color(0xFFE3ECFF);
+  static const Color infoBorder = Color(0x332563EB);
+
   static const Color text = Color(0xFF3F2C63);
   static const Color muted = Color(0xFF8B7AA9);
   static const Color danger = Color(0xFFB14C82);

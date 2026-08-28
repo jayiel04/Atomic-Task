@@ -399,4 +399,58 @@ void main() {
     expect(await database.readActiveTimerSession(), isNull);
     expect(await database.readPendingTimerSummary(), isNull);
   });
+
+  test('migrates version 7 by adding nullable task reminder columns', () async {
+    final sqliteDatabase = sqlite3.openInMemory();
+    sqliteDatabase.execute('''
+      CREATE TABLE task_recurrence_rules (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        frequency TEXT NOT NULL,
+        "interval" INTEGER NOT NULL,
+        start_date INTEGER NOT NULL,
+        end_date INTEGER NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE tasks (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        due_date INTEGER NULL,
+        focus_minutes INTEGER NULL,
+        completed_at INTEGER NULL,
+        recurrence_rule_id INTEGER NULL,
+        occurrence_date INTEGER NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      INSERT INTO tasks
+        (title, is_completed, created_at, updated_at)
+      VALUES ('Tarea de una instalación anterior', 0, 1786348800000, 1786348800000);
+      PRAGMA user_version = 7;
+    ''');
+
+    final database = AppDatabase(
+      executor: NativeDatabase.opened(sqliteDatabase),
+    );
+    addTearDown(database.close);
+    final dataSource = DriftTaskLocalDataSource(database);
+
+    var task = (await dataSource.watchAll().first).single;
+    expect(task.reminderAt, isNull);
+
+    final reminderAt = DateTime(2026, 8, 10, 10);
+    await dataSource.updateWithReminder(
+      id: task.id,
+      title: task.title,
+      dueDate: task.dueDate,
+      reminderAt: reminderAt,
+      updatedAt: reminderAt,
+    );
+
+    task = (await dataSource.watchAll().first).single;
+    expect(task.reminderAt, reminderAt);
+    expect(task.recurrenceRule?.reminderTimeMinutes, isNull);
+  });
 }

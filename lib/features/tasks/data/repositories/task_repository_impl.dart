@@ -5,7 +5,8 @@ import '../../domain/repositories/task_recurrence_repository.dart';
 import '../../domain/repositories/task_repository.dart';
 import '../datasources/task_local_data_source.dart';
 
-class TaskRepositoryImpl implements TaskRepository, TaskRecurrenceRepository {
+class TaskRepositoryImpl
+    implements TaskRepository, TaskAlarmRepository, TaskRecurrenceRepository {
   const TaskRepositoryImpl(this._localDataSource);
 
   final TaskLocalDataSource _localDataSource;
@@ -17,6 +18,16 @@ class TaskRepositoryImpl implements TaskRepository, TaskRecurrenceRepository {
     }
     throw UnsupportedError(
       'La fuente de datos configurada no admite recurrencias',
+    );
+  }
+
+  TaskAlarmLocalDataSource get _alarmDataSource {
+    final source = _localDataSource;
+    if (source case final TaskAlarmLocalDataSource alarmSource) {
+      return alarmSource;
+    }
+    throw UnsupportedError(
+      'La fuente de datos configurada no admite recordatorios',
     );
   }
 
@@ -48,6 +59,42 @@ class TaskRepositoryImpl implements TaskRepository, TaskRecurrenceRepository {
       title: title,
       dueDate: dueDate,
       updatedAt: updatedAt,
+    );
+  }
+
+  @override
+  Future<int> createTaskWithReminder({
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime createdAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+  }) {
+    return _alarmDataSource.createWithReminder(
+      title: title,
+      dueDate: dueDate,
+      reminderAt: reminderAt,
+      createdAt: createdAt,
+      reminderMode: reminderMode,
+    );
+  }
+
+  @override
+  Future<void> updateTaskWithReminder({
+    required int id,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime updatedAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+  }) {
+    return _alarmDataSource.updateWithReminder(
+      id: id,
+      title: title,
+      dueDate: dueDate,
+      reminderAt: reminderAt,
+      updatedAt: updatedAt,
+      reminderMode: reminderMode,
     );
   }
 
@@ -86,12 +133,16 @@ class TaskRepositoryImpl implements TaskRepository, TaskRecurrenceRepository {
     required DateTime? dueDate,
     required RecurrenceRule rule,
     required DateTime createdAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   }) {
     return _recurrenceDataSource.createRecurring(
       title: title,
       dueDate: dueDate,
       rule: rule,
       createdAt: createdAt,
+      reminderAt: reminderAt,
+      reminderMode: reminderMode,
     );
   }
 
@@ -102,6 +153,8 @@ class TaskRepositoryImpl implements TaskRepository, TaskRecurrenceRepository {
     required DateTime? dueDate,
     required RecurrenceRule rule,
     required DateTime updatedAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   }) {
     return _recurrenceDataSource.updateSeries(
       task: task,
@@ -109,6 +162,8 @@ class TaskRepositoryImpl implements TaskRepository, TaskRecurrenceRepository {
       dueDate: dueDate,
       rule: rule,
       updatedAt: updatedAt,
+      reminderAt: reminderAt,
+      reminderMode: reminderMode,
     );
   }
 

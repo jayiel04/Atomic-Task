@@ -10,6 +10,8 @@ class TaskModel extends AtomicTask {
     required super.createdAt,
     required super.updatedAt,
     super.dueDate,
+    super.reminderAt,
+    super.reminderMode,
     super.focusMinutes,
     super.completedAt,
     super.occurrenceDate,
@@ -22,6 +24,8 @@ class TaskModel extends AtomicTask {
       title: row.title,
       isCompleted: row.isCompleted,
       dueDate: row.dueDate,
+      reminderAt: row.reminderAt,
+      reminderMode: _reminderModeFromName(row.reminderMode),
       focusMinutes: row.focusMinutes,
       completedAt: row.completedAt,
       createdAt: row.createdAt,
@@ -40,6 +44,8 @@ class TaskModel extends AtomicTask {
       title: task.title,
       isCompleted: task.isCompleted,
       dueDate: task.dueDate,
+      reminderAt: task.reminderAt,
+      reminderMode: _reminderModeFromName(task.reminderMode),
       focusMinutes: task.focusMinutes,
       completedAt: task.completedAt,
       occurrenceDate: task.occurrenceDate,
@@ -48,6 +54,13 @@ class TaskModel extends AtomicTask {
           : RecurrenceRuleModel.fromRow(recurrenceRow),
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
+    );
+  }
+
+  static TaskReminderMode _reminderModeFromName(String? name) {
+    return TaskReminderMode.values.firstWhere(
+      (mode) => mode.name == name,
+      orElse: () => TaskReminderMode.notification,
     );
   }
 }

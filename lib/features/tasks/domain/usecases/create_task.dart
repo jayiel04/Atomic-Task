@@ -1,3 +1,4 @@
+import '../entities/atomic_task.dart';
 import '../repositories/task_repository.dart';
 
 class CreateTask {
@@ -9,6 +10,8 @@ class CreateTask {
     required String title,
     required DateTime? dueDate,
     required DateTime createdAt,
+    DateTime? reminderAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   }) {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) {
@@ -19,7 +22,22 @@ class CreateTask {
       );
     }
 
-    return _repository.createTask(
+    final repository = _repository;
+    if (reminderAt != null) {
+      if (repository case final TaskAlarmRepository alarmRepository) {
+        return alarmRepository.createTaskWithReminder(
+          title: normalizedTitle,
+          dueDate: dueDate,
+          reminderAt: reminderAt,
+          createdAt: createdAt,
+          reminderMode: reminderMode,
+        );
+      }
+      throw UnsupportedError(
+        'El repositorio configurado no admite recordatorios',
+      );
+    }
+    return repository.createTask(
       title: normalizedTitle,
       dueDate: dueDate,
       createdAt: createdAt,

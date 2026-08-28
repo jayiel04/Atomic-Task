@@ -1,6 +1,4 @@
-import 'dart:math' as math;
-
-enum TaskDueDateShortcut { tomorrow, oneWeek, oneMonth }
+enum TaskDueDateShortcut { today, tomorrow }
 
 abstract final class TaskDueDateShortcuts {
   static DateTime calculate(TaskDueDateShortcut shortcut, DateTime from) {
@@ -8,17 +6,12 @@ abstract final class TaskDueDateShortcuts {
     final today = DateTime(local.year, local.month, local.day);
 
     return switch (shortcut) {
+      TaskDueDateShortcut.today => today,
       TaskDueDateShortcut.tomorrow => DateTime(
         today.year,
         today.month,
         today.day + 1,
       ),
-      TaskDueDateShortcut.oneWeek => DateTime(
-        today.year,
-        today.month,
-        today.day + 7,
-      ),
-      TaskDueDateShortcut.oneMonth => _addCalendarMonth(today),
     };
   }
 
@@ -31,16 +24,5 @@ abstract final class TaskDueDateShortcuts {
     return localLeft.year == localRight.year &&
         localLeft.month == localRight.month &&
         localLeft.day == localRight.day;
-  }
-
-  static DateTime _addCalendarMonth(DateTime date) {
-    final targetMonth = date.month == DateTime.december
-        ? DateTime.january
-        : date.month + 1;
-    final targetYear = date.month == DateTime.december
-        ? date.year + 1
-        : date.year;
-    final lastTargetDay = DateTime(targetYear, targetMonth + 1, 0).day;
-    return DateTime(targetYear, targetMonth, math.min(date.day, lastTargetDay));
   }
 }

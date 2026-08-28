@@ -11,12 +11,18 @@ class UpdateRecurringOccurrence {
     required String title,
     required DateTime? dueDate,
     required DateTime updatedAt,
+    DateTime? reminderAt,
+    bool clearReminder = false,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
   }) {
     return _updateTask(
       id: task.id,
       title: title,
       dueDate: dueDate,
       updatedAt: updatedAt,
+      reminderAt: reminderAt,
+      clearReminder: clearReminder,
+      reminderMode: reminderMode,
     );
   }
 }

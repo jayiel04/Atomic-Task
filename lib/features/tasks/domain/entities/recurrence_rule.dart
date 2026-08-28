@@ -10,6 +10,7 @@ class RecurrenceRule {
     required this.createdAt,
     required this.updatedAt,
     this.endDate,
+    this.reminderTimeMinutes,
   });
 
   final int id;
@@ -17,6 +18,7 @@ class RecurrenceRule {
   final int interval;
   final DateTime startDate;
   final DateTime? endDate;
+  final int? reminderTimeMinutes;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -28,6 +30,8 @@ class RecurrenceRule {
     DateTime? startDate,
     DateTime? endDate,
     bool clearEndDate = false,
+    int? reminderTimeMinutes,
+    bool clearReminderTime = false,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -38,6 +42,9 @@ class RecurrenceRule {
       interval: interval ?? this.interval,
       startDate: startDate ?? this.startDate,
       endDate: clearEndDate ? null : endDate ?? this.endDate,
+      reminderTimeMinutes: clearReminderTime
+          ? null
+          : reminderTimeMinutes ?? this.reminderTimeMinutes,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

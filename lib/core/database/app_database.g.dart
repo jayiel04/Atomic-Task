@@ -372,6 +372,16 @@ class $TaskRecurrenceRulesTable extends TaskRecurrenceRules
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reminderTimeMinutesMeta =
+      const VerificationMeta('reminderTimeMinutes');
+  @override
+  late final GeneratedColumn<int> reminderTimeMinutes = GeneratedColumn<int>(
+    'reminder_time_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -416,6 +426,7 @@ class $TaskRecurrenceRulesTable extends TaskRecurrenceRules
     interval,
     startDate,
     endDate,
+    reminderTimeMinutes,
     isActive,
     createdAt,
     updatedAt,
@@ -463,6 +474,15 @@ class $TaskRecurrenceRulesTable extends TaskRecurrenceRules
       context.handle(
         _endDateMeta,
         endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('reminder_time_minutes')) {
+      context.handle(
+        _reminderTimeMinutesMeta,
+        reminderTimeMinutes.isAcceptableOrUnknown(
+          data['reminder_time_minutes']!,
+          _reminderTimeMinutesMeta,
+        ),
       );
     }
     if (data.containsKey('is_active')) {
@@ -516,6 +536,10 @@ class $TaskRecurrenceRulesTable extends TaskRecurrenceRules
         DriftSqlType.dateTime,
         data['${effectivePrefix}end_date'],
       ),
+      reminderTimeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_time_minutes'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -544,6 +568,7 @@ class TaskRecurrenceRuleRow extends DataClass
   final int interval;
   final DateTime startDate;
   final DateTime? endDate;
+  final int? reminderTimeMinutes;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -553,6 +578,7 @@ class TaskRecurrenceRuleRow extends DataClass
     required this.interval,
     required this.startDate,
     this.endDate,
+    this.reminderTimeMinutes,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -566,6 +592,9 @@ class TaskRecurrenceRuleRow extends DataClass
     map['start_date'] = Variable<DateTime>(startDate);
     if (!nullToAbsent || endDate != null) {
       map['end_date'] = Variable<DateTime>(endDate);
+    }
+    if (!nullToAbsent || reminderTimeMinutes != null) {
+      map['reminder_time_minutes'] = Variable<int>(reminderTimeMinutes);
     }
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -582,6 +611,9 @@ class TaskRecurrenceRuleRow extends DataClass
       endDate: endDate == null && nullToAbsent
           ? const Value.absent()
           : Value(endDate),
+      reminderTimeMinutes: reminderTimeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderTimeMinutes),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -599,6 +631,9 @@ class TaskRecurrenceRuleRow extends DataClass
       interval: serializer.fromJson<int>(json['interval']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      reminderTimeMinutes: serializer.fromJson<int?>(
+        json['reminderTimeMinutes'],
+      ),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -613,6 +648,7 @@ class TaskRecurrenceRuleRow extends DataClass
       'interval': serializer.toJson<int>(interval),
       'startDate': serializer.toJson<DateTime>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
+      'reminderTimeMinutes': serializer.toJson<int?>(reminderTimeMinutes),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -625,6 +661,7 @@ class TaskRecurrenceRuleRow extends DataClass
     int? interval,
     DateTime? startDate,
     Value<DateTime?> endDate = const Value.absent(),
+    Value<int?> reminderTimeMinutes = const Value.absent(),
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -634,6 +671,9 @@ class TaskRecurrenceRuleRow extends DataClass
     interval: interval ?? this.interval,
     startDate: startDate ?? this.startDate,
     endDate: endDate.present ? endDate.value : this.endDate,
+    reminderTimeMinutes: reminderTimeMinutes.present
+        ? reminderTimeMinutes.value
+        : this.reminderTimeMinutes,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -645,6 +685,9 @@ class TaskRecurrenceRuleRow extends DataClass
       interval: data.interval.present ? data.interval.value : this.interval,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      reminderTimeMinutes: data.reminderTimeMinutes.present
+          ? data.reminderTimeMinutes.value
+          : this.reminderTimeMinutes,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -659,6 +702,7 @@ class TaskRecurrenceRuleRow extends DataClass
           ..write('interval: $interval, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('reminderTimeMinutes: $reminderTimeMinutes, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -673,6 +717,7 @@ class TaskRecurrenceRuleRow extends DataClass
     interval,
     startDate,
     endDate,
+    reminderTimeMinutes,
     isActive,
     createdAt,
     updatedAt,
@@ -686,6 +731,7 @@ class TaskRecurrenceRuleRow extends DataClass
           other.interval == this.interval &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
+          other.reminderTimeMinutes == this.reminderTimeMinutes &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -698,6 +744,7 @@ class TaskRecurrenceRulesCompanion
   final Value<int> interval;
   final Value<DateTime> startDate;
   final Value<DateTime?> endDate;
+  final Value<int?> reminderTimeMinutes;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -707,6 +754,7 @@ class TaskRecurrenceRulesCompanion
     this.interval = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
+    this.reminderTimeMinutes = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -717,6 +765,7 @@ class TaskRecurrenceRulesCompanion
     required int interval,
     required DateTime startDate,
     this.endDate = const Value.absent(),
+    this.reminderTimeMinutes = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -731,6 +780,7 @@ class TaskRecurrenceRulesCompanion
     Expression<int>? interval,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
+    Expression<int>? reminderTimeMinutes,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -741,6 +791,8 @@ class TaskRecurrenceRulesCompanion
       if (interval != null) 'interval': interval,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
+      if (reminderTimeMinutes != null)
+        'reminder_time_minutes': reminderTimeMinutes,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -753,6 +805,7 @@ class TaskRecurrenceRulesCompanion
     Value<int>? interval,
     Value<DateTime>? startDate,
     Value<DateTime?>? endDate,
+    Value<int?>? reminderTimeMinutes,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -763,6 +816,7 @@ class TaskRecurrenceRulesCompanion
       interval: interval ?? this.interval,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      reminderTimeMinutes: reminderTimeMinutes ?? this.reminderTimeMinutes,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -787,6 +841,9 @@ class TaskRecurrenceRulesCompanion
     if (endDate.present) {
       map['end_date'] = Variable<DateTime>(endDate.value);
     }
+    if (reminderTimeMinutes.present) {
+      map['reminder_time_minutes'] = Variable<int>(reminderTimeMinutes.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -807,6 +864,7 @@ class TaskRecurrenceRulesCompanion
           ..write('interval: $interval, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
+          ..write('reminderTimeMinutes: $reminderTimeMinutes, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -866,6 +924,28 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     aliasedName,
     true,
     type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reminderAtMeta = const VerificationMeta(
+    'reminderAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reminderAt = GeneratedColumn<DateTime>(
+    'reminder_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reminderModeMeta = const VerificationMeta(
+    'reminderMode',
+  );
+  @override
+  late final GeneratedColumn<String> reminderMode = GeneratedColumn<String>(
+    'reminder_mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _focusMinutesMeta = const VerificationMeta(
@@ -944,6 +1024,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     title,
     isCompleted,
     dueDate,
+    reminderAt,
+    reminderMode,
     focusMinutes,
     completedAt,
     recurrenceRuleId,
@@ -987,6 +1069,21 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       context.handle(
         _dueDateMeta,
         dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    if (data.containsKey('reminder_at')) {
+      context.handle(
+        _reminderAtMeta,
+        reminderAt.isAcceptableOrUnknown(data['reminder_at']!, _reminderAtMeta),
+      );
+    }
+    if (data.containsKey('reminder_mode')) {
+      context.handle(
+        _reminderModeMeta,
+        reminderMode.isAcceptableOrUnknown(
+          data['reminder_mode']!,
+          _reminderModeMeta,
+        ),
       );
     }
     if (data.containsKey('focus_minutes')) {
@@ -1070,6 +1167,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}due_date'],
       ),
+      reminderAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reminder_at'],
+      ),
+      reminderMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_mode'],
+      ),
       focusMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}focus_minutes'],
@@ -1108,6 +1213,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final String title;
   final bool isCompleted;
   final DateTime? dueDate;
+  final DateTime? reminderAt;
+  final String? reminderMode;
   final int? focusMinutes;
   final DateTime? completedAt;
   final int? recurrenceRuleId;
@@ -1119,6 +1226,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     required this.title,
     required this.isCompleted,
     this.dueDate,
+    this.reminderAt,
+    this.reminderMode,
     this.focusMinutes,
     this.completedAt,
     this.recurrenceRuleId,
@@ -1134,6 +1243,12 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     map['is_completed'] = Variable<bool>(isCompleted);
     if (!nullToAbsent || dueDate != null) {
       map['due_date'] = Variable<DateTime>(dueDate);
+    }
+    if (!nullToAbsent || reminderAt != null) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt);
+    }
+    if (!nullToAbsent || reminderMode != null) {
+      map['reminder_mode'] = Variable<String>(reminderMode);
     }
     if (!nullToAbsent || focusMinutes != null) {
       map['focus_minutes'] = Variable<int>(focusMinutes);
@@ -1160,6 +1275,12 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       dueDate: dueDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dueDate),
+      reminderAt: reminderAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderAt),
+      reminderMode: reminderMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderMode),
       focusMinutes: focusMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(focusMinutes),
@@ -1187,6 +1308,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       title: serializer.fromJson<String>(json['title']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
       dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
+      reminderAt: serializer.fromJson<DateTime?>(json['reminderAt']),
+      reminderMode: serializer.fromJson<String?>(json['reminderMode']),
       focusMinutes: serializer.fromJson<int?>(json['focusMinutes']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       recurrenceRuleId: serializer.fromJson<int?>(json['recurrenceRuleId']),
@@ -1203,6 +1326,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'title': serializer.toJson<String>(title),
       'isCompleted': serializer.toJson<bool>(isCompleted),
       'dueDate': serializer.toJson<DateTime?>(dueDate),
+      'reminderAt': serializer.toJson<DateTime?>(reminderAt),
+      'reminderMode': serializer.toJson<String?>(reminderMode),
       'focusMinutes': serializer.toJson<int?>(focusMinutes),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'recurrenceRuleId': serializer.toJson<int?>(recurrenceRuleId),
@@ -1217,6 +1342,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     String? title,
     bool? isCompleted,
     Value<DateTime?> dueDate = const Value.absent(),
+    Value<DateTime?> reminderAt = const Value.absent(),
+    Value<String?> reminderMode = const Value.absent(),
     Value<int?> focusMinutes = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
     Value<int?> recurrenceRuleId = const Value.absent(),
@@ -1228,6 +1355,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     title: title ?? this.title,
     isCompleted: isCompleted ?? this.isCompleted,
     dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    reminderAt: reminderAt.present ? reminderAt.value : this.reminderAt,
+    reminderMode: reminderMode.present ? reminderMode.value : this.reminderMode,
     focusMinutes: focusMinutes.present ? focusMinutes.value : this.focusMinutes,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     recurrenceRuleId: recurrenceRuleId.present
@@ -1247,6 +1376,12 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? data.isCompleted.value
           : this.isCompleted,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      reminderAt: data.reminderAt.present
+          ? data.reminderAt.value
+          : this.reminderAt,
+      reminderMode: data.reminderMode.present
+          ? data.reminderMode.value
+          : this.reminderMode,
       focusMinutes: data.focusMinutes.present
           ? data.focusMinutes.value
           : this.focusMinutes,
@@ -1271,6 +1406,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('title: $title, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('dueDate: $dueDate, ')
+          ..write('reminderAt: $reminderAt, ')
+          ..write('reminderMode: $reminderMode, ')
           ..write('focusMinutes: $focusMinutes, ')
           ..write('completedAt: $completedAt, ')
           ..write('recurrenceRuleId: $recurrenceRuleId, ')
@@ -1287,6 +1424,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     title,
     isCompleted,
     dueDate,
+    reminderAt,
+    reminderMode,
     focusMinutes,
     completedAt,
     recurrenceRuleId,
@@ -1302,6 +1441,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.title == this.title &&
           other.isCompleted == this.isCompleted &&
           other.dueDate == this.dueDate &&
+          other.reminderAt == this.reminderAt &&
+          other.reminderMode == this.reminderMode &&
           other.focusMinutes == this.focusMinutes &&
           other.completedAt == this.completedAt &&
           other.recurrenceRuleId == this.recurrenceRuleId &&
@@ -1315,6 +1456,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<String> title;
   final Value<bool> isCompleted;
   final Value<DateTime?> dueDate;
+  final Value<DateTime?> reminderAt;
+  final Value<String?> reminderMode;
   final Value<int?> focusMinutes;
   final Value<DateTime?> completedAt;
   final Value<int?> recurrenceRuleId;
@@ -1326,6 +1469,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.title = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.reminderAt = const Value.absent(),
+    this.reminderMode = const Value.absent(),
     this.focusMinutes = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.recurrenceRuleId = const Value.absent(),
@@ -1338,6 +1483,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     required String title,
     this.isCompleted = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.reminderAt = const Value.absent(),
+    this.reminderMode = const Value.absent(),
     this.focusMinutes = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.recurrenceRuleId = const Value.absent(),
@@ -1352,6 +1499,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<String>? title,
     Expression<bool>? isCompleted,
     Expression<DateTime>? dueDate,
+    Expression<DateTime>? reminderAt,
+    Expression<String>? reminderMode,
     Expression<int>? focusMinutes,
     Expression<DateTime>? completedAt,
     Expression<int>? recurrenceRuleId,
@@ -1364,6 +1513,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (title != null) 'title': title,
       if (isCompleted != null) 'is_completed': isCompleted,
       if (dueDate != null) 'due_date': dueDate,
+      if (reminderAt != null) 'reminder_at': reminderAt,
+      if (reminderMode != null) 'reminder_mode': reminderMode,
       if (focusMinutes != null) 'focus_minutes': focusMinutes,
       if (completedAt != null) 'completed_at': completedAt,
       if (recurrenceRuleId != null) 'recurrence_rule_id': recurrenceRuleId,
@@ -1378,6 +1529,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<String>? title,
     Value<bool>? isCompleted,
     Value<DateTime?>? dueDate,
+    Value<DateTime?>? reminderAt,
+    Value<String?>? reminderMode,
     Value<int?>? focusMinutes,
     Value<DateTime?>? completedAt,
     Value<int?>? recurrenceRuleId,
@@ -1390,6 +1543,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       title: title ?? this.title,
       isCompleted: isCompleted ?? this.isCompleted,
       dueDate: dueDate ?? this.dueDate,
+      reminderAt: reminderAt ?? this.reminderAt,
+      reminderMode: reminderMode ?? this.reminderMode,
       focusMinutes: focusMinutes ?? this.focusMinutes,
       completedAt: completedAt ?? this.completedAt,
       recurrenceRuleId: recurrenceRuleId ?? this.recurrenceRuleId,
@@ -1413,6 +1568,12 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     }
     if (dueDate.present) {
       map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (reminderAt.present) {
+      map['reminder_at'] = Variable<DateTime>(reminderAt.value);
+    }
+    if (reminderMode.present) {
+      map['reminder_mode'] = Variable<String>(reminderMode.value);
     }
     if (focusMinutes.present) {
       map['focus_minutes'] = Variable<int>(focusMinutes.value);
@@ -1442,6 +1603,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('title: $title, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('dueDate: $dueDate, ')
+          ..write('reminderAt: $reminderAt, ')
+          ..write('reminderMode: $reminderMode, ')
           ..write('focusMinutes: $focusMinutes, ')
           ..write('completedAt: $completedAt, ')
           ..write('recurrenceRuleId: $recurrenceRuleId, ')
@@ -3290,6 +3453,7 @@ typedef $$TaskRecurrenceRulesTableCreateCompanionBuilder =
       required int interval,
       required DateTime startDate,
       Value<DateTime?> endDate,
+      Value<int?> reminderTimeMinutes,
       Value<bool> isActive,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -3301,6 +3465,7 @@ typedef $$TaskRecurrenceRulesTableUpdateCompanionBuilder =
       Value<int> interval,
       Value<DateTime> startDate,
       Value<DateTime?> endDate,
+      Value<int?> reminderTimeMinutes,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -3370,6 +3535,11 @@ class $$TaskRecurrenceRulesTableFilterComposer
 
   ColumnFilters<DateTime> get endDate => $composableBuilder(
     column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderTimeMinutes => $composableBuilder(
+    column: $table.reminderTimeMinutes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3448,6 +3618,11 @@ class $$TaskRecurrenceRulesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderTimeMinutes => $composableBuilder(
+    column: $table.reminderTimeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -3487,6 +3662,11 @@ class $$TaskRecurrenceRulesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get endDate =>
       $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderTimeMinutes => $composableBuilder(
+    column: $table.reminderTimeMinutes,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -3564,6 +3744,7 @@ class $$TaskRecurrenceRulesTableTableManager
                 Value<int> interval = const Value.absent(),
                 Value<DateTime> startDate = const Value.absent(),
                 Value<DateTime?> endDate = const Value.absent(),
+                Value<int?> reminderTimeMinutes = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -3573,6 +3754,7 @@ class $$TaskRecurrenceRulesTableTableManager
                 interval: interval,
                 startDate: startDate,
                 endDate: endDate,
+                reminderTimeMinutes: reminderTimeMinutes,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3584,6 +3766,7 @@ class $$TaskRecurrenceRulesTableTableManager
                 required int interval,
                 required DateTime startDate,
                 Value<DateTime?> endDate = const Value.absent(),
+                Value<int?> reminderTimeMinutes = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -3593,6 +3776,7 @@ class $$TaskRecurrenceRulesTableTableManager
                 interval: interval,
                 startDate: startDate,
                 endDate: endDate,
+                reminderTimeMinutes: reminderTimeMinutes,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -3661,6 +3845,8 @@ typedef $$TasksTableCreateCompanionBuilder =
       required String title,
       Value<bool> isCompleted,
       Value<DateTime?> dueDate,
+      Value<DateTime?> reminderAt,
+      Value<String?> reminderMode,
       Value<int?> focusMinutes,
       Value<DateTime?> completedAt,
       Value<int?> recurrenceRuleId,
@@ -3674,6 +3860,8 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String> title,
       Value<bool> isCompleted,
       Value<DateTime?> dueDate,
+      Value<DateTime?> reminderAt,
+      Value<String?> reminderMode,
       Value<int?> focusMinutes,
       Value<DateTime?> completedAt,
       Value<int?> recurrenceRuleId,
@@ -3731,6 +3919,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<DateTime> get dueDate => $composableBuilder(
     column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderMode => $composableBuilder(
+    column: $table.reminderMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3812,6 +4010,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reminderMode => $composableBuilder(
+    column: $table.reminderMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get focusMinutes => $composableBuilder(
     column: $table.focusMinutes,
     builder: (column) => ColumnOrderings(column),
@@ -3884,6 +4092,16 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<DateTime> get dueDate =>
       $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get reminderAt => $composableBuilder(
+    column: $table.reminderAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reminderMode => $composableBuilder(
+    column: $table.reminderMode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get focusMinutes => $composableBuilder(
     column: $table.focusMinutes,
@@ -3963,6 +4181,8 @@ class $$TasksTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
+                Value<String?> reminderMode = const Value.absent(),
                 Value<int?> focusMinutes = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int?> recurrenceRuleId = const Value.absent(),
@@ -3974,6 +4194,8 @@ class $$TasksTableTableManager
                 title: title,
                 isCompleted: isCompleted,
                 dueDate: dueDate,
+                reminderAt: reminderAt,
+                reminderMode: reminderMode,
                 focusMinutes: focusMinutes,
                 completedAt: completedAt,
                 recurrenceRuleId: recurrenceRuleId,
@@ -3987,6 +4209,8 @@ class $$TasksTableTableManager
                 required String title,
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> reminderAt = const Value.absent(),
+                Value<String?> reminderMode = const Value.absent(),
                 Value<int?> focusMinutes = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int?> recurrenceRuleId = const Value.absent(),
@@ -3998,6 +4222,8 @@ class $$TasksTableTableManager
                 title: title,
                 isCompleted: isCompleted,
                 dueDate: dueDate,
+                reminderAt: reminderAt,
+                reminderMode: reminderMode,
                 focusMinutes: focusMinutes,
                 completedAt: completedAt,
                 recurrenceRuleId: recurrenceRuleId,
