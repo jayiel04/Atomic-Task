@@ -1,19 +1,27 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_10y.dart' as timezone_data;
 import 'package:timezone/timezone.dart' as timezone;
 
+import '../../../../core/audio/alarm_sound.dart';
 import '../../domain/services/timer_notification_service.dart';
 
 class LocalTimerNotificationService implements TimerNotificationService {
-  LocalTimerNotificationService({FlutterLocalNotificationsPlugin? plugin})
-    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+  LocalTimerNotificationService({
+    FlutterLocalNotificationsPlugin? plugin,
+    AlarmSoundSettings? alarmSoundSettings,
+  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+       _alarmSoundSettings = alarmSoundSettings;
 
   // The scheduled completion reuses the running notification ID so Android
   // replaces the countdown instead of leaving it visible at 00:00.
   static const _timerNotificationId = 1001;
+  static const _completionChannelIdPrefix = 'timer_completion_v3_';
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final AlarmSoundSettings? _alarmSoundSettings;
 
   Future<void>? _initialization;
   bool _isInitialized = false;
@@ -132,6 +140,7 @@ class LocalTimerNotificationService implements TimerNotificationService {
     required String title,
     required String body,
   }) async {
+    final alarmSound = await _loadSelectedAlarm();
     final scheduledDate = timezone.TZDateTime.from(
       endsAt.toUtc(),
       timezone.UTC,
@@ -143,14 +152,17 @@ class LocalTimerNotificationService implements TimerNotificationService {
         title: title,
         body: body,
         scheduledDate: scheduledDate,
-        notificationDetails: const NotificationDetails(
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            'timer_completion',
+            '$_completionChannelIdPrefix${alarmSound.storageKey}',
             'Temporizadores completados',
             channelDescription: 'Avisa cuando un temporizador ha finalizado.',
             importance: Importance.max,
             priority: Priority.high,
             playSound: true,
+            sound: RawResourceAndroidNotificationSound(
+              alarmSound.androidResourceName,
+            ),
             enableVibration: true,
           ),
           iOS: DarwinNotificationDetails(
@@ -221,27 +233,50 @@ class LocalTimerNotificationService implements TimerNotificationService {
     }
 
     await _runSafely('mostrar la finalizacion', () {
-      return _plugin.show(
-        id: _timerNotificationId,
-        title: title,
-        body: body,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'timer_completion',
-            'Temporizadores completados',
-            channelDescription: 'Avisa cuando un temporizador ha finalizado.',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
-          macOS: DarwinNotificationDetails(),
-          linux: LinuxNotificationDetails(),
-          windows: WindowsNotificationDetails(),
-          web: WebNotificationDetails(requireInteraction: true),
-        ),
-        payload: 'completed_timer',
-      );
+      return _showCompletedNotification(title: title, body: body);
     });
+  }
+
+  Future<void> _showCompletedNotification({
+    required String title,
+    required String body,
+  }) async {
+    final alarmSound = await _loadSelectedAlarm();
+    await _plugin.show(
+      id: _timerNotificationId,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          '$_completionChannelIdPrefix${alarmSound.storageKey}',
+          'Temporizadores completados',
+          channelDescription: 'Avisa cuando un temporizador ha finalizado.',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound(
+            alarmSound.androidResourceName,
+          ),
+          enableVibration: true,
+        ),
+        iOS: const DarwinNotificationDetails(),
+        macOS: const DarwinNotificationDetails(),
+        linux: const LinuxNotificationDetails(),
+        windows: const WindowsNotificationDetails(),
+        web: const WebNotificationDetails(requireInteraction: true),
+      ),
+      payload: 'completed_timer',
+    );
+  }
+
+  Future<AlarmSound> _loadSelectedAlarm() async {
+    try {
+      return await (_alarmSoundSettings?.loadSelected() ??
+          Future<AlarmSound>.value(AlarmSound.defaultSound));
+    } catch (error, stackTrace) {
+      _reportError('cargar el sonido de alarma', error, stackTrace);
+      return AlarmSound.defaultSound;
+    }
   }
 
   Future<bool> _requestPermission() async {

@@ -17,6 +17,7 @@ class CreateRecurringTask {
     required DateTime createdAt,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
     bool reminderEveryOccurrence = true,
   }) {
     final normalizedTitle = title.trim();
@@ -60,6 +61,7 @@ class CreateRecurringTask {
       createdAt: createdAt,
       reminderAt: normalizedReminderAt,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 }

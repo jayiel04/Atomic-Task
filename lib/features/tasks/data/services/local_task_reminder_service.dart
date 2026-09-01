@@ -1,9 +1,14 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_10y.dart' as timezone_data;
 import 'package:timezone/timezone.dart' as timezone;
 
+import '../../../../core/audio/alarm_sound.dart';
 import '../../domain/entities/atomic_task.dart';
+import '../../domain/services/recurrence_calculator.dart';
+import '../../domain/services/recurrence_generation_policy.dart';
 import '../../domain/services/task_reminder_service.dart';
 
 /// Implementación local de recordatorios de tareas.
@@ -11,8 +16,21 @@ import '../../domain/services/task_reminder_service.dart';
 /// `reminderAt` pertenece al modelo de dominio y se interpreta como una fecha
 /// absoluta en la zona local del dispositivo.
 class LocalTaskReminderService implements TaskReminderService {
-  LocalTaskReminderService({FlutterLocalNotificationsPlugin? plugin})
-    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+  // Ventana de ocurrencias recurrentes que se programan por adelantado. Con
+  // esto la alarma de la siguiente ocurrencia suena aunque la app esté
+  // cerrada; al reabrir, `reconcile` cancela las que ya no aplican.
+  static const int _recurrenceAheadDays = 60;
+  static const int _maxAheadOccurrences = 10;
+
+  LocalTaskReminderService({
+    FlutterLocalNotificationsPlugin? plugin,
+    RecurrenceGenerationPolicy? recurrencePolicy,
+    AlarmSoundSettings? alarmSoundSettings,
+  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+       _recurrencePolicy =
+           recurrencePolicy ??
+           const RecurrenceGenerationPolicy(RecurrenceCalculator()),
+       _alarmSoundSettings = alarmSoundSettings;
 
   // Este rango está separado del identificador 1001 reservado por el
   // temporizador. El ID se deriva del ID persistente de la tarea, por lo que
@@ -22,20 +40,19 @@ class LocalTaskReminderService implements TaskReminderService {
   static const int _taskReminderIdEnd =
       _taskReminderIdStart + _taskReminderIdRange;
 
-  static const String _channelId = 'task_reminders';
+  static const String _channelId = 'task_reminders_v3';
   static const String _channelName = 'Recordatorios de tareas';
   static const String _channelDescription =
       'Avisa cuando llega el momento de realizar una tarea.';
 
-  static const String _alarmChannelId = 'task_alarms';
-  static const String _alarmChannelName = 'Alarmas de tareas';
-  static const String _alarmChannelDescription =
-      'Suena una alarma cuando inicia una tarea.';
+  static const String _alarmChannelIdPrefix = 'task_alarms_v3_';
 
   // FLAG_INSISTENT de Android: repite el sonido hasta descartar la alarma.
   static const int _insistentFlag = 32;
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final RecurrenceGenerationPolicy _recurrencePolicy;
+  final AlarmSoundSettings? _alarmSoundSettings;
 
   Future<void>? _initialization;
   bool _isInitialized = false;
@@ -121,6 +138,7 @@ class LocalTaskReminderService implements TaskReminderService {
     if (!_isCurrent(operationVersion)) {
       return;
     }
+    await _ensureExactAlarmPermission();
 
     await _scheduleTask(
       task: task,
@@ -144,7 +162,10 @@ class LocalTaskReminderService implements TaskReminderService {
       return;
     }
 
-    await _cancelNotification(_notificationIdForTask(task));
+    await _cancelNotification(
+      _schedulingId(task, task.reminderAt ?? DateTime.now()),
+    );
+    await _cancelRecurringAhead(task, operationVersion);
   }
 
   @override
@@ -173,11 +194,19 @@ class LocalTaskReminderService implements TaskReminderService {
 
       if (_isSchedulable(task, reminderAt, referenceTime)) {
         desiredIds.add(notificationId);
+        if (_isRecurring(task) && reminderAt != null) {
+          for (final occurrence in _upcomingOccurrenceReminders(
+            task,
+            reminderAt,
+          )) {
+            desiredIds.add(_occurrenceNotificationId(task.id, occurrence));
+          }
+        }
         candidates.add(
           _TaskReminderCandidate(
             task: task,
             reminderAt: reminderAt!,
-            notificationId: notificationId,
+            notificationId: _schedulingId(task, reminderAt),
           ),
         );
       } else {
@@ -205,6 +234,7 @@ class LocalTaskReminderService implements TaskReminderService {
     if (!_isCurrent(operationVersion)) {
       return;
     }
+    await _ensureExactAlarmPermission();
 
     for (final candidate in candidates) {
       if (!_isCurrent(operationVersion)) {
@@ -230,9 +260,36 @@ class LocalTaskReminderService implements TaskReminderService {
       return;
     }
 
-    final id = notificationId ?? _notificationIdForTask(task);
+    final id = notificationId ?? _schedulingId(task, reminderAt);
+    await _zonedScheduleNotification(
+      id: id,
+      task: task,
+      reminderAt: reminderAt,
+      operationVersion: operationVersion,
+    );
+
+    // Para tareas recurrentes programamos por adelantado las próximas
+    // ocurrencias, de modo que suenen aunque la app permanezca cerrada.
+    await _scheduleRecurringAhead(task, reminderAt, operationVersion);
+  }
+
+  Future<void> _zonedScheduleNotification({
+    required int id,
+    required AtomicTask task,
+    required DateTime reminderAt,
+    required int operationVersion,
+  }) async {
+    if (!_isCurrent(operationVersion)) {
+      return;
+    }
+
+    // Android conserva el canal asociado a una notificación. Cancelar justo
+    // antes de reprogramar permite aplicar un canal nuevo cuando cambió el
+    // sonido elegido, sin perder la protección de no cancelar antes de pedir
+    // permisos.
+    await _cancelNotification(id);
     final scheduledDate = timezone.TZDateTime.from(reminderAt, timezone.local);
-    final notificationDetails = _notificationDetailsFor(task);
+    final notificationDetails = await _notificationDetailsFor(task);
 
     Future<void> schedule(AndroidScheduleMode androidScheduleMode) {
       return _plugin.zonedSchedule(
@@ -260,20 +317,139 @@ class LocalTaskReminderService implements TaskReminderService {
     }
   }
 
-  NotificationDetails _notificationDetailsFor(AtomicTask task) {
+  bool _isRecurring(AtomicTask task) =>
+      task.recurrenceRule != null && task.occurrenceDate != null;
+
+  // ID que se usa para programar/cancelar el recordatorio de una tarea. En las
+  // recurrentes se deriva de la fecha de la ocurrencia para que la ocurrencia
+  // actual y las programadas por adelantado compartan un ID estable y no se
+  // dupliquen ni se cancelen entre sí.
+  int _schedulingId(AtomicTask task, DateTime reminderAt) {
+    if (_isRecurring(task) && task.reminderAt != null) {
+      return _occurrenceNotificationId(task.id, reminderAt);
+    }
+    return _notificationIdForTask(task);
+  }
+
+  // Recordatorios (ocurrencia actual + siguientes) que deben quedar activos
+  // para una tarea recurrente, dentro de la ventana programada por adelantado.
+  Iterable<DateTime> _upcomingOccurrenceReminders(
+    AtomicTask task,
+    DateTime currentReminderAt,
+  ) {
+    final rule = task.recurrenceRule;
+    final occurrenceDate = task.occurrenceDate;
+    if (rule == null || !rule.isActive || occurrenceDate == null) {
+      return const <DateTime>[];
+    }
+
+    final minutes = currentReminderAt.hour * 60 + currentReminderAt.minute;
+    final horizon = currentReminderAt.add(
+      const Duration(days: _recurrenceAheadDays),
+    );
+
+    final reminders = <DateTime>[currentReminderAt];
+    var cursor = occurrenceDate;
+    var generated = 0;
+    while (generated < _maxAheadOccurrences) {
+      final next = _recurrencePolicy.nextAfter(rule, cursor);
+      if (next == null) {
+        break;
+      }
+      cursor = next;
+      final reminder = DateTime(
+        next.year,
+        next.month,
+        next.day,
+        minutes ~/ 60,
+        minutes % 60,
+      );
+      if (reminder.isAfter(horizon)) {
+        break;
+      }
+      reminders.add(reminder);
+      generated++;
+    }
+    return reminders;
+  }
+
+  Future<void> _scheduleRecurringAhead(
+    AtomicTask task,
+    DateTime currentReminderAt,
+    int operationVersion,
+  ) async {
+    if (!_isRecurring(task) || !_isCurrent(operationVersion)) {
+      return;
+    }
+
+    for (final reminder in _upcomingOccurrenceReminders(
+      task,
+      currentReminderAt,
+    )) {
+      if (!_isCurrent(operationVersion)) {
+        return;
+      }
+      // La ocurrencia actual ya fue programada por `_scheduleTask`.
+      if (reminder == currentReminderAt) {
+        continue;
+      }
+      await _zonedScheduleNotification(
+        id: _occurrenceNotificationId(task.id, reminder),
+        task: task,
+        reminderAt: reminder,
+        operationVersion: operationVersion,
+      );
+    }
+  }
+
+  Future<void> _cancelRecurringAhead(
+    AtomicTask task,
+    int operationVersion,
+  ) async {
+    final currentReminder = task.reminderAt;
+    if (!_isRecurring(task) ||
+        currentReminder == null ||
+        !_isCurrent(operationVersion)) {
+      return;
+    }
+
+    for (final reminder in _upcomingOccurrenceReminders(
+      task,
+      currentReminder,
+    )) {
+      if (!_isCurrent(operationVersion)) {
+        return;
+      }
+      await _cancelNotification(_occurrenceNotificationId(task.id, reminder));
+    }
+  }
+
+  int _occurrenceNotificationId(int taskId, DateTime occurrenceDate) {
+    // Identificador determinístico para cada (tarea, ocurrencia) que permanece
+    // dentro del rango reservado de recordatorios de tareas.
+    final minutes = occurrenceDate.millisecondsSinceEpoch ~/ 60000;
+    final combined = ((taskId * 2654435761) ^ minutes) & 0x7fffffff;
+    final remainder = combined % _taskReminderIdRange;
+    return _taskReminderIdStart + remainder;
+  }
+
+  Future<NotificationDetails> _notificationDetailsFor(AtomicTask task) async {
     final isAlarm = task.reminderMode == TaskReminderMode.alarm;
+    final alarmSound = isAlarm ? await _resolveAlarmSound(task) : null;
 
     final androidDetails = isAlarm
         ? AndroidNotificationDetails(
-            _alarmChannelId,
-            _alarmChannelName,
-            channelDescription: _alarmChannelDescription,
+            '$_alarmChannelIdPrefix${alarmSound!.storageKey}',
+            'Alarmas de tareas · ${alarmSound.label}',
+            channelDescription: 'Suena una alarma cuando inicia una tarea.',
             importance: Importance.max,
             priority: Priority.max,
             category: AndroidNotificationCategory.alarm,
             fullScreenIntent: true,
             playSound: true,
-            sound: const RawResourceAndroidNotificationSound('task_alarm'),
+            sound: RawResourceAndroidNotificationSound(
+              alarmSound.androidResourceName,
+            ),
             audioAttributesUsage: AudioAttributesUsage.alarm,
             enableVibration: true,
             additionalFlags: Int32List.fromList(<int>[_insistentFlag]),
@@ -285,6 +461,9 @@ class LocalTaskReminderService implements TaskReminderService {
             importance: Importance.high,
             priority: Priority.high,
             playSound: true,
+            sound: const RawResourceAndroidNotificationSound(
+              'notification_chime_sfx',
+            ),
             enableVibration: true,
           );
 
@@ -300,6 +479,30 @@ class LocalTaskReminderService implements TaskReminderService {
       ),
       windows: const WindowsNotificationDetails(),
     );
+  }
+
+  // El sonido propio de la tarea tiene prioridad; sin sonido propio (o con
+  // una clave desconocida para el catálogo actual) se usa el sonido global.
+  Future<AlarmSound> _resolveAlarmSound(AtomicTask task) async {
+    final ownKey = task.reminderSoundKey;
+    if (ownKey != null) {
+      for (final sound in AlarmSound.values) {
+        if (sound.storageKey == ownKey) {
+          return sound;
+        }
+      }
+    }
+    return _loadSelectedAlarm();
+  }
+
+  Future<AlarmSound> _loadSelectedAlarm() async {
+    try {
+      return await (_alarmSoundSettings?.loadSelected() ??
+          Future<AlarmSound>.value(AlarmSound.defaultSound));
+    } catch (error, stackTrace) {
+      _reportError('cargar el sonido de alarma', error, stackTrace);
+      return AlarmSound.defaultSound;
+    }
   }
 
   Future<void> _cancelObsoleteNotifications({
@@ -382,6 +585,40 @@ class LocalTaskReminderService implements TaskReminderService {
     }
 
     return _permissionGranted;
+  }
+
+  // En Android 12+ las alarmas exactas requieren `SCHEDULE_EXACT_ALARM` (se
+  // concede al instalar). En Android 14+ el usuario puede revocarlas;
+  // `requestExactAlarmsPermission` abre ajustes cuando faltan. Cualquier fallo
+  // aquí no debe bloquear el recordatorio: el scheduling usa el modo inexacto
+  // como respaldo.
+  Future<void> _ensureExactAlarmPermission() async {
+    if (kIsWeb) {
+      return;
+    }
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android == null) {
+      return;
+    }
+
+    try {
+      final granted = await android.requestExactAlarmsPermission().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      if (granted == false) {
+        throw const TaskReminderExactAlarmDeniedException();
+      }
+    } catch (error, stackTrace) {
+      _reportError('verificar permiso de alarma exacta', error, stackTrace);
+    }
   }
 
   Future<void> _cancelNotification(int id) {

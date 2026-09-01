@@ -948,6 +948,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reminderSoundKeyMeta = const VerificationMeta(
+    'reminderSoundKey',
+  );
+  @override
+  late final GeneratedColumn<String> reminderSoundKey = GeneratedColumn<String>(
+    'reminder_sound_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _focusMinutesMeta = const VerificationMeta(
     'focusMinutes',
   );
@@ -1026,6 +1037,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     dueDate,
     reminderAt,
     reminderMode,
+    reminderSoundKey,
     focusMinutes,
     completedAt,
     recurrenceRuleId,
@@ -1083,6 +1095,15 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         reminderMode.isAcceptableOrUnknown(
           data['reminder_mode']!,
           _reminderModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_sound_key')) {
+      context.handle(
+        _reminderSoundKeyMeta,
+        reminderSoundKey.isAcceptableOrUnknown(
+          data['reminder_sound_key']!,
+          _reminderSoundKeyMeta,
         ),
       );
     }
@@ -1175,6 +1196,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.string,
         data['${effectivePrefix}reminder_mode'],
       ),
+      reminderSoundKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_sound_key'],
+      ),
       focusMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}focus_minutes'],
@@ -1215,6 +1240,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final DateTime? dueDate;
   final DateTime? reminderAt;
   final String? reminderMode;
+  final String? reminderSoundKey;
   final int? focusMinutes;
   final DateTime? completedAt;
   final int? recurrenceRuleId;
@@ -1228,6 +1254,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     this.dueDate,
     this.reminderAt,
     this.reminderMode,
+    this.reminderSoundKey,
     this.focusMinutes,
     this.completedAt,
     this.recurrenceRuleId,
@@ -1249,6 +1276,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     }
     if (!nullToAbsent || reminderMode != null) {
       map['reminder_mode'] = Variable<String>(reminderMode);
+    }
+    if (!nullToAbsent || reminderSoundKey != null) {
+      map['reminder_sound_key'] = Variable<String>(reminderSoundKey);
     }
     if (!nullToAbsent || focusMinutes != null) {
       map['focus_minutes'] = Variable<int>(focusMinutes);
@@ -1281,6 +1311,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       reminderMode: reminderMode == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderMode),
+      reminderSoundKey: reminderSoundKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderSoundKey),
       focusMinutes: focusMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(focusMinutes),
@@ -1310,6 +1343,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
       reminderAt: serializer.fromJson<DateTime?>(json['reminderAt']),
       reminderMode: serializer.fromJson<String?>(json['reminderMode']),
+      reminderSoundKey: serializer.fromJson<String?>(json['reminderSoundKey']),
       focusMinutes: serializer.fromJson<int?>(json['focusMinutes']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       recurrenceRuleId: serializer.fromJson<int?>(json['recurrenceRuleId']),
@@ -1328,6 +1362,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'dueDate': serializer.toJson<DateTime?>(dueDate),
       'reminderAt': serializer.toJson<DateTime?>(reminderAt),
       'reminderMode': serializer.toJson<String?>(reminderMode),
+      'reminderSoundKey': serializer.toJson<String?>(reminderSoundKey),
       'focusMinutes': serializer.toJson<int?>(focusMinutes),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'recurrenceRuleId': serializer.toJson<int?>(recurrenceRuleId),
@@ -1344,6 +1379,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     Value<DateTime?> dueDate = const Value.absent(),
     Value<DateTime?> reminderAt = const Value.absent(),
     Value<String?> reminderMode = const Value.absent(),
+    Value<String?> reminderSoundKey = const Value.absent(),
     Value<int?> focusMinutes = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
     Value<int?> recurrenceRuleId = const Value.absent(),
@@ -1357,6 +1393,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     dueDate: dueDate.present ? dueDate.value : this.dueDate,
     reminderAt: reminderAt.present ? reminderAt.value : this.reminderAt,
     reminderMode: reminderMode.present ? reminderMode.value : this.reminderMode,
+    reminderSoundKey: reminderSoundKey.present
+        ? reminderSoundKey.value
+        : this.reminderSoundKey,
     focusMinutes: focusMinutes.present ? focusMinutes.value : this.focusMinutes,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     recurrenceRuleId: recurrenceRuleId.present
@@ -1382,6 +1421,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       reminderMode: data.reminderMode.present
           ? data.reminderMode.value
           : this.reminderMode,
+      reminderSoundKey: data.reminderSoundKey.present
+          ? data.reminderSoundKey.value
+          : this.reminderSoundKey,
       focusMinutes: data.focusMinutes.present
           ? data.focusMinutes.value
           : this.focusMinutes,
@@ -1408,6 +1450,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('dueDate: $dueDate, ')
           ..write('reminderAt: $reminderAt, ')
           ..write('reminderMode: $reminderMode, ')
+          ..write('reminderSoundKey: $reminderSoundKey, ')
           ..write('focusMinutes: $focusMinutes, ')
           ..write('completedAt: $completedAt, ')
           ..write('recurrenceRuleId: $recurrenceRuleId, ')
@@ -1426,6 +1469,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     dueDate,
     reminderAt,
     reminderMode,
+    reminderSoundKey,
     focusMinutes,
     completedAt,
     recurrenceRuleId,
@@ -1443,6 +1487,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.dueDate == this.dueDate &&
           other.reminderAt == this.reminderAt &&
           other.reminderMode == this.reminderMode &&
+          other.reminderSoundKey == this.reminderSoundKey &&
           other.focusMinutes == this.focusMinutes &&
           other.completedAt == this.completedAt &&
           other.recurrenceRuleId == this.recurrenceRuleId &&
@@ -1458,6 +1503,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<DateTime?> dueDate;
   final Value<DateTime?> reminderAt;
   final Value<String?> reminderMode;
+  final Value<String?> reminderSoundKey;
   final Value<int?> focusMinutes;
   final Value<DateTime?> completedAt;
   final Value<int?> recurrenceRuleId;
@@ -1471,6 +1517,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.dueDate = const Value.absent(),
     this.reminderAt = const Value.absent(),
     this.reminderMode = const Value.absent(),
+    this.reminderSoundKey = const Value.absent(),
     this.focusMinutes = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.recurrenceRuleId = const Value.absent(),
@@ -1485,6 +1532,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.dueDate = const Value.absent(),
     this.reminderAt = const Value.absent(),
     this.reminderMode = const Value.absent(),
+    this.reminderSoundKey = const Value.absent(),
     this.focusMinutes = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.recurrenceRuleId = const Value.absent(),
@@ -1501,6 +1549,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<DateTime>? dueDate,
     Expression<DateTime>? reminderAt,
     Expression<String>? reminderMode,
+    Expression<String>? reminderSoundKey,
     Expression<int>? focusMinutes,
     Expression<DateTime>? completedAt,
     Expression<int>? recurrenceRuleId,
@@ -1515,6 +1564,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (dueDate != null) 'due_date': dueDate,
       if (reminderAt != null) 'reminder_at': reminderAt,
       if (reminderMode != null) 'reminder_mode': reminderMode,
+      if (reminderSoundKey != null) 'reminder_sound_key': reminderSoundKey,
       if (focusMinutes != null) 'focus_minutes': focusMinutes,
       if (completedAt != null) 'completed_at': completedAt,
       if (recurrenceRuleId != null) 'recurrence_rule_id': recurrenceRuleId,
@@ -1531,6 +1581,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<DateTime?>? dueDate,
     Value<DateTime?>? reminderAt,
     Value<String?>? reminderMode,
+    Value<String?>? reminderSoundKey,
     Value<int?>? focusMinutes,
     Value<DateTime?>? completedAt,
     Value<int?>? recurrenceRuleId,
@@ -1545,6 +1596,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       dueDate: dueDate ?? this.dueDate,
       reminderAt: reminderAt ?? this.reminderAt,
       reminderMode: reminderMode ?? this.reminderMode,
+      reminderSoundKey: reminderSoundKey ?? this.reminderSoundKey,
       focusMinutes: focusMinutes ?? this.focusMinutes,
       completedAt: completedAt ?? this.completedAt,
       recurrenceRuleId: recurrenceRuleId ?? this.recurrenceRuleId,
@@ -1574,6 +1626,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     }
     if (reminderMode.present) {
       map['reminder_mode'] = Variable<String>(reminderMode.value);
+    }
+    if (reminderSoundKey.present) {
+      map['reminder_sound_key'] = Variable<String>(reminderSoundKey.value);
     }
     if (focusMinutes.present) {
       map['focus_minutes'] = Variable<int>(focusMinutes.value);
@@ -1605,6 +1660,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('dueDate: $dueDate, ')
           ..write('reminderAt: $reminderAt, ')
           ..write('reminderMode: $reminderMode, ')
+          ..write('reminderSoundKey: $reminderSoundKey, ')
           ..write('focusMinutes: $focusMinutes, ')
           ..write('completedAt: $completedAt, ')
           ..write('recurrenceRuleId: $recurrenceRuleId, ')
@@ -3847,6 +3903,7 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<DateTime?> dueDate,
       Value<DateTime?> reminderAt,
       Value<String?> reminderMode,
+      Value<String?> reminderSoundKey,
       Value<int?> focusMinutes,
       Value<DateTime?> completedAt,
       Value<int?> recurrenceRuleId,
@@ -3862,6 +3919,7 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<DateTime?> dueDate,
       Value<DateTime?> reminderAt,
       Value<String?> reminderMode,
+      Value<String?> reminderSoundKey,
       Value<int?> focusMinutes,
       Value<DateTime?> completedAt,
       Value<int?> recurrenceRuleId,
@@ -3929,6 +3987,11 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<String> get reminderMode => $composableBuilder(
     column: $table.reminderMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderSoundKey => $composableBuilder(
+    column: $table.reminderSoundKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4020,6 +4083,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get reminderSoundKey => $composableBuilder(
+    column: $table.reminderSoundKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get focusMinutes => $composableBuilder(
     column: $table.focusMinutes,
     builder: (column) => ColumnOrderings(column),
@@ -4103,6 +4171,11 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get reminderSoundKey => $composableBuilder(
+    column: $table.reminderSoundKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get focusMinutes => $composableBuilder(
     column: $table.focusMinutes,
     builder: (column) => column,
@@ -4183,6 +4256,7 @@ class $$TasksTableTableManager
                 Value<DateTime?> dueDate = const Value.absent(),
                 Value<DateTime?> reminderAt = const Value.absent(),
                 Value<String?> reminderMode = const Value.absent(),
+                Value<String?> reminderSoundKey = const Value.absent(),
                 Value<int?> focusMinutes = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int?> recurrenceRuleId = const Value.absent(),
@@ -4196,6 +4270,7 @@ class $$TasksTableTableManager
                 dueDate: dueDate,
                 reminderAt: reminderAt,
                 reminderMode: reminderMode,
+                reminderSoundKey: reminderSoundKey,
                 focusMinutes: focusMinutes,
                 completedAt: completedAt,
                 recurrenceRuleId: recurrenceRuleId,
@@ -4211,6 +4286,7 @@ class $$TasksTableTableManager
                 Value<DateTime?> dueDate = const Value.absent(),
                 Value<DateTime?> reminderAt = const Value.absent(),
                 Value<String?> reminderMode = const Value.absent(),
+                Value<String?> reminderSoundKey = const Value.absent(),
                 Value<int?> focusMinutes = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int?> recurrenceRuleId = const Value.absent(),
@@ -4224,6 +4300,7 @@ class $$TasksTableTableManager
                 dueDate: dueDate,
                 reminderAt: reminderAt,
                 reminderMode: reminderMode,
+                reminderSoundKey: reminderSoundKey,
                 focusMinutes: focusMinutes,
                 completedAt: completedAt,
                 recurrenceRuleId: recurrenceRuleId,

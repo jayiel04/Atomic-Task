@@ -42,6 +42,7 @@ abstract interface class TaskAlarmRepository {
     required DateTime? reminderAt,
     required DateTime createdAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   });
 
   Future<void> updateTaskWithReminder({
@@ -51,5 +52,6 @@ abstract interface class TaskAlarmRepository {
     required DateTime? reminderAt,
     required DateTime updatedAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   });
 }

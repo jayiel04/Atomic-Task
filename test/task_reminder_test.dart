@@ -1,3 +1,4 @@
+import 'package:atomic_task/core/audio/alarm_sound.dart';
 import 'package:atomic_task/core/database/app_database.dart';
 import 'package:atomic_task/core/theme/app_theme.dart';
 import 'package:atomic_task/features/tasks/data/datasources/task_local_data_source.dart';
@@ -11,6 +12,7 @@ import 'package:atomic_task/features/tasks/domain/usecases/toggle_task_completio
 import 'package:atomic_task/features/tasks/domain/usecases/update_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/watch_tasks.dart';
 import 'package:atomic_task/features/tasks/presentation/controllers/task_controller.dart';
+import 'package:atomic_task/features/tasks/presentation/task_date_formatter.dart';
 import 'package:atomic_task/features/tasks/presentation/widgets/task_form_sheet.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -92,6 +94,52 @@ void main() {
     expect(nextTask.recurrenceRule?.reminderTimeMinutes, 600);
   });
 
+  test(
+    'propagates the reminder sound to the next recurring occurrence',
+    () async {
+      final database = AppDatabase(executor: NativeDatabase.memory());
+      addTearDown(database.close);
+      final dataSource = DriftTaskLocalDataSource(database);
+      final startDate = DateTime(2026, 8, 20);
+      final createdAt = DateTime(2026, 8, 20, 8);
+      final rule = RecurrenceRule(
+        id: 0,
+        frequency: RecurrenceFrequency.daily,
+        interval: 1,
+        startDate: startDate,
+        reminderTimeMinutes: 10 * 60,
+        isActive: true,
+        createdAt: createdAt,
+        updatedAt: createdAt,
+      );
+
+      await dataSource.createRecurring(
+        title: 'Rutina diaria',
+        dueDate: startDate,
+        rule: rule,
+        reminderAt: DateTime(2026, 8, 20, 10),
+        createdAt: createdAt,
+        reminderMode: TaskReminderMode.alarm,
+        reminderSoundKey: 'amanecer_suave',
+      );
+      final firstTask = (await dataSource.watchAll().first).single;
+      expect(firstTask.reminderSoundKey, 'amanecer_suave');
+
+      await dataSource.ensureOccurrence(
+        template: firstTask,
+        occurrenceDate: DateTime(2026, 8, 21),
+        createdAt: createdAt.add(const Duration(days: 1)),
+      );
+      final nextTask = (await dataSource.watchAll().first).singleWhere(
+        (task) => task.occurrenceDate == DateTime(2026, 8, 21),
+      );
+
+      expect(nextTask.reminderAt, DateTime(2026, 8, 21, 10));
+      expect(nextTask.reminderMode, TaskReminderMode.alarm);
+      expect(nextTask.reminderSoundKey, 'amanecer_suave');
+    },
+  );
+
   test('reconciles reminders when task completion changes', () async {
     final now = DateTime(2026, 8, 20, 9);
     final reminderAt = now.add(const Duration(hours: 1));
@@ -127,7 +175,7 @@ void main() {
     expect(reminderService.cancelled.any((task) => task.id == 5), isTrue);
   });
 
-  testWidgets('shows reminder controls and clears an existing reminder', (
+  testWidgets('shows the alarm editor and clears an existing alarm', (
     tester,
   ) async {
     final now = DateTime(2026, 8, 20, 9);
@@ -159,25 +207,62 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('dueAlarmSection')), findsOneWidget);
-    expect(find.byKey(const Key('dueAlarmSwitch')), findsOneWidget);
-    expect(
-      tester.widget<Switch>(find.byKey(const Key('dueAlarmSwitch'))).value,
-      isTrue,
-    );
-    expect(find.byKey(const Key('dueAlarmModeSelector')), findsOneWidget);
-    expect(find.byKey(const Key('selectDueAlarmTimeButton')), findsOneWidget);
-    expect(find.byKey(const Key('clearTaskReminderButton')), findsOneWidget);
+    // El ícono vive dentro de la vista de fecha límite y es la única vía para
+    // configurar la alarma.
+    expect(find.byKey(const Key('dueAlarmSection')), findsNothing);
+    expect(find.byKey(const Key('dueAlarmSwitch')), findsNothing);
+    expect(find.byKey(const Key('dueAlarmIcon')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('clearTaskReminderButton')));
-    await tester.pump();
+    await tester.tap(find.byKey(const Key('taskDueDateSection')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dueAlarmIcon')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('dueAlarmIcon')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dueAlarmToggleItem')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmTimeItem')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmModeAlarmItem')), findsOneWidget);
     expect(
-      tester.widget<Switch>(find.byKey(const Key('dueAlarmSwitch'))).value,
-      isFalse,
+      find.byKey(const Key('dueAlarmModeNotificationItem')),
+      findsOneWidget,
     );
-    await tester.tap(find.byKey(const Key('dueAlarmSwitch')));
-    await tester.pump();
-    expect(find.byKey(const Key('addTaskReminderButton')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmSoundItem')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmSaveButton')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmCancelButton')), findsOneWidget);
+
+    // Cancelar cierra la tarjeta sin aplicar cambios.
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmCancelButton')));
+    await tester.tap(find.byKey(const Key('dueAlarmCancelButton')));
+    await tester.pumpAndSettle();
+    final iconBefore = tester.widget<Icon>(
+      find
+          .descendant(
+            of: find.byKey(const Key('dueAlarmIcon')),
+            matching: find.byType(Icon),
+          )
+          .first,
+    );
+    expect(iconBefore.icon, Icons.alarm_on_rounded);
+
+    // Quitar la alarma desde la tarjeta y guardar limpia hora, modo y sonido.
+    await tester.tap(find.byKey(const Key('dueAlarmIcon')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('dueAlarmToggleItem')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmSaveButton')));
+    await tester.tap(find.byKey(const Key('dueAlarmSaveButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('dueAlarmIcon')), findsOneWidget);
+    final alarmIcon = tester.widget<Icon>(
+      find
+          .descendant(
+            of: find.byKey(const Key('dueAlarmIcon')),
+            matching: find.byType(Icon),
+          )
+          .first,
+    );
+    expect(alarmIcon.icon, Icons.alarm_add_rounded);
   });
 
   testWidgets('rejects a reminder in the past', (tester) async {
@@ -220,6 +305,118 @@ void main() {
     expect(find.byKey(const Key('saveTaskButton')), findsOneWidget);
   });
 
+  testWidgets('alarm editor blocks applying a past hour', (tester) async {
+    final now = DateTime(2026, 8, 20, 9);
+    final repository = MemoryTaskRepository();
+    addTearDown(repository.dispose);
+    final controller = _buildController(repository, now: () => now);
+    addTearDown(controller.dispose);
+    final task = AtomicTask(
+      id: 1,
+      title: 'Alarma vencida',
+      isCompleted: false,
+      dueDate: DateTime(2026, 8, 20),
+      reminderAt: DateTime(2026, 8, 20, 8),
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TaskFormSheet(
+            controller: controller,
+            task: task,
+            now: () => now,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('taskDueDateSection')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmIcon')));
+    await tester.tap(find.byKey(const Key('dueAlarmIcon')));
+    await tester.pumpAndSettle();
+
+    // Guardar con la hora vencida muestra el mensaje y mantiene la tarjeta
+    // abierta sin aplicar cambios.
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmSaveButton')));
+    await tester.tap(find.byKey(const Key('dueAlarmSaveButton')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('La alarma debe programarse para una fecha y hora futuras.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('dueAlarmSaveButton')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmCancelButton')));
+    await tester.tap(find.byKey(const Key('dueAlarmCancelButton')));
+    await tester.pumpAndSettle();
+    final icon = tester.widget<Icon>(
+      find
+          .descendant(
+            of: find.byKey(const Key('dueAlarmIcon')),
+            matching: find.byType(Icon),
+          )
+          .first,
+    );
+    expect(icon.icon, Icons.alarm_on_rounded);
+  });
+
+  testWidgets('due date picker does not allow days before today', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 8, 20, 9);
+    final repository = MemoryTaskRepository();
+    addTearDown(repository.dispose);
+    final controller = _buildController(repository, now: () => now);
+    addTearDown(controller.dispose);
+    final task = AtomicTask(
+      id: 1,
+      title: 'Tarea vencida',
+      isCompleted: false,
+      dueDate: DateTime(2026, 8, 10),
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TaskFormSheet(
+            controller: controller,
+            task: task,
+            now: () => now,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('10/08/2026'), findsOneWidget);
+
+    // La configuración vive en la vista de fecha límite; el calendario
+    // arranca en hoy (20/08) y los días anteriores están deshabilitados:
+    // elegir el 19 no cambia la selección y confirmar devuelve la fecha
+    // inicial.
+    await tester.tap(find.byKey(const Key('taskDueDateSection')));
+    await tester.pumpAndSettle();
+    expect(find.text('10/08/2026'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('selectTaskDueDateButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('19'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aceptar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('20/08/2026'), findsOneWidget);
+    expect(find.text('19/08/2026'), findsNothing);
+    expect(find.text('10/08/2026'), findsNothing);
+  });
+
   testWidgets('due date and repeat options are mutually exclusive', (
     tester,
   ) async {
@@ -239,38 +436,112 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('dueAlarmSection')), findsNothing);
-    expect(find.byKey(const Key('repeatAlarmSection')), findsNothing);
+    // El ícono de alarma solo aparece dentro de las vistas de configuración.
+    expect(find.byKey(const Key('dueAlarmIcon')), findsNothing);
+    expect(find.byKey(const Key('repeatAlarmIcon')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('dueDateOptionSwitch')));
+    await tester.tap(find.byKey(const Key('taskDueDateSection')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('dueAlarmSection')), findsOneWidget);
-    expect(find.byKey(const Key('repeatTaskSwitch')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmIcon')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmIcon')));
+    await tester.tap(find.byKey(const Key('dueAlarmIcon')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dueAlarmToggleItem')), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmSoundItem')), findsOneWidget);
+    expect(find.text('Predeterminada'), findsOneWidget);
+    expect(find.byKey(const Key('dueAlarmScopeAlwaysItem')), findsNothing);
+    expect(find.byKey(const Key('dueAlarmScopeFirstItem')), findsNothing);
+
+    // Cierra el editor antes de cambiar de opción.
+    await tester.ensureVisible(find.byKey(const Key('dueAlarmCancelButton')));
+    await tester.tap(find.byKey(const Key('dueAlarmCancelButton')));
+    await tester.pumpAndSettle();
+
+    // Volver conservando mantiene la fecha límite configurada.
+    await tester.tap(find.byKey(const Key('formBackButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('formKeepChangesButton')));
+    await tester.pumpAndSettle();
     expect(
-      tester.widget<Switch>(find.byKey(const Key('repeatTaskSwitch'))).value,
-      isFalse,
+      find.textContaining(TaskDateFormatter.format(DateTime(2026, 8, 20))),
+      findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const Key('dueAlarmSwitch')));
+    // Configurar la tarea cíclica limpia la fecha límite (exclusividad).
+    await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('dueAlarmModeSelector')), findsOneWidget);
-    expect(find.text('Notificación'), findsOneWidget);
+    expect(find.byKey(const Key('repeatAlarmIcon')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
+    await tester.tap(find.byKey(const Key('formBackButton')));
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<Switch>(find.byKey(const Key('dueDateOptionSwitch'))).value,
-      isFalse,
+    await tester.tap(find.byKey(const Key('formKeepChangesButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('Limita cuándo debe completarse'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('repeatAlarmIcon')));
+    await tester.tap(find.byKey(const Key('repeatAlarmIcon')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('repeatAlarmToggleItem')), findsOneWidget);
+    expect(find.byKey(const Key('repeatAlarmScopeAlwaysItem')), findsOneWidget);
+    expect(find.byKey(const Key('repeatAlarmScopeFirstItem')), findsOneWidget);
+  });
+
+  testWidgets('alarm editor offers sounds with the default option for '
+      'recurrences', (tester) async {
+    final now = DateTime(2026, 8, 20, 9);
+    final repository = MemoryTaskRepository();
+    addTearDown(repository.dispose);
+    final controller = _buildController(repository, now: () => now);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TaskFormSheet(controller: controller, now: () => now),
+        ),
+      ),
     );
-    expect(find.byKey(const Key('dueAlarmSection')), findsNothing);
-    expect(find.byKey(const Key('repeatAlarmSection')), findsOneWidget);
-    expect(find.byKey(const Key('repeatAlarmScopeSelector')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('repeatAlarmSwitch')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('repeatAlarmScopeSelector')), findsOneWidget);
-    expect(find.text('Siempre'), findsOneWidget);
-    expect(find.text('Solo la primera vez'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('repeatAlarmIcon')));
+    await tester.tap(find.byKey(const Key('repeatAlarmIcon')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('repeatAlarmToggleItem')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('repeatAlarmSoundDefaultOption')),
+      findsOneWidget,
+    );
+    for (final sound in AlarmSound.values) {
+      expect(
+        find.byKey(Key('repeatAlarmSoundOption_${sound.storageKey}')),
+        findsOneWidget,
+      );
+    }
+
+    await tester.ensureVisible(find.text('Pulso Electrónico'));
+    await tester.tap(find.text('Pulso Electrónico'));
+    await tester.pumpAndSettle();
+
+    // Guardar aplica el borrador y cierra la tarjeta; se reabre para
+    // verificar la selección.
+    await tester.ensureVisible(find.byKey(const Key('repeatAlarmSaveButton')));
+    await tester.tap(find.byKey(const Key('repeatAlarmSaveButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('repeatAlarmIcon')));
+    await tester.pumpAndSettle();
+
+    final chip = tester.widget<ChoiceChip>(
+      find.byKey(const Key('repeatAlarmSoundOption_pulso_electronico')),
+    );
+    expect(chip.selected, isTrue);
   });
 }
 

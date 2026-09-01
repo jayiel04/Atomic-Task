@@ -21,3 +21,11 @@ class TaskReminderPermissionDeniedException implements Exception {
   @override
   String toString() => 'No se concedieron permisos para las notificaciones.';
 }
+
+class TaskReminderExactAlarmDeniedException implements Exception {
+  const TaskReminderExactAlarmDeniedException();
+
+  @override
+  String toString() =>
+      'No se concedió el permiso de alarmas exactas. Hábalo desde ajustes.';
+}

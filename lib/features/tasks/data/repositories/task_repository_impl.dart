@@ -69,6 +69,7 @@ class TaskRepositoryImpl
     required DateTime? reminderAt,
     required DateTime createdAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _alarmDataSource.createWithReminder(
       title: title,
@@ -76,6 +77,7 @@ class TaskRepositoryImpl
       reminderAt: reminderAt,
       createdAt: createdAt,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 
@@ -87,6 +89,7 @@ class TaskRepositoryImpl
     required DateTime? reminderAt,
     required DateTime updatedAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _alarmDataSource.updateWithReminder(
       id: id,
@@ -95,6 +98,7 @@ class TaskRepositoryImpl
       reminderAt: reminderAt,
       updatedAt: updatedAt,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 
@@ -135,6 +139,7 @@ class TaskRepositoryImpl
     required DateTime createdAt,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _recurrenceDataSource.createRecurring(
       title: title,
@@ -143,6 +148,7 @@ class TaskRepositoryImpl
       createdAt: createdAt,
       reminderAt: reminderAt,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 
@@ -155,6 +161,7 @@ class TaskRepositoryImpl
     required DateTime updatedAt,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _recurrenceDataSource.updateSeries(
       task: task,
@@ -164,6 +171,7 @@ class TaskRepositoryImpl
       updatedAt: updatedAt,
       reminderAt: reminderAt,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 

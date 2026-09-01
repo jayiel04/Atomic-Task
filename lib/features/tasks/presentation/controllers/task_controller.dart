@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/audio/alarm_sound.dart';
 import '../../domain/entities/atomic_task.dart';
 import '../../domain/services/task_reminder_service.dart';
 import '../../domain/usecases/create_task.dart';
@@ -37,6 +38,7 @@ class TaskController extends ChangeNotifier {
     this.deleteTaskSeriesUseCase,
     this.reconcileTaskRecurrencesUseCase,
     this.reminderService,
+    this.audioService,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
@@ -55,6 +57,7 @@ class TaskController extends ChangeNotifier {
   final DeleteTaskSeries? deleteTaskSeriesUseCase;
   final ReconcileTaskRecurrences? reconcileTaskRecurrencesUseCase;
   final TaskReminderService? reminderService;
+  final AppAudioService? audioService;
   final DateTime Function() _now;
 
   StreamSubscription<List<AtomicTask>>? _subscription;
@@ -134,6 +137,7 @@ class TaskController extends ChangeNotifier {
     DateTime? dueDate,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _runMutation(() async {
       final createdAt = _now();
@@ -143,6 +147,7 @@ class TaskController extends ChangeNotifier {
         reminderAt: reminderAt,
         createdAt: createdAt,
         reminderMode: reminderMode,
+        reminderSoundKey: reminderSoundKey,
       );
       if (reminderAt != null) {
         unawaited(
@@ -154,12 +159,14 @@ class TaskController extends ChangeNotifier {
               dueDate: dueDate,
               reminderAt: reminderAt,
               reminderMode: reminderMode,
+              reminderSoundKey: reminderSoundKey,
               createdAt: createdAt,
               updatedAt: createdAt,
             ),
           ),
         );
       }
+      _playTaskEffect(AppAudioEffect.taskCreated);
       return null;
     }, failureMessage: 'No fue posible crear la tarea.');
   }
@@ -173,6 +180,7 @@ class TaskController extends ChangeNotifier {
     required DateTime? endDate,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
     bool reminderEveryOccurrence = true,
   }) {
     final operation = createRecurringTaskUseCase;
@@ -191,6 +199,7 @@ class TaskController extends ChangeNotifier {
         reminderAt: reminderAt,
         createdAt: createdAt,
         reminderMode: reminderMode,
+        reminderSoundKey: reminderSoundKey,
         reminderEveryOccurrence: reminderEveryOccurrence,
       );
       if (reminderAt != null) {
@@ -210,6 +219,7 @@ class TaskController extends ChangeNotifier {
                 reminderAt.minute,
               ),
               reminderMode: reminderMode,
+              reminderSoundKey: reminderSoundKey,
               occurrenceDate: normalizedStart,
               recurrenceRule: RecurrenceRule(
                 id: 0,
@@ -228,6 +238,7 @@ class TaskController extends ChangeNotifier {
           ),
         );
       }
+      _playTaskEffect(AppAudioEffect.taskCreated);
       return null;
     }, failureMessage: 'No fue posible crear la tarea recurrente.');
   }
@@ -239,6 +250,7 @@ class TaskController extends ChangeNotifier {
     DateTime? reminderAt,
     bool clearReminder = false,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _runMutation(() async {
       final updatedAt = _now();
@@ -250,6 +262,7 @@ class TaskController extends ChangeNotifier {
         clearReminder: clearReminder,
         updatedAt: updatedAt,
         reminderMode: reminderMode,
+        reminderSoundKey: reminderSoundKey,
       );
       if (reminderAt != null || clearReminder || task.reminderAt != null) {
         unawaited(
@@ -261,6 +274,7 @@ class TaskController extends ChangeNotifier {
               reminderAt: reminderAt,
               clearReminder: clearReminder,
               reminderMode: reminderMode,
+              reminderSoundKey: reminderSoundKey,
               updatedAt: updatedAt,
             ),
           ),
@@ -277,6 +291,7 @@ class TaskController extends ChangeNotifier {
     DateTime? reminderAt,
     bool clearReminder = false,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     final operation = updateRecurringOccurrenceUseCase;
     if (operation == null) {
@@ -287,6 +302,7 @@ class TaskController extends ChangeNotifier {
         reminderAt: reminderAt,
         clearReminder: clearReminder,
         reminderMode: reminderMode,
+        reminderSoundKey: reminderSoundKey,
       );
     }
     return _runMutation(() async {
@@ -299,6 +315,7 @@ class TaskController extends ChangeNotifier {
         clearReminder: clearReminder,
         updatedAt: updatedAt,
         reminderMode: reminderMode,
+        reminderSoundKey: reminderSoundKey,
       );
       if (reminderAt != null || clearReminder || task.reminderAt != null) {
         unawaited(
@@ -310,6 +327,7 @@ class TaskController extends ChangeNotifier {
               reminderAt: reminderAt,
               clearReminder: clearReminder,
               reminderMode: reminderMode,
+              reminderSoundKey: reminderSoundKey,
               updatedAt: updatedAt,
             ),
           ),
@@ -330,6 +348,7 @@ class TaskController extends ChangeNotifier {
     DateTime? reminderAt,
     bool clearReminder = false,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
     bool reminderEveryOccurrence = true,
   }) {
     final operation = updateRecurringSeriesUseCase;
@@ -349,6 +368,7 @@ class TaskController extends ChangeNotifier {
         clearReminder: clearReminder,
         updatedAt: _now(),
         reminderMode: reminderMode,
+        reminderSoundKey: reminderSoundKey,
         reminderEveryOccurrence: reminderEveryOccurrence,
       ),
       failureMessage: 'No fue posible guardar la serie.',
@@ -408,12 +428,16 @@ class TaskController extends ChangeNotifier {
     if (task.isRecurring && deleteOccurrence != null) {
       return _runMutation(() async {
         await _cancelReminderSafely(task);
-        return deleteOccurrence(task, _now());
+        await deleteOccurrence(task, _now());
+        _playTaskEffect(AppAudioEffect.taskDeleted);
+        return null;
       }, failureMessage: 'No fue posible eliminar la ocurrencia.');
     }
     return _runMutation(() async {
       await _cancelReminderSafely(task);
-      return _deleteTask(task.id);
+      await _deleteTask(task.id);
+      _playTaskEffect(AppAudioEffect.taskDeleted);
+      return null;
     }, failureMessage: 'No fue posible eliminar la tarea.');
   }
 
@@ -424,7 +448,9 @@ class TaskController extends ChangeNotifier {
     }
     return _runMutation(() async {
       await _cancelReminderSafely(task);
-      return operation(task);
+      await operation(task);
+      _playTaskEffect(AppAudioEffect.taskDeleted);
+      return null;
     }, failureMessage: 'No fue posible eliminar la serie.');
   }
 
@@ -455,6 +481,10 @@ class TaskController extends ChangeNotifier {
     }
     _errorMessage = null;
     _notifyListeners();
+  }
+
+  Future<void> reconcileReminderSchedules() {
+    return _reconcileReminders(_tasks);
   }
 
   static int _compareCompletedTasks(AtomicTask left, AtomicTask right) {
@@ -496,12 +526,17 @@ class TaskController extends ChangeNotifier {
           await _runReminderAction(() => service.cancel(task));
         }
       }
+    } on TaskReminderExactAlarmDeniedException {
+      _setReminderError(
+        message:
+            'Activa el permiso de alarmas exactas en Ajustes > Aplicaciones > Tareas Atómicas.',
+      );
     } on TaskReminderPermissionDeniedException {
       _setReminderError(
         message: 'Activa los permisos de notificaciones para usar alarmas.',
       );
-    } catch (_) {
-      _setReminderError();
+    } catch (error, stackTrace) {
+      _reportReminderError(error, stackTrace);
     }
   }
 
@@ -521,24 +556,34 @@ class TaskController extends ChangeNotifier {
       } else {
         await service.schedule(task);
       }
+    } on TaskReminderExactAlarmDeniedException {
+      _setReminderError(
+        message:
+            'Activa el permiso de alarmas exactas en Ajustes > Aplicaciones > Tareas Atómicas.',
+      );
     } on TaskReminderPermissionDeniedException {
       _setReminderError(
         message: 'Activa los permisos de notificaciones para usar alarmas.',
       );
-    } catch (_) {
-      _setReminderError();
+    } catch (error, stackTrace) {
+      _reportReminderError(error, stackTrace);
     }
   }
 
   Future<void> _runReminderAction(Future<void> Function() action) async {
     try {
       await action();
+    } on TaskReminderExactAlarmDeniedException {
+      _setReminderError(
+        message:
+            'Activa el permiso de alarmas exactas en Ajustes > Aplicaciones > Tareas Atómicas.',
+      );
     } on TaskReminderPermissionDeniedException {
       _setReminderError(
         message: 'Activa los permisos de notificaciones para usar alarmas.',
       );
-    } catch (_) {
-      _setReminderError();
+    } catch (error, stackTrace) {
+      _reportReminderError(error, stackTrace);
     }
   }
 
@@ -553,17 +598,49 @@ class TaskController extends ChangeNotifier {
       if (!_isDisposed) {
         await service.cancel(task);
       }
+    } on TaskReminderExactAlarmDeniedException {
+      _setReminderError(
+        message:
+            'Activa el permiso de alarmas exactas en Ajustes > Aplicaciones > Tareas Atómicas.',
+      );
     } on TaskReminderPermissionDeniedException {
       _setReminderError(
         message: 'Activa los permisos de notificaciones para usar alarmas.',
       );
-    } catch (_) {
-      _setReminderError();
+    } catch (error, stackTrace) {
+      _reportReminderError(error, stackTrace);
     }
   }
 
   Future<void> _initializeReminderService(TaskReminderService service) {
     return _reminderInitialization ??= Future<void>.sync(service.initialize);
+  }
+
+  void _reportReminderError(Object error, StackTrace stackTrace) {
+    if (kDebugMode) {
+      debugPrint('Error al sincronizar el recordatorio: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+    _setReminderError();
+  }
+
+  void _playTaskEffect(AppAudioEffect effect) {
+    final service = audioService;
+    if (_isDisposed || service == null) {
+      return;
+    }
+
+    unawaited(
+      service.playEffect(effect).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        if (kDebugMode) {
+          debugPrint('No fue posible reproducir el efecto de tarea: $error');
+          debugPrintStack(stackTrace: stackTrace);
+        }
+      }),
+    );
   }
 
   void _setReminderError({
@@ -583,10 +660,11 @@ class TaskController extends ChangeNotifier {
     required DateTime? reminderAt,
     required bool clearReminder,
     required TaskReminderMode reminderMode,
+    required String? reminderSoundKey,
     required DateTime updatedAt,
   }) {
-    final effectiveReminderAt = reminderAt ??
-        (clearReminder ? null : task.reminderAt);
+    final effectiveReminderAt =
+        reminderAt ?? (clearReminder ? null : task.reminderAt);
     return AtomicTask(
       id: task.id,
       title: title.trim(),
@@ -596,6 +674,7 @@ class TaskController extends ChangeNotifier {
       reminderMode: effectiveReminderAt == null
           ? TaskReminderMode.notification
           : reminderMode,
+      reminderSoundKey: effectiveReminderAt == null ? null : reminderSoundKey,
       focusMinutes: task.focusMinutes,
       completedAt: task.completedAt,
       occurrenceDate: task.occurrenceDate,

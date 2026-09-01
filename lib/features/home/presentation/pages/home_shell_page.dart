@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/time_formatter.dart';
+import '../../../alarm/presentation/controllers/alarm_controller.dart';
+import '../../../alarm/presentation/pages/alarm_view.dart';
 import '../../../tasks/domain/entities/atomic_task.dart';
 import '../../../tasks/presentation/controllers/task_controller.dart';
 import '../../../tasks/presentation/pages/task_page.dart';
@@ -27,11 +29,13 @@ class HomeShellPage extends StatefulWidget {
   const HomeShellPage({
     required this.timerController,
     required this.taskController,
+    required this.alarmController,
     super.key,
   });
 
   final TimerController timerController;
   final TaskController taskController;
+  final AlarmController alarmController;
 
   @override
   State<HomeShellPage> createState() => _HomeShellPageState();
@@ -335,6 +339,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
                           _selectDestination(HomeDestination.focus),
                     ),
                     FocusView(controller: _timerController, compactReset: true),
+                    AlarmView(controller: widget.alarmController),
                     SettingsView(
                       profileName: progress.profileName,
                       onProfileNameChanged: _timerController.updateProfileName,

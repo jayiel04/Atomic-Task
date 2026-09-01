@@ -977,6 +977,7 @@ void main() {
     expect(find.text('Atomic Task'), findsOneWidget);
     expect(find.byKey(const Key('sidebarTasksDestination')), findsOneWidget);
     expect(find.byKey(const Key('sidebarFocusDestination')), findsOneWidget);
+    expect(find.byKey(const Key('sidebarAlarmDestination')), findsOneWidget);
     expect(find.byKey(const Key('sidebarSettingsDestination')), findsOneWidget);
     expect(
       find.byKey(const Key('sidebarStatisticsDestination')),
@@ -1000,6 +1001,14 @@ void main() {
     expect(find.byKey(const Key('profileButton')), findsNothing);
     expect(find.byKey(const Key('focusTimeStat')), findsNothing);
     expect(find.byKey(const Key('gemsStat')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('homeMenuButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sidebarAlarmDestination')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('alarmView')), findsOneWidget);
+    expect(find.text('Alarma'), findsOneWidget);
+    expect(find.byKey(const Key('homeBottomNavigation')), findsNothing);
 
     await tester.tap(find.byKey(const Key('homeMenuButton')));
     await tester.pumpAndSettle();

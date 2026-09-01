@@ -101,6 +101,13 @@ class HomeSidebar extends StatelessWidget {
                       onPressed: () => _select(context, HomeDestination.focus),
                     ),
                     _SidebarDestination(
+                      key: const Key('sidebarAlarmDestination'),
+                      destination: HomeDestination.alarm,
+                      icon: Icons.alarm_rounded,
+                      selected: selectedDestination == HomeDestination.alarm,
+                      onPressed: () => _select(context, HomeDestination.alarm),
+                    ),
+                    _SidebarDestination(
                       key: const Key('sidebarSettingsDestination'),
                       destination: HomeDestination.settings,
                       icon: Icons.settings_rounded,
@@ -235,9 +242,7 @@ class _SidebarLink extends StatelessWidget {
   void _showFallback(ScaffoldMessengerState messenger) {
     messenger.showSnackBar(
       SnackBar(
-        content: const Text(
-          'No se pudo abrir el navegador. Abre este enlace:',
-        ),
+        content: const Text('No se pudo abrir el navegador. Abre este enlace:'),
         action: SnackBarAction(
           label: 'Copiar',
           onPressed: () => Clipboard.setData(ClipboardData(text: '$url')),
@@ -257,10 +262,7 @@ class _SidebarLink extends StatelessWidget {
         iconColor: AppColors.info,
         tileColor: AppColors.infoSoft,
         leading: Icon(icon),
-        title: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
         trailing: const Icon(Icons.open_in_new_rounded, size: 18),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),

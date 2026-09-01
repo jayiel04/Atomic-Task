@@ -10,6 +10,7 @@ abstract interface class TaskRecurrenceRepository {
     required DateTime createdAt,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   });
 
   Future<void> updateRecurringSeries({
@@ -20,6 +21,7 @@ abstract interface class TaskRecurrenceRepository {
     required DateTime updatedAt,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   });
 
   Future<void> setRecurrenceActive({

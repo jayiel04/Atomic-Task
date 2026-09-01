@@ -20,6 +20,7 @@ class UpdateRecurringSeries {
     DateTime? reminderAt,
     bool clearReminder = false,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
     bool reminderEveryOccurrence = true,
   }) {
     final currentRule = task.recurrenceRule;
@@ -88,6 +89,7 @@ class UpdateRecurringSeries {
       updatedAt: updatedAt,
       reminderAt: normalizedReminderAt,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 }

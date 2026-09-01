@@ -149,16 +149,138 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows due-date shortcuts after enabling the option and a red clear icon', (
+  testWidgets(
+    'shows due-date shortcuts after enabling the option and a red clear icon',
+    (tester) async {
+      final repository = MemoryTaskRepository();
+      addTearDown(repository.dispose);
+      final now = DateTime(2026, 1, 31, 10);
+      final controller = _buildController(repository, now: () => now)
+        ..initialize();
+      addTearDown(controller.dispose);
+      repository.emit();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: TaskFormSheet(controller: controller, now: () => now),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('dueDateShortcutOptions')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('taskDueDateSection')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('formBackButton')), findsOneWidget);
+
+      final shortcuts = <Key, DateTime>{
+        const Key('dueDateTodayOption'): DateTime(2026, 1, 31),
+        const Key('dueDateTomorrowOption'): DateTime(2026, 2, 1),
+      };
+      expect(find.byKey(const Key('dueDateShortcutOptions')), findsOneWidget);
+      expect(find.text('Hoy'), findsOneWidget);
+      expect(find.text('Mañana'), findsOneWidget);
+
+      for (final entry in shortcuts.entries) {
+        await tester.tap(find.byKey(entry.key));
+        await tester.pump();
+        expect(
+          tester.widget<ChoiceChip>(find.byKey(entry.key)).selected,
+          isTrue,
+        );
+        expect(
+          find.text(TaskDateFormatter.format(entry.value)),
+          findsOneWidget,
+        );
+        for (final otherKey in shortcuts.keys.where(
+          (key) => key != entry.key,
+        )) {
+          expect(
+            tester.widget<ChoiceChip>(find.byKey(otherKey)).selected,
+            isFalse,
+          );
+        }
+      }
+
+      final clearFinder = find.byKey(const Key('clearTaskDueDateButton'));
+      final clearIcon = tester.widget<Icon>(
+        find.descendant(of: clearFinder, matching: find.byType(Icon)).first,
+      );
+      expect(clearIcon.icon, Icons.close_rounded);
+      expect(clearIcon.color, AppColors.destructive);
+      expect(tester.getSize(clearFinder).height, greaterThanOrEqualTo(48));
+      expect(
+        tester.widget<IconButton>(clearFinder).tooltip,
+        'Quitar fecha límite',
+      );
+
+      await tester.tap(clearFinder);
+      await tester.pump();
+      // Quitar la fecha regresa a la vista principal con la opción apagada.
+      expect(find.byKey(const Key('formBackButton')), findsNothing);
+      expect(find.text('Limita cuándo debe completarse'), findsOneWidget);
+      expect(find.byKey(const Key('dueDateShortcutOptions')), findsNothing);
+      expect(find.byKey(const Key('dueAlarmSection')), findsNothing);
+      for (final key in shortcuts.keys) {
+        expect(find.byKey(key), findsNothing);
+      }
+
+      await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const Key('selectRecurrenceEndDateButton')),
+      );
+      await tester.tap(find.byKey(const Key('selectRecurrenceEndDateButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aceptar'));
+      await tester.pumpAndSettle();
+      final recurrenceClear = find.byKey(
+        const Key('clearRecurrenceEndDateButton'),
+      );
+      expect(
+        tester
+            .widget<Icon>(
+              find
+                  .descendant(of: recurrenceClear, matching: find.byType(Icon))
+                  .first,
+            )
+            .icon,
+        Icons.event_busy_rounded,
+      );
+      // Descartar desde la flecha atrás desactiva la opción cíclica.
+      await tester.tap(find.byKey(const Key('formBackButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('formDiscardButton')));
+      await tester.pumpAndSettle();
+      expect(find.text('Crear ocurrencias automáticamente'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('taskDueDateSection')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('dueDateTomorrowOption')));
+      await tester.enterText(
+        find.byKey(const Key('taskTitleField')),
+        'Cerrar el mes',
+      );
+      await tester.ensureVisible(find.byKey(const Key('saveTaskButton')));
+      await tester.tap(find.byKey(const Key('saveTaskButton')));
+      await tester.pumpAndSettle();
+
+      expect(repository.tasks.single.dueDate, DateTime(2026, 2, 1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('defaults a new due date to today and persists it', (
     tester,
   ) async {
     final repository = MemoryTaskRepository();
     addTearDown(repository.dispose);
-    final now = DateTime(2026, 1, 31, 10);
-    final controller = _buildController(repository, now: () => now)
-      ..initialize();
+    final now = DateTime(2026, 8, 20, 9);
+    final controller = _buildController(repository, now: () => now);
     addTearDown(controller.dispose);
-    repository.emit();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -170,89 +292,69 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('dueDateShortcutOptions')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('dueDateOptionSwitch')));
+    await tester.tap(find.byKey(const Key('taskDueDateSection')));
     await tester.pumpAndSettle();
 
-    final shortcuts = <Key, DateTime>{
-      const Key('dueDateTodayOption'): DateTime(2026, 1, 31),
-      const Key('dueDateTomorrowOption'): DateTime(2026, 2, 1),
-    };
-    expect(find.byKey(const Key('dueDateShortcutOptions')), findsOneWidget);
-    expect(find.text('Hoy'), findsOneWidget);
-    expect(find.text('Mañana'), findsOneWidget);
-
-    for (final entry in shortcuts.entries) {
-      await tester.tap(find.byKey(entry.key));
-      await tester.pump();
-      expect(tester.widget<ChoiceChip>(find.byKey(entry.key)).selected, isTrue);
-      expect(find.text(TaskDateFormatter.format(entry.value)), findsOneWidget);
-      for (final otherKey in shortcuts.keys.where((key) => key != entry.key)) {
-        expect(
-          tester.widget<ChoiceChip>(find.byKey(otherKey)).selected,
-          isFalse,
-        );
-      }
-    }
-
-    final clearFinder = find.byKey(const Key('clearTaskDueDateButton'));
-    final clearIcon = tester.widget<Icon>(
-      find.descendant(of: clearFinder, matching: find.byType(Icon)).first,
-    );
-    expect(clearIcon.icon, Icons.close_rounded);
-    expect(clearIcon.color, AppColors.destructive);
-    expect(tester.getSize(clearFinder).height, greaterThanOrEqualTo(48));
+    expect(find.text('Tarea con fecha límite'), findsOneWidget);
+    expect(find.byKey(const Key('formBackButton')), findsOneWidget);
     expect(
-      tester.widget<IconButton>(clearFinder).tooltip,
-      'Quitar fecha límite',
-    );
-
-    await tester.tap(clearFinder);
-    await tester.pump();
-    expect(find.text('Sin fecha límite'), findsOneWidget);
-    for (final key in shortcuts.keys) {
-      expect(tester.widget<ChoiceChip>(find.byKey(key)).selected, isFalse);
-    }
-
-    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(
-      find.byKey(const Key('selectRecurrenceEndDateButton')),
-    );
-    await tester.tap(find.byKey(const Key('selectRecurrenceEndDateButton')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Aceptar'));
-    await tester.pumpAndSettle();
-    final recurrenceClear = find.byKey(
-      const Key('clearRecurrenceEndDateButton'),
+      find.text(TaskDateFormatter.format(DateTime(2026, 8, 20))),
+      findsOneWidget,
     );
     expect(
       tester
-          .widget<Icon>(
-            find
-                .descendant(of: recurrenceClear, matching: find.byType(Icon))
-                .first,
-          )
-          .icon,
-      Icons.event_busy_rounded,
+          .widget<ChoiceChip>(find.byKey(const Key('dueDateTodayOption')))
+          .selected,
+      isTrue,
     );
-    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('dueDateOptionSwitch')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('dueDateTomorrowOption')));
     await tester.enterText(
       find.byKey(const Key('taskTitleField')),
-      'Cerrar el mes',
+      'Tarea para hoy',
     );
     await tester.ensureVisible(find.byKey(const Key('saveTaskButton')));
     await tester.tap(find.byKey(const Key('saveTaskButton')));
     await tester.pumpAndSettle();
 
-    expect(repository.tasks.single.dueDate, DateTime(2026, 2, 1));
-    expect(tester.takeException(), isNull);
+    expect(repository.tasks.single.dueDate, DateTime(2026, 8, 20));
+  });
+
+  testWidgets('clearing a due date disables the option and saves without one', (
+    tester,
+  ) async {
+    final repository = MemoryTaskRepository();
+    addTearDown(repository.dispose);
+    final now = DateTime(2026, 8, 20, 9);
+    final controller = _buildController(repository, now: () => now);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: TaskFormSheet(controller: controller, now: () => now),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('taskDueDateSection')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clearTaskDueDateButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Limita cuándo debe completarse'), findsOneWidget);
+    expect(find.byKey(const Key('dueDateShortcutOptions')), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('taskTitleField')),
+      'Tarea sin fecha',
+    );
+    await tester.ensureVisible(find.byKey(const Key('saveTaskButton')));
+    await tester.tap(find.byKey(const Key('saveTaskButton')));
+    await tester.pumpAndSettle();
+
+    expect(repository.tasks.single.dueDate, isNull);
   });
 
   testWidgets('does not show due-date shortcuts while editing', (tester) async {
@@ -284,6 +386,12 @@ void main() {
     expect(find.byKey(const Key('dueDateTomorrowOption')), findsNothing);
     expect(find.byKey(const Key('dueDateOneWeekOption')), findsNothing);
     expect(find.byKey(const Key('dueDateOneMonthOption')), findsNothing);
+    expect(find.text(TaskDateFormatter.format(task.dueDate!)), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('taskTitleField')), 'Editada');
+    await tester.tap(find.byKey(const Key('saveTaskButton')));
+    await tester.pumpAndSettle();
+    expect(repository.tasks.single.dueDate, task.dueDate);
   });
 }
 

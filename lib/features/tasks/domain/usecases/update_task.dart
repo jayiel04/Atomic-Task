@@ -14,6 +14,7 @@ class UpdateTask {
     DateTime? reminderAt,
     bool clearReminder = false,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) {
@@ -34,6 +35,7 @@ class UpdateTask {
           reminderAt: reminderAt,
           updatedAt: updatedAt,
           reminderMode: reminderMode,
+          reminderSoundKey: reminderSoundKey,
         );
       }
       throw UnsupportedError(

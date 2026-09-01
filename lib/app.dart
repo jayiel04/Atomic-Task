@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'core/audio/alarm_sound.dart';
+import 'core/audio/local_app_audio_service.dart';
+import 'core/audio/shared_preferences_alarm_sound_settings.dart';
 import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
 import 'features/tasks/data/datasources/task_local_data_source.dart';
 import 'features/tasks/data/repositories/task_repository_impl.dart';
+import 'features/tasks/data/services/local_task_reminder_service.dart';
 import 'features/tasks/domain/services/task_reminder_service.dart';
 import 'features/tasks/domain/usecases/assign_task_focus.dart';
 import 'features/tasks/domain/services/recurrence_calculator.dart';
@@ -25,6 +29,7 @@ import 'features/tasks/domain/usecases/update_recurring_occurrence.dart';
 import 'features/tasks/domain/usecases/update_recurring_series.dart';
 import 'features/tasks/domain/usecases/watch_tasks.dart';
 import 'features/tasks/presentation/controllers/task_controller.dart';
+import 'features/alarm/presentation/controllers/alarm_controller.dart';
 import 'features/timer/data/datasources/timer_local_data_source.dart';
 import 'features/timer/data/repositories/timer_repository_impl.dart';
 import 'features/timer/data/repositories/timer_session_repository_impl.dart';
@@ -47,6 +52,8 @@ class AtomicTimerBootstrap extends StatefulWidget {
     this.taskLocalDataSource,
     this.sessionRepository,
     this.taskReminderService,
+    this.alarmSoundSettings,
+    this.audioService,
     super.key,
   });
 
@@ -56,6 +63,8 @@ class AtomicTimerBootstrap extends StatefulWidget {
   final TaskLocalDataSource? taskLocalDataSource;
   final TimerSessionRepository? sessionRepository;
   final TaskReminderService? taskReminderService;
+  final AlarmSoundSettings? alarmSoundSettings;
+  final AppAudioService? audioService;
 
   @override
   State<AtomicTimerBootstrap> createState() => _AtomicTimerBootstrapState();
@@ -64,6 +73,7 @@ class AtomicTimerBootstrap extends StatefulWidget {
 class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
   late final TimerController _controller;
   late final TaskController _taskController;
+  late final AlarmController _alarmController;
   late final AppLifecycleListener _lifecycleListener;
   AppDatabase? _database;
 
@@ -82,15 +92,23 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     final sessionRepository =
         widget.sessionRepository ??
         (database == null ? null : DriftTimerSessionRepository(database));
+    final alarmSoundSettings =
+        widget.alarmSoundSettings ?? SharedPreferencesAlarmSoundSettings();
+    final audioService = widget.audioService ?? LocalAppAudioService();
     final notificationService =
-        widget.notificationService ?? LocalTimerNotificationService();
+        widget.notificationService ??
+        LocalTimerNotificationService(alarmSoundSettings: alarmSoundSettings);
     final focusCompletionAdService =
         widget.focusCompletionAdService ?? AdMobFocusCompletionAdService();
 
     final taskLocalDataSource =
         widget.taskLocalDataSource ?? DriftTaskLocalDataSource(database!);
     final taskRepository = TaskRepositoryImpl(taskLocalDataSource);
-    final taskReminderService = widget.taskReminderService;
+    final taskReminderService =
+        widget.taskReminderService ??
+        (database == null
+            ? null
+            : LocalTaskReminderService(alarmSoundSettings: alarmSoundSettings));
     final supportsRecurrence =
         taskLocalDataSource is TaskRecurrenceLocalDataSource;
     const recurrenceCalculator = RecurrenceCalculator();
@@ -137,6 +155,7 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
           ? ReconcileTaskRecurrences(taskRepository, recurrencePolicy)
           : null,
       reminderService: taskReminderService,
+      audioService: audioService,
     )..initialize();
 
     _controller = TimerController(
@@ -147,6 +166,17 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
       focusCompletionAdService: focusCompletionAdService,
       sessionRepository: sessionRepository,
       onLinkedTaskFocusCompletedAtAsync: _taskController.completeByIdAt,
+    )..initialize();
+
+    _alarmController = AlarmController(
+      settings: alarmSoundSettings,
+      audioService: audioService,
+      onSoundChanged: () async {
+        await Future.wait([
+          _taskController.reconcileReminderSchedules(),
+          _controller.refreshNotificationSound(),
+        ]);
+      },
     )..initialize();
 
     _lifecycleListener = AppLifecycleListener(
@@ -161,6 +191,7 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
     _lifecycleListener.dispose();
     _controller.dispose();
     _taskController.dispose();
+    _alarmController.dispose();
     final database = _database;
     if (database != null) {
       unawaited(_flushControllerAndCloseDatabase(database));
@@ -184,6 +215,7 @@ class _AtomicTimerBootstrapState extends State<AtomicTimerBootstrap> {
           return HomeShellPage(
             timerController: _controller,
             taskController: _taskController,
+            alarmController: _alarmController,
           );
         },
       ),

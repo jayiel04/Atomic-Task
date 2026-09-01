@@ -51,6 +51,8 @@ class Tasks extends Table {
 
   TextColumn get reminderMode => text().nullable()();
 
+  TextColumn get reminderSoundKey => text().nullable()();
+
   IntColumn get focusMinutes => integer().nullable()();
 
   DateTimeColumn get completedAt => dateTime().nullable()();
@@ -170,7 +172,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -242,6 +244,15 @@ class AppDatabase extends _$AppDatabase {
         ).getSingleOrNull();
         if (tasksTable != null) {
           await migrator.addColumn(tasks, tasks.reminderMode);
+        }
+      }
+      if (from >= 2 && from < 10) {
+        final tasksTable = await customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name = 'tasks'",
+        ).getSingleOrNull();
+        if (tasksTable != null) {
+          await migrator.addColumn(tasks, tasks.reminderSoundKey);
         }
       }
     },
@@ -358,6 +369,7 @@ class AppDatabase extends _$AppDatabase {
     required DateTime? dueDate,
     required DateTime? reminderAt,
     String? reminderMode,
+    String? reminderSoundKey,
     required DateTime updatedAt,
   }) {
     return (update(tasks)..where((task) => task.id.equals(id))).write(
@@ -366,6 +378,7 @@ class AppDatabase extends _$AppDatabase {
         dueDate: Value(dueDate),
         reminderAt: Value(reminderAt),
         reminderMode: Value(reminderAt == null ? null : reminderMode),
+        reminderSoundKey: Value(reminderAt == null ? null : reminderSoundKey),
         updatedAt: Value(updatedAt),
       ),
     );
@@ -410,6 +423,7 @@ class AppDatabase extends _$AppDatabase {
     required DateTime createdAt,
     DateTime? reminderAt,
     String? reminderMode,
+    String? reminderSoundKey,
   }) {
     return transaction(() async {
       final ruleId = await into(taskRecurrenceRules).insert(rule);
@@ -425,6 +439,7 @@ class AppDatabase extends _$AppDatabase {
           dueDate: Value(dueDate),
           reminderAt: Value(reminderAt),
           reminderMode: Value(reminderAt == null ? null : reminderMode),
+          reminderSoundKey: Value(reminderAt == null ? null : reminderSoundKey),
           recurrenceRuleId: Value(ruleId),
           occurrenceDate: Value(occurrenceDate),
           createdAt: createdAt,
@@ -445,6 +460,7 @@ class AppDatabase extends _$AppDatabase {
     required DateTime? endDate,
     required int? reminderTimeMinutes,
     String? reminderMode,
+    String? reminderSoundKey,
     DateTime? reminderAt,
     required DateTime updatedAt,
   }) {
@@ -514,6 +530,9 @@ class AppDatabase extends _$AppDatabase {
             reminderAt: Value(occurrenceReminderAt),
             reminderMode: Value(
               occurrenceReminderAt == null ? null : reminderMode,
+            ),
+            reminderSoundKey: Value(
+              occurrenceReminderAt == null ? null : reminderSoundKey,
             ),
             updatedAt: Value(updatedAt),
           ),
@@ -651,6 +670,7 @@ class AppDatabase extends _$AppDatabase {
           _reminderAtFor(occurrenceDate, await _reminderMinutesFor(template)),
         ),
         reminderMode: Value(template.reminderMode),
+        reminderSoundKey: Value(template.reminderSoundKey),
         recurrenceRuleId: Value(template.recurrenceRuleId),
         occurrenceDate: Value(occurrenceDate),
         createdAt: createdAt,

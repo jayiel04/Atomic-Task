@@ -390,6 +390,20 @@ class TimerController extends ChangeNotifier {
     _notifyListeners();
   }
 
+  Future<void> refreshNotificationSound() async {
+    if (_isDisposed || !_isRunning || _endsAt == null) {
+      return;
+    }
+
+    await _notificationService.showRunningTimer(
+      timerName: _mode.notificationName,
+      remainingSeconds: _remainingSeconds,
+      endsAt: _endsAt!,
+      completionTitle: _mode.completionNotificationTitle,
+      completionBody: _mode.completionNotificationBody,
+    );
+  }
+
   void resetTimer() {
     _ticker?.cancel();
     _ticker = null;

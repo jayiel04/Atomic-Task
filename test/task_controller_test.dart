@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:atomic_task/core/audio/alarm_sound.dart';
 import 'package:atomic_task/features/tasks/domain/entities/atomic_task.dart';
+import 'package:atomic_task/features/tasks/domain/repositories/task_repository.dart';
+import 'package:atomic_task/features/tasks/domain/services/task_reminder_service.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/assign_task_focus.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/create_task.dart';
 import 'package:atomic_task/features/tasks/domain/usecases/delete_task.dart';
@@ -103,6 +106,28 @@ void main() {
     expect(repository.hasListener, isFalse);
   });
 
+  test('plays task effects only after successful create and delete', () async {
+    final repository = MemoryTaskRepository();
+    addTearDown(repository.dispose);
+    final audioService = _FakeAudioService();
+    final controller = _buildController(repository, audioService: audioService)
+      ..initialize();
+    addTearDown(controller.dispose);
+    repository.emit();
+    await pumpEventQueue();
+
+    expect(await controller.create(title: 'Nueva tarea'), isTrue);
+    await pumpEventQueue();
+    expect(audioService.effects, [AppAudioEffect.taskCreated]);
+
+    expect(await controller.delete(controller.tasks.single), isTrue);
+    await pumpEventQueue();
+    expect(audioService.effects, [
+      AppAudioEffect.taskCreated,
+      AppAudioEffect.taskDeleted,
+    ]);
+  });
+
   test(
     'does not notify after a pending mutation outlives the controller',
     () async {
@@ -196,6 +221,75 @@ void main() {
       expect(controller.completedTodayCount, 0);
     },
   );
+
+  test(
+    'propagates the reminder sound key when creating and clearing',
+    () async {
+      final repository = _FakeAlarmTaskRepository();
+      addTearDown(repository.dispose);
+      final now = DateTime(2026, 8, 10, 9);
+      final reminderAt = now.add(const Duration(hours: 2));
+      final reminderService = _RecordingReminderService();
+      final controller = TaskController(
+        WatchTasks(repository),
+        CreateTask(repository),
+        UpdateTask(repository),
+        ToggleTaskCompletion(repository),
+        DeleteTask(repository),
+        AssignTaskFocus(repository),
+        reminderService: reminderService,
+        now: () => now,
+      );
+      addTearDown(controller.dispose);
+      controller.initialize();
+      repository.emit();
+      await pumpEventQueue();
+
+      expect(
+        await controller.create(
+          title: 'Con sonido propio',
+          reminderAt: reminderAt,
+          reminderMode: TaskReminderMode.alarm,
+          reminderSoundKey: 'pulso_electronico',
+        ),
+        isTrue,
+      );
+      await pumpEventQueue();
+      expect(repository.createdSoundKeys.single, 'pulso_electronico');
+      expect(
+        reminderService.scheduled.single.reminderSoundKey,
+        'pulso_electronico',
+      );
+
+      final task = controller.tasks.single;
+      expect(
+        await controller.update(
+          task: task,
+          title: 'Con sonido propio',
+          dueDate: null,
+          reminderAt: reminderAt,
+          reminderMode: TaskReminderMode.alarm,
+          reminderSoundKey: null,
+        ),
+        isTrue,
+      );
+      await pumpEventQueue();
+      expect(repository.updatedSoundKeys.single, isNull);
+
+      expect(
+        await controller.update(
+          task: controller.tasks.single,
+          title: 'Con sonido propio',
+          dueDate: null,
+          clearReminder: true,
+          reminderMode: TaskReminderMode.alarm,
+        ),
+        isTrue,
+      );
+      await pumpEventQueue();
+      expect(reminderService.cancelled, isNotEmpty);
+    },
+  );
 }
 
 class _DelayedCreateTaskRepository extends MemoryTaskRepository {
@@ -216,6 +310,7 @@ class _DelayedCreateTaskRepository extends MemoryTaskRepository {
 TaskController _buildController(
   MemoryTaskRepository repository, {
   DateTime Function()? now,
+  AppAudioService? audioService,
 }) {
   return TaskController(
     WatchTasks(repository),
@@ -224,6 +319,92 @@ TaskController _buildController(
     ToggleTaskCompletion(repository),
     DeleteTask(repository),
     AssignTaskFocus(repository),
+    audioService: audioService,
     now: now,
   );
+}
+
+class _FakeAudioService implements AppAudioService {
+  final List<AppAudioEffect> effects = [];
+
+  @override
+  Future<void> playEffect(AppAudioEffect effect) async {
+    effects.add(effect);
+  }
+
+  @override
+  Future<void> previewAlarm(
+    AlarmSound sound, {
+    void Function()? onCompleted,
+  }) async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
+class _FakeAlarmTaskRepository extends MemoryTaskRepository
+    implements TaskAlarmRepository {
+  final List<String?> createdSoundKeys = [];
+  final List<String?> updatedSoundKeys = [];
+
+  @override
+  Future<int> createTaskWithReminder({
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime createdAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
+  }) async {
+    createdSoundKeys.add(reminderSoundKey);
+    final id = await createTask(
+      title: title,
+      dueDate: dueDate,
+      createdAt: createdAt,
+    );
+    return id;
+  }
+
+  @override
+  Future<void> updateTaskWithReminder({
+    required int id,
+    required String title,
+    required DateTime? dueDate,
+    required DateTime? reminderAt,
+    required DateTime updatedAt,
+    TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
+  }) async {
+    updatedSoundKeys.add(reminderAt == null ? null : reminderSoundKey);
+    await updateTask(
+      id: id,
+      title: title,
+      dueDate: dueDate,
+      updatedAt: updatedAt,
+    );
+  }
+}
+
+class _RecordingReminderService implements TaskReminderService {
+  final List<AtomicTask> scheduled = [];
+  final List<AtomicTask> cancelled = [];
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> schedule(AtomicTask task) async {
+    scheduled.add(task);
+  }
+
+  @override
+  Future<void> cancel(AtomicTask task) async {
+    cancelled.add(task);
+  }
+
+  @override
+  Future<void> reconcile(Iterable<AtomicTask> tasks, {DateTime? now}) async {}
 }

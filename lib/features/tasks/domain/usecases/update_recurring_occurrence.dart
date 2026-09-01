@@ -14,6 +14,7 @@ class UpdateRecurringOccurrence {
     DateTime? reminderAt,
     bool clearReminder = false,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     return _updateTask(
       id: task.id,
@@ -23,6 +24,7 @@ class UpdateRecurringOccurrence {
       reminderAt: reminderAt,
       clearReminder: clearReminder,
       reminderMode: reminderMode,
+      reminderSoundKey: reminderSoundKey,
     );
   }
 }

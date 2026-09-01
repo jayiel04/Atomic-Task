@@ -12,6 +12,7 @@ class CreateTask {
     required DateTime createdAt,
     DateTime? reminderAt,
     TaskReminderMode reminderMode = TaskReminderMode.notification,
+    String? reminderSoundKey,
   }) {
     final normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) {
@@ -31,6 +32,7 @@ class CreateTask {
           reminderAt: reminderAt,
           createdAt: createdAt,
           reminderMode: reminderMode,
+          reminderSoundKey: reminderSoundKey,
         );
       }
       throw UnsupportedError(

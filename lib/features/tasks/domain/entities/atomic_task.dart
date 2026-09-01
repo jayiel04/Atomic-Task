@@ -13,6 +13,7 @@ class AtomicTask {
     this.dueDate,
     this.reminderAt,
     this.reminderMode = TaskReminderMode.notification,
+    this.reminderSoundKey,
     this.focusMinutes,
     this.completedAt,
     this.occurrenceDate,
@@ -25,6 +26,9 @@ class AtomicTask {
   final DateTime? dueDate;
   final DateTime? reminderAt;
   final TaskReminderMode reminderMode;
+  // Clave del sonido de alarma propio de la tarea. `null` significa
+  // «Predeterminada» y resuelve al sonido global vigente fuera de la entidad.
+  final String? reminderSoundKey;
   final int? focusMinutes;
   final DateTime? completedAt;
   final DateTime? occurrenceDate;

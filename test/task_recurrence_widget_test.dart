@@ -52,7 +52,7 @@ void main() {
       find.byKey(const Key('taskTitleField')),
       'Revisar objetivos',
     );
-    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
+    await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('recurrenceIntervalField')),
@@ -89,6 +89,8 @@ void main() {
     await tester.tap(find.byKey(const Key('editTask-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('editSeriesOption')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('recurrenceIntervalField')),
@@ -196,8 +198,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('createTaskButton')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('repeatTaskSwitch')));
-    await tester.tap(find.byKey(const Key('repeatTaskSwitch')));
+    await tester.ensureVisible(find.byKey(const Key('taskRecurrenceSection')));
+    await tester.tap(find.byKey(const Key('taskRecurrenceSection')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('recurrenceFrequencyField')), findsOneWidget);
